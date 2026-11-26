@@ -51,6 +51,4 @@ cargo run -p instructor-ai --example validate_quote -- openai/gpt-6-luna
 - Derive schemas, write context-aware validators, and inspect the raw completion. [Response types](docs/types.md) · [Validation and retries](docs/concepts.md)
 - Display fields as they arrive or process a sequence of completed records. [Streaming](docs/streaming.md)
 - Classify input and recover typed choices, probabilities, and scores. [Decisions with OpenAI and Jev](docs/decisions.md)
-- Supply media to supported routes. [Media input](docs/media.md)
-- Decode multiple named calls. [Parallel tools](docs/parallel.md)
-- Submit and retrieve provider jobs. [Batch jobs](docs/batch.md)
+- Work with source passages, media attachments, multiple tool calls, or provider-managed jobs. [Grounded extraction](docs/grounded-extraction.md) · [Media input](docs/media.md) · [Parallel tools](docs/parallel.md) · [Batch jobs](docs/batch.md)

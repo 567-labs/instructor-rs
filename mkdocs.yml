@@ -96,6 +96,8 @@ nav:
       - Validation and retries: concepts.md
       - Streaming: streaming.md
       - Decisions: decisions.md
+      - Grounded extraction: grounded-extraction.md
       - Parallel tools: parallel.md
       - Media input: media.md
       - Batch jobs: batch.md
+      - Distillation: distillation.md
