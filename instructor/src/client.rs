@@ -12,11 +12,11 @@ use tokio::runtime::Runtime;
 
 use crate::{
     providers::WireRequest,
-    request::Hook,
+    request::{Callback, Hook},
     retry::Attempts,
     schema::{schema, Schema},
     streaming, Error, Event, Mode, PartialEvent, PartialModel, ProviderConfig, Request,
-    ResponseModel,
+    ResponseModel, TokenUsage,
 };
 
 pub type OutputStream<T> = BoxStream<'static, Result<T, Error>>;
@@ -41,7 +41,7 @@ impl<T> Completion<T> {
 
 /// Handle used to remove a client-level callback.
 #[derive(Clone)]
-pub struct HookHandle(std::sync::Weak<dyn Fn(u64, Event<'_>) + Send + Sync>);
+pub struct HookHandle(std::sync::Weak<Callback>);
 
 /// Asynchronous client. Clones share a connection pool and optional response cache.
 #[derive(Clone)]
@@ -90,7 +90,13 @@ impl Client {
 
     /// Observe every structured attempt. The callback runs inline.
     pub fn on_event(mut self, hook: impl Fn(u64, Event<'_>) + Send + Sync + 'static) -> Self {
-        self.hooks.push(Arc::new(hook));
+        self.add_hook(hook);
+        self
+    }
+
+    /// Observe cumulative usage after each structured JSON response, or zero on a cache hit.
+    pub fn on_usage(mut self, hook: impl Fn(u64, TokenUsage) + Send + Sync + 'static) -> Self {
+        self.add_usage_hook(hook);
         self
     }
 
@@ -100,7 +106,19 @@ impl Client {
         &mut self,
         callback: impl Fn(u64, Event<'_>) + Send + Sync + 'static,
     ) -> HookHandle {
-        let hook: Hook = Arc::new(callback);
+        self.register(Callback::Event(Box::new(callback)))
+    }
+
+    /// Register a removable callback for cumulative usage snapshots.
+    pub fn add_usage_hook(
+        &mut self,
+        callback: impl Fn(u64, TokenUsage) + Send + Sync + 'static,
+    ) -> HookHandle {
+        self.register(Callback::Usage(Box::new(callback)))
+    }
+
+    fn register(&mut self, callback: Callback) -> HookHandle {
+        let hook = Arc::new(callback);
         let handle = HookHandle(Arc::downgrade(&hook));
         self.hooks.push(hook);
         handle
@@ -141,7 +159,17 @@ impl Client {
 
     pub(crate) fn emit(&self, request: &Request, attempt: u64, event: Event<'_>) {
         for hook in self.hooks.iter().chain(&request.hooks) {
-            hook(attempt, event);
+            if let Callback::Event(callback) = hook.as_ref() {
+                callback(attempt, event);
+            }
+        }
+    }
+
+    fn emit_usage(&self, request: &Request, attempt: u64, usage: TokenUsage) {
+        for hook in self.hooks.iter().chain(&request.hooks) {
+            if let Callback::Usage(callback) = hook.as_ref() {
+                callback(attempt, usage);
+            }
         }
     }
 
@@ -166,6 +194,16 @@ impl Client {
         &self,
         request: impl Into<Request>,
     ) -> Result<Completion<T>, Error> {
+        self.create_with_usage(request)
+            .await
+            .map(|(completion, _)| completion)
+    }
+
+    /// Return metadata and a breakdown of tokens consumed across all attempts.
+    pub async fn create_with_usage<T: ResponseModel>(
+        &self,
+        request: impl Into<Request>,
+    ) -> Result<(Completion<T>, TokenUsage), Error> {
         self.complete(request.into(), |value| ready(Ok(value)))
             .await
     }
@@ -183,7 +221,7 @@ impl Client {
     {
         self.complete(request.into(), validate)
             .await
-            .map(|c| c.value)
+            .map(|(c, _)| c.value)
     }
 
     /// Send a request with no response schema and return the native JSON envelope.
@@ -229,7 +267,7 @@ impl Client {
         &self,
         request: Request,
         validate: F,
-    ) -> Result<Completion<T>, Error>
+    ) -> Result<(Completion<T>, TokenUsage), Error>
     where
         T: ResponseModel,
         F: Fn(T) -> Fut,
@@ -253,7 +291,7 @@ impl Client {
         mut wire: WireRequest,
         parse: impl Fn(&Value) -> Result<T, Error>,
         validate: impl Fn(T) -> Fut,
-    ) -> Result<Completion<T>, Error>
+    ) -> Result<(Completion<T>, TokenUsage), Error>
     where
         Fut: Future<Output = Result<T, String>>,
     {
@@ -271,12 +309,16 @@ impl Client {
                 if let Ok(model) = parse(&raw) {
                     if let Ok(model) = validate(model).await {
                         self.emit(req, 0, Event::CacheHit);
-                        return Ok(Completion {
-                            value: model,
-                            raw,
-                            attempts: 0,
-                            total_tokens: Some(0),
-                        });
+                        self.emit_usage(req, 0, TokenUsage::ZERO);
+                        return Ok((
+                            Completion {
+                                value: model,
+                                raw,
+                                attempts: 0,
+                                total_tokens: Some(0),
+                            },
+                            TokenUsage::ZERO,
+                        ));
                     }
                 }
                 cache.reject(key, raw);
@@ -294,7 +336,10 @@ impl Client {
                     continue;
                 }
             };
-            let total_tokens = attempts.usage(self.config.usage(&raw));
+            let usage =
+                attempts.record_usage(TokenUsage::from_response(self.config.provider(), &raw));
+            self.emit_usage(req, attempt, usage);
+            let total_tokens = usage.total_tokens;
             if let Some(total_tokens) = total_tokens {
                 self.emit(req, attempt, Event::Usage { total_tokens });
             }
@@ -309,12 +354,15 @@ impl Client {
                             self.emit(req, attempt, Event::CacheError(&e));
                         }
                     }
-                    return Ok(Completion {
-                        value,
-                        raw,
-                        attempts: attempt,
-                        total_tokens,
-                    });
+                    return Ok((
+                        Completion {
+                            value,
+                            raw,
+                            attempts: attempt,
+                            total_tokens,
+                        },
+                        usage,
+                    ));
                 }
                 Err(error) => {
                     self.reject(req, &mut wire, &mut attempts, raw, error)
@@ -464,6 +512,20 @@ impl BlockingClient {
         self.client.add_hook(callback)
     }
 
+    /// Observe cumulative usage after each structured JSON response, or zero on a cache hit.
+    pub fn on_usage(mut self, hook: impl Fn(u64, TokenUsage) + Send + Sync + 'static) -> Self {
+        self.client = self.client.on_usage(hook);
+        self
+    }
+
+    /// Register a removable callback for cumulative usage snapshots.
+    pub fn add_usage_hook(
+        &mut self,
+        callback: impl Fn(u64, TokenUsage) + Send + Sync + 'static,
+    ) -> HookHandle {
+        self.client.add_usage_hook(callback)
+    }
+
     pub fn remove_hook(&mut self, handle: &HookHandle) -> bool {
         self.client.remove_hook(handle)
     }
@@ -508,6 +570,15 @@ impl BlockingClient {
     ) -> Result<Completion<T>, Error> {
         self.runtime
             .block_on(self.client.create_with_metadata(request))
+    }
+
+    /// Return metadata and a breakdown of tokens consumed across all attempts.
+    pub fn create_with_usage<T: ResponseModel>(
+        &self,
+        request: impl Into<Request>,
+    ) -> Result<(Completion<T>, TokenUsage), Error> {
+        self.runtime
+            .block_on(self.client.create_with_usage(request))
     }
 
     pub fn create_validated<T: ResponseModel>(

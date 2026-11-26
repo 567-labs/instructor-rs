@@ -5,6 +5,8 @@ mod complexity;
 mod generation;
 #[path = "providers/parallel.rs"]
 mod parallel;
+#[path = "providers/usage.rs"]
+mod usage;
 use futures_util::{StreamExt, TryStreamExt};
 use instructor_ai::{
     model, response_schema, BlockingClient, Client, Error, Message, Mode, PartialEvent, Provider,

@@ -91,7 +91,7 @@ impl Client {
             |values| ready(Ok(values)),
         )
         .await
-        .map(crate::Completion::into_pair)
+        .map(|(completion, _)| completion.into_pair())
     }
 }
 

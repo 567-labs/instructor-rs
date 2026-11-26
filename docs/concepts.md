@@ -106,6 +106,42 @@ When corrections stop, `Error::Retry` includes a `StopReason`, the optional cumu
 
 For accounting on success, call `create_with_metadata::<T>`. Its `Completion<T>` exposes `value`, `raw`, `attempts`, and `total_tokens`. The total covers the attempts of the current operation and is available when all attempts report usage. A cache hit has zero attempts and `Some(0)` tokens, while the raw response includes the original provider metadata.
 
+## Account for tokens across retries
+
+Call `create_with_usage::<T>` for a `(Completion<T>, TokenUsage)` pair. The counts include rejected responses and the final success. To inspect a single response, pass its native envelope to `TokenUsage::from_response(provider, &result.raw)`. On retry failure, `error.retry_usage(provider)` reconstructs the counts from the saved history. A local response-cache hit returns `TokenUsage::ZERO` for the current call.
+
+```rust
+use instructor_ai::{BlockingClient, Error, Provider, Request, TokenUsage};
+
+fn main() -> Result<(), Error> {
+    let client = BlockingClient::from_provider("openai/gpt-6-luna")?;
+    let req = Request::new("How many guests? Five guests attended.")
+        .max_retries(1)
+        .on_usage(|attempt, counts| {
+            eprintln!("Attempt {attempt}, cumulative tokens {:?}", counts.total_tokens);
+        });
+    let (result, counts) = client.create_with_usage::<u32>(req)?;
+    let last = TokenUsage::from_response(Provider::OpenAI, &result.raw);
+    println!("{} guests after {} attempts", result.value, result.attempts);
+    println!("All attempts {counts:?}, final response {last:?}");
+    Ok(())
+}
+```
+
+For a typed non-streaming request, `on_usage` receives an owned snapshot after each provider response and before validation, or at attempt zero on a local cache hit. Register it on either client or on a single request. Use `add_usage_hook` for a removable client registration. On the async client, await `create_with_usage`.
+
+Each `Option<u64>` tracks one counter. `Some(0)` represents a known zero. `None` means that at least one attempt lacked the information needed for that counter. A response reporting only a total contributes to `total_tokens`. If a response omits usage entirely or an HTTP attempt fails before returning a completion, all cumulative counts become unknown. A native total takes precedence where the provider supplies one. Deriving a total requires both inclusive input and output counts, so a token budget stops further corrections when either is missing and the total is unavailable.
+
+| Provider | How to interpret the counts |
+| --- | --- |
+| OpenAI Chat, OpenRouter, Mistral | Prompt and completion counts map to input and output. Prompt details can supply `cache_read_tokens` and `cache_write_tokens`. Completion details can supply `reasoning_tokens`. |
+| OpenAI Responses | Input and output fields map directly, including cache and reasoning details. |
+| Anthropic | Input includes uncached input plus reported cache reads and creation. For 60 uncached, 10 read, 30 created and 50 output, total usage is 150. The 5-minute and 1-hour portions of creation are available as `cache_write_5m_tokens` and `cache_write_1h_tokens`. Output includes thinking. |
+| Gemini | Input includes cached content. Output includes candidate and thought tokens. |
+| Cohere | Input and output come from `usage.tokens`. The raw response carries billed units separately. |
+
+Cache and reasoning counts describe portions of the inclusive counts. Use `total_tokens` to avoid counting those portions twice. Run `cargo test --offline -p instructor-ai --test providers usage::` for loopback examples covering all six providers and both OpenAI routes. [Python usage](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/usage.md) · [Python accounting tests](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/test_usage_accounting_contracts.py)
+
 ## Observe attempts and reuse responses
 
 Install a hook with `on_event` on a client or request. The callback receives the attempt number and a borrowed `Event`. For structured calls it can inspect prepared request bodies, provider responses, cumulative token usage, parse errors, completion errors, and exhausted retries. Attempts start at one, and a cache hit uses zero. Hooks run inline.
