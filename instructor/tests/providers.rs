@@ -344,6 +344,56 @@ fn fragmented(mock: Mock, stream: String) -> Mock {
 }
 
 #[tokio::test]
+async fn partial_delivers_preview_before_next_delta_and_finishes_before_http_eof() {
+    use std::sync::{mpsc, Mutex};
+    use std::time::Duration;
+
+    let mut server = Server::new_async().await;
+    let (ack, incoming) = mpsc::channel();
+    let incoming = Mutex::new(incoming);
+    let timeout = Duration::from_secs(5);
+    let delta = |text| frame(&json!({"choices":[{"delta":{"content":text}}]}));
+    let frames = [
+        delta(r#"{"name":"Ren"#),
+        delta(r#"ée","age":41}"#) + "data: [DONE]\n\ndata: invalid\n\n",
+    ];
+    let endpoint = mock(&mut server, Provider::OpenAI, Mode::JsonSchema, true)
+        .with_header("content-type", "text/event-stream")
+        .with_chunked_body(move |writer| {
+            // Hold the next delta, then HTTP EOF, until the caller consumes each event.
+            for part in &frames {
+                writer.write_all(part.as_bytes())?;
+                incoming
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(timeout)
+                    .map_err(std::io::Error::other)?;
+            }
+            Ok(())
+        })
+        .create_async()
+        .await;
+    let client = Client::new(config(&server, Provider::OpenAI, Mode::JsonSchema)).unwrap();
+    tokio::time::timeout(timeout, async {
+        let mut values = client.create_partial::<Person>(request()).await.unwrap();
+        assert!(
+            matches!(values.next().await.unwrap().unwrap(), PartialEvent::Partial(p)
+            if p.name.as_deref() == Some("Ren") && p.age.is_none())
+        );
+        ack.send(()).unwrap();
+        assert!(
+            matches!(values.next().await.unwrap().unwrap(), PartialEvent::Complete(p)
+            if p.name == "Renée" && p.age == 41)
+        );
+        assert!(values.next().await.is_none());
+        ack.send(()).unwrap();
+    })
+    .await
+    .expect("stream is waiting for a later HTTP chunk");
+    endpoint.assert_async().await;
+}
+
+#[tokio::test]
 async fn fragmented_native_streams_yield_typed_partials_then_complete() {
     let mut server = Server::new_async().await;
     for p in PROVIDERS {
