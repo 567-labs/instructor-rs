@@ -1,0 +1,8 @@
+{"id": "resp_test", "object": "response", "status": "completed", "output": [{"type": "function_call", "id": "fc_test", "call_id": "call_test", "name": "$name", "arguments": "$text", "status": "completed"}], "model": "$model"}
+{"type": "response.created", "response": {"id": "resp_test", "object": "response", "status": "in_progress", "output": [], "model": "$model"}, "sequence_number": 0}
+{"type": "response.output_item.added", "output_index": 0, "item": {"type": "function_call", "id": "fc_test", "call_id": "call_test", "name": "$name", "arguments": "", "status": "in_progress"}, "sequence_number": 1}
+{"type": "response.function_call_arguments.delta", "item_id": "fc_test", "output_index": 0, "delta": "$first", "sequence_number": 2}
+{"type": "response.function_call_arguments.delta", "item_id": "fc_test", "output_index": 0, "delta": "$second", "sequence_number": 3}
+{"type": "response.function_call_arguments.delta", "item_id": "fc_test", "output_index": 0, "delta": "$third", "sequence_number": 4}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "function_call", "id": "fc_test", "call_id": "call_test", "name": "$name", "arguments": "$text", "status": "completed"}, "sequence_number": 5}
+{"type": "response.completed", "response": {"id": "resp_test", "object": "response", "status": "completed", "output": [{"type": "function_call", "id": "fc_test", "call_id": "call_test", "name": "$name", "arguments": "$text", "status": "completed"}], "model": "$model"}, "sequence_number": 6}

@@ -1,0 +1,1 @@
+{"candidates": [{"content": {"role": "model", "parts": [{"functionCall": {"name": "$name", "args": "$object"}}]}, "finishReason": "STOP"}]}

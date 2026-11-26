@@ -1,0 +1,4 @@
+{"candidates": [{"content": {"role": "model", "parts": [{"text": "$text"}]}, "finishReason": "STOP"}]}
+{"candidates": [{"content": {"role": "model", "parts": [{"text": "$first"}]}}]}
+{"candidates": [{"content": {"role": "model", "parts": [{"text": "$second"}]}}]}
+{"candidates": [{"content": {"role": "model", "parts": [{"text": "$third"}]}, "finishReason": "STOP"}]}

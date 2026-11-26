@@ -1,0 +1,42 @@
+{
+  "test_current_documented_model": {
+    "prompt": "Extract the integer 42.",
+    "answer": {"value": 42}
+  },
+  "test_int": {
+    "prompt": "Return the number 42",
+    "answer": {"content": 42}
+  },
+  "test_enum_extraction": {
+    "prompt": "The package is in transit. Extract its shipment state.",
+    "answer": {"content": "in_transit"}
+  },
+  "test_simple_extraction": {
+    "prompt": "Extract: Jason is 25 years old",
+    "answer": {"name": "Jason", "age": 25}
+  },
+  "test_nested_model_extraction": {
+    "prompt": "Extract: John Doe, 28 years old, lives at 123 Main St, Springfield, USA",
+    "answer": {"name": "John Doe", "age": 28, "address": {"street": "123 Main St", "city": "Springfield", "country": "USA"}}
+  },
+  "test_nested_enum_collection": {
+    "prompt": "Extract the manifest for the North depot in the given order. Package A1 is packed, carrier unknown. Package B2 is in transit with carrier Swift. Use null for an unknown carrier.",
+    "answer": {"depot": "North", "packages": [{"tracking_id": "A1", "state": "packed", "carrier": null}, {"tracking_id": "B2", "state": "in_transit", "carrier": "Swift"}]}
+  },
+  "test_list_extraction": {
+    "prompt": "Extract: Alice is 30, Bob is 25, Charlie is 35",
+    "answer": {"tasks": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}, {"name": "Charlie", "age": 35}]}
+  },
+  "test_validation_with_retries": {
+    "prompt": "Extract: Sarah Johnson is 25 years old",
+    "answer": {"name": " Sarah Johnson ", "age": 25}
+  },
+  "test_partial_streaming": {
+    "prompt": "Jason Liu is 30 years old",
+    "answer": {"name": "Jason Liu", "age": 30}
+  },
+  "test_iterable_streaming": {
+    "prompt": "Create 3 users: Alice (25), Bob (30), Carol (35)",
+    "answer": {"tasks": [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}, {"name": "Carol", "age": 35}]}
+  }
+}
