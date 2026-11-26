@@ -1,4 +1,4 @@
-//! Typed structured outputs and streaming.
+//! Typed structured outputs, streaming, and finite decisions.
 //!
 //! ```no_run
 //! use instructor_ai::{model, from_provider};
@@ -21,6 +21,7 @@ extern crate self as instructor_ai;
 mod analysis;
 mod cache;
 mod client;
+pub mod decisions;
 mod error;
 mod helpers;
 mod legacy;
@@ -47,3 +48,4 @@ pub use streaming::PartialEvent;
 
 #[doc(hidden)]
 pub use instruct_macros_types as __private;
+pub(crate) use request::render;

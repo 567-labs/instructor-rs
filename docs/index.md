@@ -69,6 +69,8 @@ Both clients expose the following methods. The async client returns a future tha
 | Process completed records as they arrive | `create_iterable::<T>(request)` | Stream or iterator of `Result<T, Error>` |
 | Apply a check after deserialization | `create_validated(request, check)` | `T` |
 
+For choices, probabilities, and scores, use the dedicated Decisions client. [Decisions with OpenAI and Jev](decisions.md)
+
 ## Moving from the original Rust client
 
 The original entry point is `from_openai(openai_api_rs::v1::api::Client)`, with `chat_completion::<T>(request, attempts)` and `#[derive(InstructMacro)]`. For the provider-neutral API, move the model name into `BlockingClient::from_provider`, pass a prompt or `Request` to `create`, and use `#[model]` on your data types. A legacy limit of three total attempts corresponds to `Request::new(prompt).max_retries(2)`. [Response types](types.md) · [Validation and retries](concepts.md)

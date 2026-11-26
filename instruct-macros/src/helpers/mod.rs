@@ -27,6 +27,13 @@ pub fn runtime() -> (TokenStream, TokenStream) {
     )
 }
 
+pub fn library() -> Ident {
+    match crate_name("instructor-ai") {
+        Ok(FoundCrate::Name(name)) => format_ident!("{}", name),
+        _ => format_ident!("instructor_ai"),
+    }
+}
+
 pub fn description(attrs: &[Attribute]) -> syn::Result<String> {
     let mut descriptions = Vec::new();
     let mut docs = Vec::new();

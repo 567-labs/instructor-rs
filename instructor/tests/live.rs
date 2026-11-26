@@ -1,6 +1,10 @@
 //! Opt-in provider contracts. See docs/providers.md for generation credentials.
 use futures_util::{StreamExt, TryStreamExt};
-use instructor_ai::{model, Client, Mode, PartialEvent, ProviderConfig, Request};
+use instructor_ai::{
+    decisions::{Choices, DecisionModel, DecisionsClient, Noul, Score},
+    model, Client, Mode, PartialEvent, ProviderConfig, Request,
+};
+use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -109,4 +113,82 @@ async fn openrouter_chat() -> TestResult {
         "google/gemini-3.8-flash",
     );
     generation(&route, Mode::Tools).await
+}
+
+/// Which team handles the customer's request?
+#[derive(Choices, Debug, PartialEq)]
+enum Department {
+    Billing,
+    Technical,
+}
+
+#[derive(DecisionModel)]
+struct Ticket {
+    department: Department,
+    #[decision(Noul::new("Is the customer requesting a refund?"))]
+    refund: f64,
+    #[decision(Score::new(
+        "How urgently does the customer need help?",
+        ["Not urgent", "Somewhat urgent", "Emergency"]
+    ).scale(0.0, 10.0))]
+    urgency: f64,
+}
+
+async fn decisions(route: &str) -> TestResult {
+    let client = DecisionsClient::from_provider(route)?;
+    let context =
+        json!({"ticket": "Please refund the duplicate charge on my invoice. There is no rush."});
+    let (ticket, raw) = client.create_with_completion::<Ticket>(context).await?;
+    assert_eq!(ticket.department, Department::Billing);
+    assert!(ticket.refund > 0.5 && ticket.refund <= 1.0);
+    assert!((0.0..=10.0).contains(&ticket.urgency));
+    let answers = &raw["answers"];
+    let (choice, probability, score) = if route.starts_with("openai/") {
+        (&answers[0], &answers[1]["probability"], &answers[2])
+    } else {
+        (
+            &answers["department"],
+            &answers["refund"]["noul"],
+            &answers["urgency"],
+        )
+    };
+    assert_eq!(choice["choice"], "billing");
+    assert!(choice.get("probabilities").is_some());
+    assert_eq!(probability.as_f64(), Some(ticket.refund));
+    let native_score = score["score"].as_f64().ok_or("expected a numeric score")?;
+    assert!((ticket.urgency - 5.0 * native_score).abs() < 1e-10);
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "live Decisions API, requires OPENAI_API_KEY and model access"]
+async fn openai_decisions() -> TestResult {
+    let route = route(
+        "openai",
+        "INSTRUCTOR_LIVE_OPENAI_DECISIONS_MODEL",
+        "gpt-6-luna",
+    );
+    decisions(&route).await
+}
+
+#[tokio::test]
+#[ignore = "live Jev API, requires OPENROUTER_API_KEY"]
+async fn openrouter_jev() -> TestResult {
+    let route = route(
+        "openrouter",
+        "INSTRUCTOR_LIVE_OPENROUTER_JEV_MODEL",
+        "typesafe/jev-1.13",
+    );
+    decisions(&route).await
+}
+
+#[tokio::test]
+#[ignore = "live Jev API, requires TYPESAFE_API_KEY"]
+async fn typesafe_jev() -> TestResult {
+    let route = route(
+        "typesafe",
+        "INSTRUCTOR_LIVE_TYPESAFE_JEV_MODEL",
+        "jev-latest",
+    );
+    decisions(&route).await
 }

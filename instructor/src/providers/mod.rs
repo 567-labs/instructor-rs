@@ -188,6 +188,27 @@ impl ProviderConfig {
         self.provider
     }
 
+    /// Reuse the model, endpoint base and credentials for a Decisions client.
+    pub fn decisions_config(
+        &self,
+    ) -> Result<crate::decisions::DecisionsConfig, crate::decisions::DecisionError> {
+        use crate::decisions::{DecisionError, DecisionsConfig};
+        let route = format!("{}/{}", self.provider, self.model);
+        let config = DecisionsConfig::new(&route)?;
+        self.validate()
+            .map_err(|e| DecisionError::Request(e.to_string()))?;
+        let base = self.base_url.trim_end_matches('/');
+        let endpoint = if self.provider == Provider::OpenRouter {
+            match base.strip_suffix("/v1") {
+                Some(prefix) => format!("{prefix}/alpha/decisions"),
+                None => format!("{base}/decisions"),
+            }
+        } else {
+            format!("{base}/decisions")
+        };
+        Ok(config.api_key(&self.api_key).endpoint(endpoint))
+    }
+
     pub fn model(&self) -> &str {
         &self.model
     }

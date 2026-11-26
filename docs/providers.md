@@ -1,6 +1,6 @@
 # Configure a provider
 
-OpenAI, Anthropic, and OpenRouter are the primary integrations. Gemini, Cohere, and Mistral complete the set. The five direct providers come from the original Rust roadmap and share a Python test contract for list extraction, nesting, validation, raw completions, and both kinds of streaming. OpenRouter adds a gateway to routed models. [Rust roadmap at the comparison baseline](https://github.com/567-labs/instructor-rs/blob/cb9e730e312b4c8653afd04b613ff482c3033587/docs/index.md) · [Python provider capabilities](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/llm/test_core_providers/capabilities.py)
+OpenAI, Anthropic, and OpenRouter are the primary integrations. Gemini, Cohere, and Mistral complete the set. The five direct providers come from the original Rust roadmap and share a Python test contract for list extraction, nesting, validation, raw completions, and both kinds of streaming. OpenRouter adds a gateway to routed models and Jev. [Rust roadmap at the comparison baseline](https://github.com/567-labs/instructor-rs/blob/cb9e730e312b4c8653afd04b613ff482c3033587/docs/index.md) · [Python provider capabilities](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/llm/test_core_providers/capabilities.py)
 
 ## Select the model and credential
 
@@ -83,7 +83,7 @@ fn main() -> Result<(), Error> {
 }
 ```
 
-To let the model use a server-managed tool before extraction, add `.option("tools", serde_json::json!([{"type": "web_search"}]))` to the request. The client parses extraction function arguments or final structured output text.
+To let the model use a server-managed tool before extraction, add `.option("tools", serde_json::json!([{"type": "web_search"}]))` to the request. The client parses extraction function arguments or final structured output text. Use the Decisions client for typed judgments from the OpenAI Decisions endpoint. [Decisions](decisions.md)
 
 For conversations containing prior tool results or other native input items, use `Request::native_messages`. Pass JSON objects shaped for the selected API. For example, in Responses mode, supply a previous response ID and its matching tool call ID.
 
@@ -145,6 +145,8 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 ```
+
+For Jev via OpenRouter, use the Decisions client with a decision model. [Jev on OpenRouter](decisions.md)
 
 ## Gemini, Cohere, and Mistral
 
