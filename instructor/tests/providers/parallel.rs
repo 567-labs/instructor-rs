@@ -1,8 +1,234 @@
 use super::*;
+use instructor_ai::ParallelTools;
+
+#[model]
+#[derive(Debug, PartialEq)]
+struct Measurement {
+    #[validate(context = "measure")]
+    length: i32,
+}
+fn measure(n: &mut i32, context: &Value) -> Result<(), String> {
+    if *n < 0 {
+        return Err("length must be nonnegative".into());
+    }
+    *n += context["offset"].as_i64().unwrap_or_default() as i32;
+    Ok(())
+}
+
 #[model]
 #[derive(Debug, PartialEq)]
 struct Color {
     name: String,
+}
+
+#[derive(ParallelTools, Debug, PartialEq)]
+enum Property<T> {
+    Size(Measurement),
+    Tint(T),
+}
+
+fn response(provider: Provider, calls: &[(&str, Value)]) -> Value {
+    let calls:Vec<_> = calls.iter().enumerate().map(|(i,(name,args))|{
+        let id=format!("call_{i}");
+        match provider {
+            Provider::Anthropic=>json!({"type":"tool_use","id":id,"name":name,"input":args}),
+            Provider::Google=>json!({"functionCall":{"name":name,"args":args}}),
+            _=>json!({"id":id, "type":"function","function":{"name":name,"arguments":args.to_string()}}),
+        }
+    }).collect();
+    match provider {
+        Provider::Google => {
+            json!({"candidates":[{"finishReason":"STOP","content":{"parts":calls}}]})
+        }
+        Provider::Anthropic => json!({"stop_reason":"tool_use","content":calls}),
+        Provider::Cohere => json!({"finish_reason":"TOOL_CALL","message":{"tool_calls":calls}}),
+        _ => json!({"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":calls}}]}),
+    }
+}
+
+fn declarations(provider: Provider) -> Value {
+    let first = json!({"type":"object","properties":{"length":{"type":"integer"}}});
+    let second = json!({"type":"object","properties":{"name":{"type":"string"}}});
+    let fields = [("Measurement", first), ("Color", second)];
+    match provider {
+        Provider::Google => {
+            let declarations =
+                fields.map(|(name, params)| json!({"name":name,"parametersJsonSchema":params}));
+            json!({"tools":[{"functionDeclarations":declarations}],
+                "toolConfig":{"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":["Measurement","Color"]}}})
+        }
+        Provider::Anthropic => {
+            let tools = fields.map(|(name, params)| json!({"name":name,"input_schema":params}));
+            json!({"tools":tools,"tool_choice":{"type":"any"}})
+        }
+        _ => {
+            let tools=fields.map(|(name,params)|json!({"type":"function","function":{"name":name,"parameters":params}}));
+            let choice = match provider {
+                Provider::Cohere => "REQUIRED",
+                Provider::Mistral => "any",
+                _ => "required",
+            };
+            json!({"tools":tools,"tool_choice":choice})
+        }
+    }
+}
+
+#[tokio::test]
+async fn typed_union_preserves_call_order_and_repetitions_across_providers() {
+    let mut server = Server::new_async().await;
+    for provider in PROVIDERS {
+        let expected = response(
+            provider,
+            &[
+                ("Color", json!({"name":"red"})),
+                ("Measurement", json!({"length":3})),
+                ("Color", json!({"name":"white"})),
+            ],
+        );
+        let endpoint = mock(&mut server, provider, Mode::Tools, false)
+            .match_body(Matcher::PartialJson(declarations(provider)))
+            .with_body(expected.to_string())
+            .create_async()
+            .await;
+        let client = Client::new(config(&server, provider, Mode::Tools)).unwrap();
+        let (values, completion) = client
+            .create_parallel_with_completion::<Property<Color>>(
+                request().context(json!({"offset":4})),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            values,
+            [
+                Property::Tint(Color { name: "red".into() }),
+                Property::Size(Measurement { length: 7 }),
+                Property::Tint(Color {
+                    name: "white".into()
+                }),
+            ]
+        );
+        assert_eq!(completion, expected);
+        endpoint.assert_async().await;
+        endpoint.remove_async().await;
+    }
+}
+
+#[test]
+fn blocking_retries_entire_batch_and_caches_success() {
+    let mut server = Server::new();
+    let provider = Provider::OpenAI;
+    let mode = Mode::ToolsStrict;
+    let bad = response(
+        provider,
+        &[
+            ("Measurement", json!({"length":22})),
+            ("Measurement", json!({"length":-1})),
+        ],
+    );
+    let first=mock(&mut server,provider,mode,false)
+        .match_body(Matcher::PartialJson(json!({
+            "parallel_tool_calls":true, "tool_choice":"required",
+            "tools":[{"function":{"strict":true, "name":"Measurement","parameters":{"additionalProperties":false}}}]
+        })))
+        .with_body(bad.to_string()).create();
+    let good = response(provider, &[("Measurement", json!({"length":2}))]);
+    let second = mock(&mut server, provider, mode, false)
+        .match_body(Matcher::Regex(r"length must be nonnegative".into()))
+        .with_body(good.to_string())
+        .create();
+    let req = request().max_retries(1);
+    let client = BlockingClient::new(config(&server, provider, mode))
+        .unwrap()
+        .with_cache(1);
+    for _ in 0..2 {
+        let items: Vec<Measurement> = client.create_parallel(req.clone()).unwrap();
+        assert_eq!(items, [Measurement { length: 2 }]);
+    }
+    first.assert();
+    second.assert();
+}
+
+#[tokio::test]
+async fn duplicate_names_and_invalid_modes_fail_before_request() {
+    let server = Server::new_async().await;
+    let client = Client::new(config(&server, Provider::OpenAI, Mode::Tools)).unwrap();
+    let result = client
+        .create_parallel::<Property<Measurement>>(request())
+        .await;
+    assert!(
+        matches!(result,Err(Error::Configuration(msg)) if msg.contains("duplicate") && msg.contains("Measurement"))
+    );
+    let client = Client::new(config(&server, Provider::Google, Mode::JsonSchema)).unwrap();
+    assert!(matches!(
+        client.create_parallel::<Measurement>(request()).await,
+        Err(Error::Configuration(_))
+    ));
+}
+
+#[tokio::test]
+async fn unknown_name_missing_calls_and_truncation() {
+    let mut server = Server::new_async().await;
+    let p = Provider::OpenAI;
+    let m = Mode::Tools;
+    let client = Client::new(config(&server, p, m)).unwrap();
+    for (raw, want) in [
+        (
+            response(p, &[("Oops", json!({"length":1}))]),
+            "Unknown tool call",
+        ),
+        (response(p, &[]), "expected at least one tool"),
+    ] {
+        let mock = mock(&mut server, p, m, false)
+            .with_body(raw.to_string())
+            .create_async()
+            .await;
+        let Err(Error::Retry { attempts, .. }) =
+            client.create_parallel::<Measurement>(request()).await
+        else {
+            panic!()
+        };
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(attempts[0].completion, raw);
+        assert!(attempts[0].error.to_string().contains(want));
+        mock.assert_async().await;
+        mock.remove_async().await;
+    }
+    let mut raw = response(p, &[("Measurement", json!({"length":1}))]);
+    raw["choices"][0]["finish_reason"] = json!("length");
+    let mock = mock(&mut server, p, m, false)
+        .with_body(raw.to_string())
+        .create_async()
+        .await;
+    let result = client
+        .create_parallel::<Measurement>(request().max_retries(2))
+        .await;
+    assert!(matches!(result, Err(Error::Incomplete(_))));
+    mock.assert_async().await;
+}
+
+#[model]
+#[schemars(title = "size of box")]
+struct Renamed {
+    size: u8,
+}
+
+#[tokio::test]
+async fn dispatch_uses_transmitted_schema_title() {
+    let mut server = Server::new_async().await;
+    let raw = response(Provider::OpenAI, &[("size_of_box", json!({"size":2}))]);
+    let endpoint = mock(&mut server, Provider::OpenAI, Mode::Tools, false)
+        .match_body(Matcher::PartialJson(
+            json!({"tools":[{"function":{"name":"size_of_box"}}]}),
+        ))
+        .with_body(raw.to_string())
+        .create_async()
+        .await;
+    let client = Client::new(config(&server, Provider::OpenAI, Mode::Tools)).unwrap();
+    assert_eq!(
+        client.create_parallel::<Renamed>("size 2").await.unwrap()[0].size,
+        2
+    );
+    endpoint.assert_async().await;
 }
 
 fn deltas(parts: &[(usize, &str)]) -> String {

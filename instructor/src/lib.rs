@@ -26,6 +26,7 @@ mod error;
 mod helpers;
 mod legacy;
 mod media;
+mod parallel;
 pub mod providers;
 mod request;
 mod retry;
@@ -37,10 +38,11 @@ pub use client::{
     from_provider, BlockingClient, Client, Completion, HookHandle, OutputIterator, OutputStream,
 };
 pub use error::{Error, FailedAttempt, StopReason};
-pub use instruct_macros::{model, InstructMacro, PartialModel};
+pub use instruct_macros::{model, InstructMacro, ParallelTools, PartialModel};
 pub use instruct_macros_types::{InstructMacro, Partial, PartialModel};
 pub use legacy::{from_openai, InstructorClient};
 pub use media::Media;
+pub use parallel::{ParallelTool, ParallelTools};
 pub use providers::{Mode, Provider, ProviderConfig};
 pub use request::{CacheTtl, Event, Message, Request};
 pub use schema::{parse_response, response_schema, ResponseModel};
