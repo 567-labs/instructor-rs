@@ -70,7 +70,7 @@ The Rust baseline at `cb9e730` exposed a blocking OpenAI client for extracting o
 
 ## Reproduce the checks
 
-The Rust workspace at `f8509c2` passed **186 tests**, including five doctests, with **75 credentialed tests** ignored in the offline run. Formatting, Clippy with warnings denied, and the strict MkDocs build passed. The recorded benchmarks predate the additional provider tests and the changes to nested partial validation. The Rust library sources used for those measurements are available at `def3761`. [Benchmark checkout](https://github.com/567-labs/instructor-rs/tree/def3761d0fe33db821c4ae2d52d10339ef2617d8)
+The Rust workspace at `61718fc` passed **201 tests** with **75 credentialed tests** ignored in the offline run. Formatting, Clippy with warnings denied and the strict MkDocs build passed. The 49 paired benchmarks used the Rust library and harness sources available at that revision and Python `b01fff4e`. The benchmark report identifies the measured checkout, source fingerprint and timing conditions. [Rust checkout](https://github.com/567-labs/instructor-rs/tree/61718fce4b81d4d48055d432d175a375174b2fca) · [Benchmark results](benchmarks.md#recorded-results)
 
 Run the Rust unit, integration, and documentation tests from the workspace root. On Unix, unsetting `OPENAI_API_KEY` for the test command selects loopback fixtures for the original SDK tests. The local examples exercise schema generation, partial replay, and citation matching. To build the guides, install the repository's `requirements.txt` in a Python environment and run MkDocs from the same directory.
 
