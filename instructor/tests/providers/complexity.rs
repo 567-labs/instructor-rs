@@ -22,14 +22,12 @@ fn params(body: &Value, provider: Provider, mode: Mode) -> &Value {
     }
 }
 
-fn manifest() -> Value {
-    json!({
-        "depot":"North",
-        "packages":[
-            {"tracking_id":"A1","state":"packed","carrier":null},
-            {"tracking_id":"B2","state":"in_transit","carrier":"Swift"},
-        ]
-    })
+fn answer(case: &str) -> Value {
+    let fixtures: Value = serde_json::from_str(include_str!("../support/generation.json")).unwrap();
+    fixtures[case]
+        .get("answer")
+        .expect("missing generation fixture")
+        .clone()
 }
 
 fn collection_name() -> String {
@@ -87,7 +85,7 @@ async fn test_current_documented_model() {
             p,
             Mode::Tools,
             "ExtractedNumber",
-            json!({"value":42}),
+            answer("test_current_documented_model"),
         )
         .create_async()
         .await;
@@ -101,12 +99,12 @@ async fn test_current_documented_model() {
 }
 
 macro_rules! structured {
-    ($case:ident, $name:expr, $body:expr) => {
+    ($case:ident, $name:expr) => {
         #[tokio::test]
         async fn $case() {
             let mut server = Server::new_async().await;
             for (p, mode) in routes() {
-                let m = reply(&mut server, p, mode, $name, $body)
+                let m = reply(&mut server, p, mode, $name, answer(stringify!($case)))
                     .create_async()
                     .await;
                 let suite = Generation::new(config(&server, p, mode)).unwrap();
@@ -118,38 +116,18 @@ macro_rules! structured {
     };
 }
 
-structured!(test_int, &integer_name(), json!({"content":42}));
-structured!(
-    test_simple_extraction,
-    "User",
-    json!({"name":"Jason","age":25})
-);
-structured!(
-    test_enum_extraction,
-    "ShipmentState",
-    json!({"content":"in_transit"})
-);
-structured!(test_nested_enum_collection, "Manifest", manifest());
-structured!(
-    test_list_extraction,
-    &collection_name(),
-    json!({"tasks":[
-        {"name":"Alice","age":30},{"name":"Bob","age":25},{"name":"Charlie","age":35}
-    ]})
-);
-structured!(
-    test_nested_model_extraction,
-    "UserWithAddress",
-    json!({"name":"John Doe","age":28,
-        "address":{"street":"123 Main St","city":"Springfield","country":"USA"}
-    })
-);
+structured!(test_int, &integer_name());
+structured!(test_simple_extraction, "User");
+structured!(test_enum_extraction, "ShipmentState");
+structured!(test_nested_enum_collection, "Manifest");
+structured!(test_list_extraction, &collection_name());
+structured!(test_nested_model_extraction, "UserWithAddress");
 
 #[tokio::test]
 async fn test_validation_with_retries() {
     let mut server = Server::new_async().await;
     for (p, mode) in routes() {
-        let valid = json!({"name":" Sarah Johnson ","age":25});
+        let valid = answer("test_validation_with_retries");
         let m = reply(&mut server, p, mode, "RetriedUser", valid)
             .expect(2)
             .create_async()
@@ -221,15 +199,21 @@ async fn test_iterable_streaming() {
 async fn invalid_enum_in_nested_record_causes_a_reask() {
     let mut server = Server::new_async().await;
     for (p, mode) in routes() {
-        let mut unknown = manifest();
+        let mut unknown = answer("test_nested_enum_collection");
         unknown["packages"][1]["state"] = json!("lost");
         let bad = reply(&mut server, p, mode, "Manifest", unknown)
             .create_async()
             .await;
-        let good = reply(&mut server, p, mode, "Manifest", manifest())
-            .match_body(Matcher::Regex("unknown variant.*lost".into()))
-            .create_async()
-            .await;
+        let good = reply(
+            &mut server,
+            p,
+            mode,
+            "Manifest",
+            answer("test_nested_enum_collection"),
+        )
+        .match_body(Matcher::Regex("unknown variant.*lost".into()))
+        .create_async()
+        .await;
         let suite = Generation::new(config(&server, p, mode)).unwrap();
         let result = suite.test_nested_enum_collection().await;
         bad.assert_async().await;

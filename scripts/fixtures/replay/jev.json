@@ -1,0 +1,34 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {"ticket": "Please refund the duplicate charge on my invoice. There is no rush."},
+    "questions": {
+      "department": {
+        "type": "choice",
+        "instructions": "Which team handles the customer's request?",
+        "criteria": {"billing": null, "technical": null}
+      },
+      "refund": {"type": "noul", "instructions": "Is the customer requesting a refund?"},
+      "urgency": {
+        "type": "score",
+        "instructions": "How urgently does the customer need help?",
+        "criteria": ["Not urgent", "Somewhat urgent", "Emergency"]
+      }
+    }
+  },
+  "response": {
+    "model": "jev-latest",
+    "answers": {
+      "department": {"type": "choice", "choice": "billing", "confidence": 0.8, "probabilities": {"billing": 0.9, "technical": 0.1}},
+      "refund": {"type": "noul", "noul": 0.95},
+      "urgency": {
+        "type": "score",
+        "score": 0.4,
+        "confidence": 0.65,
+        "probabilities": {"0": 0.7, "1": 0.2, "2": 0.1},
+        "legend": {"0": "Not urgent", "1": "Somewhat urgent", "2": "Emergency"}
+      }
+    },
+    "usage": {"input_tokens": 100, "output_tokens": 3}
+  }
+}

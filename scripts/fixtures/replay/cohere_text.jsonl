@@ -1,0 +1,5 @@
+{"id": "chat_test", "message": {"role": "assistant", "content": [{"type": "text", "text": "$text"}]}, "finish_reason": "COMPLETE", "usage": {"billed_units": {"input_tokens": 1, "output_tokens": 1}, "tokens": {"input_tokens": 1, "output_tokens": 1}}}
+{"type": "content-delta", "index": 0, "delta": {"message": {"content": {"text": "$first"}}}}
+{"type": "content-delta", "index": 0, "delta": {"message": {"content": {"text": "$second"}}}}
+{"type": "content-delta", "index": 0, "delta": {"message": {"content": {"text": "$third"}}}}
+{"type": "message-end", "delta": {"finish_reason": "COMPLETE", "usage": {"billed_units": {"input_tokens": 1, "output_tokens": 1}, "tokens": {"input_tokens": 1, "output_tokens": 1}}}}

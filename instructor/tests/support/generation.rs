@@ -224,13 +224,21 @@ impl Generation {
         let req = self.request("Jason Liu is 30 years old");
         let mut updates = self.client.create_partial::<User>(req).await?;
         let mut completed = None;
+        let mut saw_partial = false;
         while let Some(update) = updates.next().await {
             assert!(
                 completed.is_none(),
                 "received another event after completion"
             );
-            if let PartialEvent::Complete(user) = update? {
-                completed = Some(user);
+            match update? {
+                PartialEvent::Complete(user) => completed = Some(user),
+                PartialEvent::Partial(snapshot) => {
+                    saw_partial |= snapshot.age.is_none()
+                        && snapshot
+                            .name
+                            .as_deref()
+                            .is_some_and(|name| !name.is_empty() && "Jason Liu".starts_with(name));
+                }
             }
         }
         assert_eq!(
@@ -240,6 +248,12 @@ impl Generation {
                 age: 30
             })
         );
+        if option_env!("INSTRUCTOR_BUILD_REPLAY").is_some() {
+            assert!(
+                saw_partial,
+                "expected to receive part of the name before the age"
+            );
+        }
         Ok(())
     }
 

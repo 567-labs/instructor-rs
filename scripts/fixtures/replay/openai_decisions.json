@@ -1,0 +1,46 @@
+{
+  "request": {
+    "model": "gpt-6-luna",
+    "input": "{\"ticket\": \"Please refund the duplicate charge on my invoice. There is no rush.\"}",
+    "questions": [
+      {
+        "name": "department",
+        "type": "choice",
+        "instructions": "Which team handles the customer's request?",
+        "choices": [{"value": "billing"}, {"value": "technical"}]
+      },
+      {"name": "refund", "type": "predicate", "instructions": "Is the customer requesting a refund?"},
+      {
+        "name": "urgency",
+        "type": "score",
+        "instructions": "How urgently does the customer need help?",
+        "levels": [
+          {"label": "0", "description": "Not urgent"},
+          {"label": "1", "description": "Somewhat urgent"},
+          {"label": "2", "description": "Emergency"}
+        ]
+      }
+    ]
+  },
+  "response": {
+    "model": "gpt-6-luna",
+    "answers": [
+      {
+        "name": "department",
+        "type": "choice",
+        "choice": "billing",
+        "confidence": 0.8,
+        "probabilities": [{"value": "billing", "probability": 0.9}, {"value": "technical", "probability": 0.1}]
+      },
+      {"name": "refund", "type": "predicate", "probability": 0.95},
+      {
+        "name": "urgency",
+        "type": "score",
+        "score": 0.4,
+        "confidence": 0.65,
+        "probabilities": [{"value": "0", "probability": 0.7}, {"value": "1", "probability": 0.2}, {"value": "2", "probability": 0.1}]
+      }
+    ],
+    "usage": {"input_tokens": 100, "output_tokens": 0}
+  }
+}

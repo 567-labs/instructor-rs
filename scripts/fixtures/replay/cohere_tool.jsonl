@@ -1,0 +1,5 @@
+{"id": "chat_test", "message": {"role": "assistant", "tool_calls": [{"index": 0, "id": "call_test", "type": "function", "function": {"name": "$name", "arguments": "$text"}}]}, "finish_reason": "TOOL_CALL", "usage": {"billed_units": {"input_tokens": 1, "output_tokens": 1}, "tokens": {"input_tokens": 1, "output_tokens": 1}}}
+{"type": "tool-call-delta", "index": 0, "delta": {"message": {"tool_calls": {"index": 0, "id": "call_test", "type": "function", "function": {"name": "$name", "arguments": "$first"}}}}}
+{"type": "tool-call-delta", "index": 0, "delta": {"message": {"tool_calls": {"index": 0, "id": "call_test", "type": "function", "function": {"name": "$name", "arguments": "$second"}}}}}
+{"type": "tool-call-delta", "index": 0, "delta": {"message": {"tool_calls": {"index": 0, "id": "call_test", "type": "function", "function": {"name": "$name", "arguments": "$third"}}}}}
+{"type": "message-end", "delta": {"finish_reason": "TOOL_CALL", "usage": {"billed_units": {"input_tokens": 1, "output_tokens": 1}, "tokens": {"input_tokens": 1, "output_tokens": 1}}}}
