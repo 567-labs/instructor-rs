@@ -1,3 +1,5 @@
+#![cfg(feature = "legacy-openai")]
+
 extern crate instruct_macros;
 extern crate instruct_macros_types;
 

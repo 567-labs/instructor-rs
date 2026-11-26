@@ -25,7 +25,9 @@ mod client;
 pub mod decisions;
 pub mod distillation;
 mod error;
+#[cfg(feature = "legacy-openai")]
 mod helpers;
+#[cfg(feature = "legacy-openai")]
 mod legacy;
 mod media;
 mod models;
@@ -46,6 +48,7 @@ pub use client::{
 pub use error::{Error, FailedAttempt, StopReason};
 pub use instruct_macros::{model, InstructMacro, ParallelTools, PartialModel};
 pub use instruct_macros_types::{InstructMacro, Partial, PartialModel};
+#[cfg(feature = "legacy-openai")]
 pub use legacy::{from_openai, InstructorClient};
 pub use media::Media;
 pub use models::{Citations, CitationsPartial, Maybe, MaybePartial};
