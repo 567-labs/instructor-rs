@@ -1,0 +1,205 @@
+name: Paired live contracts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider to test
+        type: choice
+        options: [all, openai, anthropic, openrouter, google, cohere, mistral, typesafe]
+        default: all
+      require_credentials:
+        description: Fail if a selected provider has no API key
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      rust_revision:
+        description: Full commit SHA on a branch in 567-labs/instructor-rs, required for Python callers
+        type: string
+      provider:
+        description: Provider to test
+        type: string
+        default: all
+      require_credentials:
+        description: Fail if a selected provider has no API key
+        type: boolean
+        default: false
+    secrets:
+      OPENAI_API_KEY:
+        required: false
+      ANTHROPIC_API_KEY:
+        required: false
+      OPENROUTER_API_KEY:
+        required: false
+      GOOGLE_API_KEY:
+        required: false
+      GOOGLE_GENAI_MODEL:
+        required: false
+      COHERE_API_KEY:
+        required: false
+      MISTRAL_API_KEY:
+        required: false
+      TYPESAFE_API_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paired-live-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}-${{ inputs.provider || 'all' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  RUST_REVISION: ${{ inputs.rust_revision || github.event.pull_request.head.sha || github.sha }}
+  PYTHON_REVISION: 0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7
+
+jobs:
+  prepare:
+    name: Select providers and build shared tests
+    if: >-
+      (github.repository == '567-labs/instructor-rs' || github.repository == '567-labs/instructor') &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login != 'dependabot[bot]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      missing: ${{ steps.plan.outputs.missing }}
+    steps:
+      - name: Check Rust revision format
+        env:
+          INPUT_REVISION: ${{ inputs.rust_revision }}
+        run: |
+          if [[ "$GITHUB_REPOSITORY" == "567-labs/instructor" && -z "$INPUT_REVISION" ]]; then
+            echo "::error::Python callers must pin rust_revision."
+            exit 1
+          fi
+          if [[ ! "$RUST_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::rust_revision must be a full commit SHA."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: 567-labs/instructor-rs
+          ref: ${{ env.RUST_REVISION }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check revision belongs to a Rust repository branch
+        run: |
+          if [[ "$(git rev-parse HEAD)" != "$RUST_REVISION" || -z "$(git for-each-ref --contains HEAD refs/remotes/origin/)" ]]; then
+            echo "::error::Selected commit is outside the branches of 567-labs/instructor-rs."
+            exit 1
+          fi
+      - id: plan
+        name: Select providers with configured keys
+        env:
+          PROVIDER: ${{ inputs.provider || 'all' }}
+          HAS_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+          HAS_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+          HAS_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY != '' }}
+          HAS_GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY != '' }}
+          HAS_COHERE_API_KEY: ${{ secrets.COHERE_API_KEY != '' }}
+          HAS_MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY != '' }}
+          HAS_TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY != '' }}
+        run: |
+          echo "Rust \`$RUST_REVISION\` and Python \`$PYTHON_REVISION\`" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          python scripts/paired_live.py plan "$PROVIDER"
+      - name: Compile Rust live contracts
+        env:
+          CARGO_PROFILE_TEST_DEBUG: 0
+        shell: bash
+        run: |
+          cp benchmarks/recorded/Cargo.lock Cargo.lock
+          binary="$(cargo +stable test --locked -p instructor-ai --test live --no-run --message-format=json |
+            jq -r 'select(.reason == "compiler-artifact" and .target.name == "live" and .executable != null) | .executable')"
+          install -D "$binary" "$RUNNER_TEMP/paired/live"
+          cp scripts/paired_live.py "$RUNNER_TEMP/paired/"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: paired-live-${{ env.RUST_REVISION }}
+          path: ${{ runner.temp }}/paired/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  require-credentials:
+    name: Check required credentials
+    needs: prepare
+    if: inputs.require_credentials && needs.prepare.outputs.missing != ''
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          MISSING: ${{ needs.prepare.outputs.missing }}
+        run: |
+          echo "::error::Missing required credentials: $MISSING"
+          exit 1
+
+  provider:
+    name: ${{ matrix.provider == 'collection' && 'Collection only (missing credentials)' || format('Live contracts ({0})', matrix.provider) }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: 567-labs/instructor
+          ref: ${{ env.PYTHON_REVISION }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: latest-known
+          python-version: "3.11"
+          enable-cache: false
+      - name: Prepare frozen Python dependencies
+        run: uv sync --frozen --no-build --no-install-project --extra dev --extra google-genai --extra cohere --extra mistral
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: paired-live-${{ env.RUST_REVISION }}
+          path: ${{ runner.temp }}/paired/
+      - name: Make the test runner executable
+        run: chmod +x "$RUNNER_TEMP/paired/live"
+      - name: Check collection for providers missing credentials
+        if: matrix.provider == 'collection'
+        env:
+          MISSING: ${{ matrix.missing }}
+        run: |
+          read -r -a providers <<< "$MISSING"
+          for provider in "${providers[@]}"; do
+            .venv/bin/python "$RUNNER_TEMP/paired/paired_live.py" run "$provider" \
+              --rust-binary "$RUNNER_TEMP/paired/live" --python-repo . --collect-only
+          done
+      - name: Run exact Rust and Python contracts
+        if: matrix.provider != 'collection'
+        shell: bash
+        env:
+          PROVIDER: ${{ matrix.provider }}
+          INSTRUCTOR_ENV: CI
+          OPENAI_API_KEY: ${{ matrix.provider == 'openai' && secrets.OPENAI_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
+          OPENROUTER_API_KEY: ${{ matrix.provider == 'openrouter' && secrets.OPENROUTER_API_KEY || '' }}
+          GOOGLE_API_KEY: ${{ matrix.provider == 'google' && secrets.GOOGLE_API_KEY || '' }}
+          COHERE_API_KEY: ${{ matrix.provider == 'cohere' && secrets.COHERE_API_KEY || '' }}
+          MISTRAL_API_KEY: ${{ matrix.provider == 'mistral' && secrets.MISTRAL_API_KEY || '' }}
+          TYPESAFE_API_KEY: ${{ matrix.provider == 'typesafe' && secrets.TYPESAFE_API_KEY || '' }}
+          GOOGLE_GENAI_MODEL: ${{ matrix.provider == 'google' && secrets.GOOGLE_GENAI_MODEL || '' }}
+          OPENAI_DECISIONS_MODEL: ${{ vars.OPENAI_DECISIONS_MODEL }}
+          OPENROUTER_DECISIONS_MODEL: ${{ vars.OPENROUTER_DECISIONS_MODEL }}
+          TYPESAFE_DECISIONS_MODEL: ${{ vars.TYPESAFE_DECISIONS_MODEL }}
+        run: |
+          # Redact the key preview OpenAI echoes in authentication errors.
+          .venv/bin/python "$RUNNER_TEMP/paired/paired_live.py" run "$PROVIDER" \
+            --rust-binary "$RUNNER_TEMP/paired/live" --python-repo . 2>&1 |
+            sed -uE 's/(Incorrect API key provided: )[^[:space:]]+/\1[redacted]/gI'

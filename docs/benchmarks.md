@@ -55,6 +55,8 @@ For each language the table reports the median of the round-level values `elapse
 
 The recorded machine used an Intel Xeon Platinum 8573C on Linux x86-64 with a four-CPU cgroup quota, CPython 3.12.14, uv 0.13.9 and rustc 1.100.0. The Python checkout was `b01fff4e` (Instructor 1.18.0). The Rust implementation and harness were at `c644289e941e9121343d55b787cddb1ddc689a51`. The run used six pairs, a 10 ms calibration target and the archived dependency locks. See `benchmarks/recorded/report.json` for the environment, source fingerprint and raw samples.
 
+The review stack publishes the measured Rust source and harness at `def3761d0fe33db821c4ae2d52d10339ef2617d8`. This checkout reproduces the recorded source fingerprint and Cargo lockfile hash. To pin the inputs for a new run, use this checkout with the Python revision above. [Rust benchmark checkout](https://github.com/567-labs/instructor-rs/tree/def3761d0fe33db821c4ae2d52d10339ef2617d8) · [Python benchmark checkout](https://github.com/567-labs/instructor/tree/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d)
+
 Rust had a lower median duration in all 49 workloads. For 16 records in 16-byte chunks, the full synchronous partial stream took 172 µs in Rust and 1,236 µs in Python. The same inputs streamed as individually completed records took 6.24 µs and 81.65 µs respectively. The Jev ratio varied by operation, from 148.55× for preparing the three questions to 11.85× for decoding their answers and 8.90× for a complete loopback request. The lowest median ratio was 2.97× for parsing an Anthropic batch.
 
 | Workload | Python µs/op | Rust µs/op | Python / Rust | Round ratio range |

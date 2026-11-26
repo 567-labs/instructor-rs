@@ -49,3 +49,54 @@ The tests use a mocked `gh api` transport and require only the Python standard l
 ```sh
 python -m unittest discover -s scripts/tests
 ```
+
+## Run the same contracts in both languages
+
+**Paired live contracts** selects 75 test pairs. A pair consists of one exact Rust test and one exact pytest node. Each language sends its own requests using the same provider key, model and input, then checks its typed result. The nine core cases cover an integer, an object, an enum, a list, a nested object, a collection with nested enums and nullable fields, validation with a retry, partial streaming, and iterable streaming. Six documented-model checks and six Decisions checks complete the suite. Running every pair executes 150 tests and incurs provider charges, including requests made during retries. [Rust contracts](parity.md#opt-in-live-checks) · [Python reference](https://github.com/567-labs/instructor/tree/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm)
+
+| Provider | Core pairs | Documented model pairs | Decisions pairs | Model selection |
+| --- | ---: | ---: | ---: | --- |
+| OpenAI | 18 | 1 | 2 | `gpt-6-luna` on Chat Completions, Responses and native Decisions |
+| Anthropic | 9 | 1 | 0 | `claude-haiku-5-5` |
+| OpenRouter | 9 | 1 | 2 | `google/gemini-3.8-flash` for generation, `typesafe/jev-1.13` for Decisions |
+| Google | 9 | 1 | 0 | `gemini-3.8-flash`. The optional `GOOGLE_GENAI_MODEL` secret overrides the core model. |
+| Cohere | 9 | 1 | 0 | `command-a-03-2025` |
+| Mistral | 9 | 1 | 0 | `ministral-8b-latest` for the core cases, `mistral-small-latest` for the documented model |
+| Typesafe | 0 | 0 | 2 | `jev-latest` |
+
+Each Decisions route runs a blocking and an async ticket classification with checks on the raw response and probability distributions. Set the optional Actions variables `OPENAI_DECISIONS_MODEL`, `OPENROUTER_DECISIONS_MODEL` or `TYPESAFE_DECISIONS_MODEL` to override the respective model in both languages. Organization variables can be granted to both repositories.
+
+### Read the Actions summary
+
+The workflow runs on pushes to `main`, same-repository pull requests, manual dispatch and calls from the two Instructor repositories. Fork and Dependabot pull requests use the offline checks. The preparation job checks branch membership, reports both commit SHAs and compiles the Rust test binary once using the recorded Cargo lockfile. Provider jobs install frozen Python 3.11 dependencies, then run the two implementations with the selected credential scoped to the test step. Each job records the Rust and Python outcome for every selected case.
+
+- **Pairs passed** counts tests that executed and passed in both languages. An unexpected skip, missing selector or failure makes the provider job fail. Other providers continue.
+- **Pairs collected** counts matching selectors for a provider whose credential is missing. Collection checks the test inventories without sending requests. The summary names each missing key. A run with only collection results provides discovery coverage only.
+- **Check required credentials** fails if any selected key is unavailable when `require_credentials` is enabled. This is the default for manual dispatch. Automatic runs and reusable calls default to reporting missing keys and running the available providers.
+
+Once the workflow exists on the default branch, dispatch it from the Actions tab or use the CLI. Choose `provider=all` to require all seven keys, or isolate a single provider while checking a grant.
+
+```sh
+gh workflow run paired-live.yml --repo 567-labs/instructor-rs --ref main \
+  -f provider=openai -f require_credentials=true
+```
+
+### Use Python repository credentials
+
+A caller workflow in `567-labs/instructor` can pass its existing repository secrets to the reusable job. Pin the `uses` reference and the `rust_revision` input to the same reviewed, full 40-character commit SHA on a Rust repository branch. This example checks OpenAI using the Python repository's grant. For all providers, select `all` and explicitly pass the other secrets in the table above, plus `GOOGLE_GENAI_MODEL` if configured.
+
+```yaml
+permissions:
+  contents: read
+jobs:
+  paired:
+    uses: 567-labs/instructor-rs/.github/workflows/paired-live.yml@REVIEWED_RUST_SHA
+    with:
+      rust_revision: REVIEWED_RUST_SHA
+      provider: openai
+      require_credentials: true
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+The caller supplies the credential for the duration of that job. For independent runs triggered by the Rust repository, check its own grant with the audit above. To update the Python reference, review the new revision, change `PYTHON_REVISION` in `.github/workflows/paired-live.yml`, and check every selector in `scripts/paired_live.py` against that checkout. Update the Rust SHA in the caller after reviewing the new workflow and tests.

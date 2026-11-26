@@ -124,7 +124,7 @@ A separate selector covered LLM validation and moderation contracts in two addit
 
 #### Generation
 
-Each route exercises scalar, flat, enum, list, nested, and nested collection outputs. The three other core cases exercise a validation retry, partial updates, and an iterable stream. The documented model check asks for `42` in a record using tool mode. The OpenAI chat route covers the OpenAI guide model. [Python documented models](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_current_doc_models.py) · [Python core models](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/shared_config.py)
+Each route exercises scalar, flat, enum, list, nested, and nested collection outputs. The three other core cases exercise a validation retry, partial updates, and an iterable stream. The documented model check asks for `42` in a record using tool mode. The OpenAI chat route covers the OpenAI guide model. [Python documented models](https://github.com/567-labs/instructor/blob/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm/test_current_doc_models.py) · [Python core models](https://github.com/567-labs/instructor/blob/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm/shared_config.py)
 
 | Rust test module | Credential | Core model | Documented model | Local override |
 | --- | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ cargo test -p instructor-ai --test live anthropic_messages:: -- --ignored
 
 #### Decisions
 
-Each test classifies a refund ticket, checks the decoded choice, probability, and scaled score, and validates the raw distributions. The model variables below match Python. The canonical variable takes precedence over the older Rust alias. [Python Decisions route configuration](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_decisions/conftest.py) · [Decisions in Rust](decisions.md)
+Each test classifies a refund ticket, checks the decoded choice, probability, and scaled score, and validates the raw distributions. The model variables below match Python. The canonical variable takes precedence over the older Rust alias. [Python Decisions route configuration](https://github.com/567-labs/instructor/blob/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm/test_decisions/conftest.py) · [Decisions in Rust](decisions.md)
 
 | Async test | Blocking test | Credential | Default model | Model override | Older Rust alias |
 | --- | --- | --- | --- | --- | --- |
@@ -161,7 +161,7 @@ cargo test -p instructor-ai --test live openrouter_jev -- --ignored --exact
 cargo test -p instructor-ai --test live typesafe_jev_blocking -- --ignored --exact
 ```
 
-With every credential configured, run `cargo test -p instructor-ai --test live -- --ignored` for all 75 checks. The local comparison environment compiled and listed the contracts. Provider execution requires credentials with access to the selected models.
+With every credential configured, run `cargo test -p instructor-ai --test live -- --ignored` for all 75 checks. GitHub Actions matches each Rust test with its Python counterpart. Open the paired workflow run summary to inspect credential availability, selection, and outcomes for both implementations. [Credential setup and paired CI](ci-credentials.md)
 
 ## Prioritized next steps
 

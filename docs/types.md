@@ -75,7 +75,7 @@ For a sequence processed item by item, pass the element type to `create_iterable
 
 ## Test increasingly complex response types
 
-Start with a scalar to verify that the client unwraps the generated value. Add fields, enum labels, and nested records to exercise the parts of the schema your application needs. Each row names a Python test under `tests/llm/test_core_providers/` and the corresponding Rust test. Rust runs the same assertion in `instructor/tests/support/generation.rs` against loopback fixtures and live endpoints. [Python extraction cases](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_core_providers/test_basic_extraction.py) · [Python enum cases](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_core_providers/test_model_complexity.py)
+Start with a scalar to verify that the client unwraps the generated value. Add fields, enum labels, and nested records to exercise the parts of the schema your application needs. Each row names a Python test under `tests/llm/test_core_providers/` and the corresponding Rust test. Rust runs the same assertion in `instructor/tests/support/generation.rs` against loopback fixtures and live endpoints. [Python extraction cases](https://github.com/567-labs/instructor/blob/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm/test_core_providers/test_basic_extraction.py) · [Python enum cases](https://github.com/567-labs/instructor/blob/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm/test_core_providers/test_model_complexity.py)
 
 | Response shape | Python → Rust | Test name in both suites | Expected output |
 | --- | --- | --- | --- |
