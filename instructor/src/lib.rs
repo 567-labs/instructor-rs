@@ -35,6 +35,7 @@ mod request;
 mod retry;
 mod schema;
 pub mod streaming;
+mod usage;
 pub mod validation;
 
 pub use analysis::{analyze_schema, select_mode, SchemaAnalysis, SchemaFinding, Severity};
@@ -52,6 +53,7 @@ pub use providers::{Mode, Provider, ProviderConfig};
 pub use request::{CacheTtl, Event, Message, Request};
 pub use schema::{parse_response, response_schema, ResponseModel};
 pub use streaming::PartialEvent;
+pub use usage::TokenUsage;
 pub use validation::TextRule;
 
 #[doc(hidden)]

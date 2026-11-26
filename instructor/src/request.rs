@@ -4,7 +4,7 @@ type RetryPolicy = Arc<dyn Fn(&crate::FailedAttempt) -> Option<Duration> + Send 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::Error;
+use crate::{Error, TokenUsage};
 
 /// Lifetime requested for a provider-side prompt-cache breakpoint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,7 +82,12 @@ pub enum Event<'a> {
     CacheError(&'a std::io::Error),
 }
 
-pub(crate) type Hook = Arc<dyn Fn(u64, Event<'_>) + Send + Sync>;
+pub(crate) type Hook = Arc<Callback>;
+
+pub(crate) enum Callback {
+    Event(Box<dyn Fn(u64, Event<'_>) + Send + Sync>),
+    Usage(Box<dyn Fn(u64, TokenUsage) + Send + Sync>),
+}
 
 /// Request-local settings. Cloning a request allows reuse across concurrent calls.
 #[derive(Clone)]
@@ -180,7 +185,13 @@ impl Request {
 
     /// Observe this request. Attempt numbers start at one, or zero for a cache hit.
     pub fn on_event(mut self, hook: impl Fn(u64, Event<'_>) + Send + Sync + 'static) -> Self {
-        self.hooks.push(Arc::new(hook));
+        self.hooks.push(Arc::new(Callback::Event(Box::new(hook))));
+        self
+    }
+
+    /// Observe cumulative usage after each structured JSON response, or zero on a cache hit.
+    pub fn on_usage(mut self, hook: impl Fn(u64, TokenUsage) + Send + Sync + 'static) -> Self {
+        self.hooks.push(Arc::new(Callback::Usage(Box::new(hook))));
         self
     }
 

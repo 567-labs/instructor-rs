@@ -1,12 +1,14 @@
 //! Request-local retry accounting for streaming and non-streaming requests.
-use crate::{providers::WireRequest, Client, Error, Event, FailedAttempt, Request, StopReason};
+use crate::{
+    providers::WireRequest, Client, Error, Event, FailedAttempt, Request, StopReason, TokenUsage,
+};
 use serde_json::Value;
 use std::time::Duration;
 use tokio::time::Instant;
 
 pub(crate) struct Attempts {
     started: Instant,
-    total_tokens: Option<u64>,
+    usage: TokenUsage,
     failures: Vec<FailedAttempt>,
 }
 
@@ -14,7 +16,7 @@ impl Attempts {
     pub fn new() -> Self {
         Self {
             started: Instant::now(),
-            total_tokens: Some(0),
+            usage: TokenUsage::ZERO,
             failures: Vec::new(),
         }
     }
@@ -23,12 +25,9 @@ impl Attempts {
         self.failures.len() as u64 + 1
     }
 
-    pub fn usage(&mut self, tokens: Option<u64>) -> Option<u64> {
-        self.total_tokens = self
-            .total_tokens
-            .zip(tokens)
-            .map(|(a, b)| a.saturating_add(b));
-        self.total_tokens
+    pub fn record_usage(&mut self, usage: TokenUsage) -> TokenUsage {
+        self.usage = self.usage.combine(usage);
+        self.usage
     }
 
     fn delay(&self, req: &Request, failed: &FailedAttempt) -> Result<Duration, StopReason> {
@@ -43,6 +42,7 @@ impl Attempts {
         }
         if let Some(budget) = req.token_budget {
             let used = self
+                .usage
                 .total_tokens
                 .ok_or(StopReason::UsageUnavailable { budget })?;
             if used >= budget {
@@ -72,7 +72,7 @@ impl Attempts {
         }
         Error::Retry {
             reason,
-            total_tokens: self.total_tokens,
+            total_tokens: self.usage.total_tokens,
             attempts: std::mem::take(&mut self.failures),
         }
     }
@@ -99,7 +99,7 @@ impl Client {
             },
         );
         if raw.is_null() {
-            attempts.usage(None);
+            attempts.record_usage(TokenUsage::default());
         }
         let failed = FailedAttempt {
             attempt,

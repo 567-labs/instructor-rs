@@ -44,51 +44,6 @@ impl ProviderConfig {
             }
         }
     }
-
-    pub(crate) fn usage(&self, raw: &Value) -> Option<u64> {
-        fn sum(values: &Value, fields: &[&str]) -> Option<u64> {
-            fields
-                .iter()
-                .filter_map(|key| values[*key].as_u64())
-                .reduce(u64::saturating_add)
-        }
-        let usage = &raw["usage"];
-        match self.provider {
-            Provider::Anthropic => sum(
-                usage,
-                &[
-                    "input_tokens",
-                    "output_tokens",
-                    "cache_creation_input_tokens",
-                    "cache_read_input_tokens",
-                ],
-            ),
-            Provider::Google => raw["usageMetadata"]["totalTokenCount"]
-                .as_u64()
-                .or_else(|| {
-                    sum(
-                        &raw["usageMetadata"],
-                        &[
-                            "promptTokenCount",
-                            "candidatesTokenCount",
-                            "thoughtsTokenCount",
-                        ],
-                    )
-                }),
-            Provider::Cohere => sum(&usage["tokens"], &["input_tokens", "output_tokens"]),
-            _ => usage["total_tokens"].as_u64().or_else(|| {
-                sum(
-                    usage,
-                    &[
-                        "prompt_tokens",
-                        "completion_tokens",
-                        "input_tokens",
-                        "output_tokens",
-                    ],
-                )
-            }),
-        }
-    }
 }
 
 pub(super) fn check_error(raw: &Value) -> Result<(), Error> {
