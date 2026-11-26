@@ -1,5 +1,6 @@
-//! Derives for Instructor response types and partial snapshots.
+//! Derives for Instructor response types, partial snapshots and decisions.
 
+mod decisions;
 mod helpers;
 mod partial;
 mod snapshots;
@@ -148,4 +149,14 @@ fn instruct(input: &DeriveInput) -> syn::Result<Tokens> {
 #[proc_macro_attribute]
 pub fn validate(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
+}
+
+#[proc_macro_derive(Choices, attributes(choice, validate, description))]
+pub fn choices(input: TokenStream) -> TokenStream {
+    decisions::choices(input)
+}
+
+#[proc_macro_derive(DecisionModel, attributes(decision, validate, description))]
+pub fn decision_model(input: TokenStream) -> TokenStream {
+    decisions::model(input)
 }

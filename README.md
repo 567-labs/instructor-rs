@@ -50,4 +50,5 @@ cargo run -p instructor-ai --example validate_quote -- openai/gpt-6-luna
 - Choose a blocking or async client and configure your provider. [Getting started](docs/index.md) · [Providers and modes](docs/providers.md)
 - Derive schemas, write context-aware validators, and inspect the raw completion. [Response types](docs/types.md) · [Validation and retries](docs/concepts.md)
 - Display fields as they arrive or process a sequence of completed records. [Streaming](docs/streaming.md)
+- Classify input and recover typed choices, probabilities, and scores. [Decisions with OpenAI and Jev](docs/decisions.md)
 - Supply media to supported routes. [Media input](docs/media.md)
