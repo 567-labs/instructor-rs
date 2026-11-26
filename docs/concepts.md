@@ -171,4 +171,43 @@ fn main() -> Result<(), Error> {
 
 The in-memory response cache is opt-in and bounded by entry count. Clones of a client share its cache. A key includes the response type, prepared request body, and context. A hit re-parses the cached provider JSON and runs validation again. New entries evict the least recently used entry when full. This cache applies to successful non-streaming structured responses. The schema cache separately reuses the derived schema for a Rust type across requests.
 
-Use `.with_disk_cache(path, namespace)?` to reuse completions across processes. Disk entries are atomically written JSON files containing the raw completion. The namespace and provider configuration, including the model, credential, endpoint, and mode, scope the cache. Choose a namespace that identifies the consuming application. On either cache, `.cache_ttl(duration)` on the request sets expiration when writing a response. A zero duration bypasses caching for the request. `client.clear_cache()?` clears the active cache and returns an I/O result.
+Use `.with_disk_cache(path, namespace)?` to reuse completions across processes. Disk entries are atomically written JSON files containing the raw completion. The namespace and provider configuration, including the model, credential, endpoint, and mode, scope the cache. Choose a namespace that identifies the consuming application.
+
+For all response caches, `request.cache_ttl(duration)` sets the lifetime on write. A hit retains its original expiration. A zero duration bypasses both reads and writes. `client.clear_cache()?` clears the active scope synchronously. On the async client, `client.clear_cache_async().await?` offloads storage I/O to Tokio's blocking pool.
+
+### Share an application cache
+
+Python accepts a thread-safe `BaseCache` through the `cache=` argument. In Rust, implement `ResponseCache` and pass an `Arc` to `.with_cache_backend(store, namespace)?` on either client. The adapter receives the same two SHA-256 digests as the disk store. The scope identifies the namespace and provider configuration. The entry key identifies the response type, prepared request body and validation context. Give tenants distinguished by custom HTTP headers separate namespaces. [Python cache interface](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/instructor/cache/__init__.py#L43) · [Python caching guide](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/caching.md)
+
+This adapter serializes entries to JSON bytes in a process-local map. Its outer map is keyed by scope, so clearing one tenant leaves the others available. For a database, use `(scope, key)` as the composite primary key, replace a single row atomically on `put`, and restrict deletion to rows with the requested scope on `clear`.
+
+```rust
+--8<-- "instructor/tests/client/cache_backend.rs:adapter"
+```
+
+With `JsonStore` defined above, two clients can use the same record. The second call checks the cached provider response against the requested type and validators. `attempts` counts provider calls made by that invocation.
+
+```rust
+use instructor_ai::{BlockingClient, Request};
+use std::{sync::Arc, time::Duration};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let store = Arc::new(JsonStore::default());
+    let client = || {
+        BlockingClient::from_provider("openai/gpt-6-luna")?
+            .with_cache_backend(store.clone(), "guest-counts")
+    };
+    let req = Request::new("How many guests? Five guests attended.")
+        .cache_ttl(Duration::from_secs(600));
+    let first: u32 = client()?.create(req.clone())?;
+    let second = client()?.create_with_metadata::<u32>(req)?;
+    assert_eq!(second.value, first);
+    assert_eq!(second.attempts, 0);
+    client()?.clear_cache()?;
+    Ok(())
+}
+```
+
+`CacheRecord.raw` holds the original provider envelope, including generated content and usage. `expires` holds an optional absolute `SystemTime`. The client checks that timestamp on every read. Configure eviction in your store to reclaim expired records. Expired entries and entries that fail parsing or validation trigger a fresh provider request. A successful response can replace the old record. Concurrent misses can each send a provider request, and an in-flight write can repopulate a cleared scope.
+
+Both clients run adapter reads and writes on Tokio's blocking pool. An I/O error from `get` or `put` emits `Event::CacheError`. A failed read proceeds to the provider, and a failed write returns the validated result to the caller. Explicit clearing returns storage errors directly. Run the adapter contract checks locally with `cargo test -p instructor-ai --test client cache_backend::`.

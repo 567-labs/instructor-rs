@@ -1,4 +1,7 @@
 //! Cross-provider client semantics pinned to Python Instructor 1.18's core contracts.
+#[path = "client/cache_backend.rs"]
+mod cache_backend;
+
 use std::sync::{Arc, Mutex};
 
 use instructor_ai::{

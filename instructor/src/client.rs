@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use crate::cache::Cache;
+use crate::cache::{Cache, ResponseCache};
 use futures_util::{stream::BoxStream, StreamExt};
 use serde_json::Value;
 use tokio::runtime::Runtime;
@@ -72,7 +72,7 @@ impl Client {
     }
 
     /// Reuse a configured HTTP client, including its connection pool, headers,
-    /// timeout and redirect policy. For disk cache sharing, use a namespace
+    /// timeout and redirect policy. For cache sharing, use a namespace
     /// specific to any additional credentials or tenant headers.
     pub fn with_http_client(config: ProviderConfig, http: reqwest::Client) -> Result<Self, Error> {
         config.validate()?;
@@ -152,9 +152,29 @@ impl Client {
         Ok(self)
     }
 
-    /// Clear this client's cache namespace. Disk cleanup is synchronous.
+    /// Use application storage in place of any previously configured cache.
+    /// The nonempty namespace scopes entries together with the provider, model,
+    /// endpoint, credential and mode. Use a distinct namespace for each tenant.
+    pub fn with_cache_backend(
+        mut self,
+        backend: Arc<dyn ResponseCache>,
+        namespace: &str,
+    ) -> Result<Self, Error> {
+        self.cache = Some(Cache::backend(&self.config, backend, namespace)?);
+        Ok(self)
+    }
+
+    /// Clear this client's cache scope synchronously.
     pub fn clear_cache(&self) -> std::io::Result<()> {
         self.cache.as_ref().map_or(Ok(()), Cache::clear)
+    }
+
+    /// Clear this client's cache scope, offloading storage I/O to the blocking pool.
+    pub async fn clear_cache_async(&self) -> std::io::Result<()> {
+        match &self.cache {
+            Some(cache) => cache.clear_async().await,
+            None => Ok(()),
+        }
     }
 
     pub(crate) fn emit(&self, request: &Request, attempt: u64, event: Event<'_>) {
@@ -545,6 +565,16 @@ impl BlockingClient {
         namespace: &str,
     ) -> Result<Self, Error> {
         self.client = self.client.with_disk_cache(directory, namespace)?;
+        Ok(self)
+    }
+
+    /// Use application storage, with the same scoping as [`Client::with_cache_backend`].
+    pub fn with_cache_backend(
+        mut self,
+        backend: Arc<dyn ResponseCache>,
+        namespace: &str,
+    ) -> Result<Self, Error> {
+        self.client = self.client.with_cache_backend(backend, namespace)?;
         Ok(self)
     }
 

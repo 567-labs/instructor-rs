@@ -39,6 +39,7 @@ mod usage;
 pub mod validation;
 
 pub use analysis::{analyze_schema, select_mode, SchemaAnalysis, SchemaFinding, Severity};
+pub use cache::{CacheRecord, ResponseCache};
 pub use client::{
     from_provider, BlockingClient, Client, Completion, HookHandle, OutputIterator, OutputStream,
 };
