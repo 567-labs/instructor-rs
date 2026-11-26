@@ -13,6 +13,7 @@ license = "MIT OR Apache-2.0"
 changelog = "CHANGELOG.md"
 
 [dependencies]
+thiserror = "2"
 instruct-macros = { path = "../instruct-macros", version = "0.*" }
 openai-api-rs = "4.1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -22,3 +23,6 @@ instruct-macros-types = { path = "../instruct-macros-types", version = "0.*" }
 [lib]
 name = "instructor_ai"
 path = "src/lib.rs"
+
+[dev-dependencies]
+mockito = "1"

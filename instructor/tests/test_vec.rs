@@ -2,13 +2,12 @@ extern crate instruct_macros;
 extern crate instruct_macros_types;
 
 use instruct_macros::InstructMacro;
-use instruct_macros_types::{Parameter, ParameterInfo, StructInfo};
 use instructor_ai::from_openai;
-use openai_api_rs::v1::api::Client;
+mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use serde_json::json;
 
     use openai_api_rs::v1::{
         chat_completion::{self, ChatCompletionRequest},
@@ -20,7 +19,13 @@ mod tests {
 
     #[test]
     fn test_simple_vec() {
-        let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
+        if support::run_loopback_in_child("tests::test_simple_vec") {
+            return;
+        }
+        let (client, _server) = support::client(
+            "UserIds",
+            &[json!({"user_ids": ["12", "13", "14", "15", "24"]})],
+        );
         let instructor_client = from_openai(client);
 
         #[derive(InstructMacro, Debug, Serialize, Deserialize)]
@@ -49,7 +54,15 @@ mod tests {
 
     #[test]
     fn test_complex_vec() {
-        let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
+        if support::run_loopback_in_child("tests::test_complex_vec") {
+            return;
+        }
+        let (client, _server) = support::client(
+            "Users",
+            &[
+                json!({"users": [{"name": "Jason", "age": "20"}, {"name": "Sarah", "age": "30"}, {"name": "John", "age": "40"}]}),
+            ],
+        );
         let instructor_client = from_openai(client);
 
         #[derive(InstructMacro, Debug, Serialize, Deserialize, PartialEq)]

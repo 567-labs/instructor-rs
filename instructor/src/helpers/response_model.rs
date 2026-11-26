@@ -28,14 +28,14 @@ fn get_required_properties(info: &StructInfo) -> Vec<String> {
     required
 }
 
-fn convert_parameter_type(info: &str) -> chat_completion::JSONSchemaType {
-    match info {
+fn convert_parameter_type(info: &str) -> Option<chat_completion::JSONSchemaType> {
+    Some(match info {
         "String" | "char" => chat_completion::JSONSchemaType::String,
         "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "u128" | "i128" | "usize"
-        | "isize" => chat_completion::JSONSchemaType::Number,
+        | "isize" | "f32" | "f64" => chat_completion::JSONSchemaType::Number,
         "bool" => chat_completion::JSONSchemaType::Boolean,
-        _ => panic!("Unsupported type: {}", info),
-    }
+        _ => return None,
+    })
 }
 
 fn get_base_type(field_info: &ParameterInfo) -> &str {
@@ -57,14 +57,14 @@ fn get_response_model_parameters(t: &StructInfo) -> HashMap<String, Box<JSONSche
 
                 let base_type = get_base_type(field_info);
                 let parameter_type = if field_info.is_list {
-                    chat_completion::JSONSchemaType::Array
+                    Some(chat_completion::JSONSchemaType::Array)
                 } else {
-                    convert_parameter_type(&base_type.to_string())
+                    convert_parameter_type(base_type)
                 };
 
                 let items = if field_info.is_list {
                     Some(Box::new(chat_completion::JSONSchemaDefine {
-                        schema_type: Some(convert_parameter_type(base_type)),
+                        schema_type: convert_parameter_type(base_type),
                         ..Default::default()
                     }))
                 } else {
@@ -74,9 +74,9 @@ fn get_response_model_parameters(t: &StructInfo) -> HashMap<String, Box<JSONSche
                 properties.insert(
                     parameter_name,
                     Box::new(chat_completion::JSONSchemaDefine {
-                        schema_type: Some(parameter_type),
+                        schema_type: parameter_type,
                         description: Some(parameter_description),
-                        items: items,
+                        items,
                         ..Default::default()
                     }),
                 );
@@ -84,7 +84,7 @@ fn get_response_model_parameters(t: &StructInfo) -> HashMap<String, Box<JSONSche
             Parameter::Enum(enum_info) => {
                 let parameter_name = enum_info.title.clone();
                 let parameter_description = enum_info.description.clone();
-                let enum_values: Vec<String> = enum_info.r#enum.iter().map(|e| e.clone()).collect();
+                let enum_values: Vec<String> = enum_info.r#enum.clone();
 
                 let parameter_type = if enum_info.is_list {
                     chat_completion::JSONSchemaType::Array
@@ -107,7 +107,7 @@ fn get_response_model_parameters(t: &StructInfo) -> HashMap<String, Box<JSONSche
                     Box::new(chat_completion::JSONSchemaDefine {
                         schema_type: Some(parameter_type),
                         description: Some(parameter_description),
-                        items: items,
+                        items,
                         enum_values: if enum_info.is_list {
                             None
                         } else {
@@ -178,9 +178,7 @@ mod tests {
 
     use super::*;
     use instruct_macros::InstructMacro;
-    use instruct_macros_types::{
-        InstructMacro, InstructMacroResult, Parameter, ParameterInfo, StructInfo,
-    };
+    use instruct_macros_types::{InstructMacro, InstructMacroResult, StructInfo};
     use serde::{Deserialize, Serialize};
 
     #[test]

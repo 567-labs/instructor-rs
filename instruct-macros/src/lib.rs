@@ -1,194 +1,151 @@
-extern crate proc_macro;
+//! Derives for Instructor response types and partial snapshots.
 
 mod helpers;
+mod partial;
+mod snapshots;
+mod validation;
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as Tokens;
 use quote::quote;
-use syn::{parse_macro_input, Attribute, Data, DeriveInput, Expr, ExprLit, Fields, Lit, Meta};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput};
 
-#[proc_macro_derive(InstructMacro, attributes(validate, description))]
-pub fn instruct_validate_derive(input: TokenStream) -> TokenStream {
-    // Parse the input tokens into a syntax tree
-    let input = parse_macro_input!(input as DeriveInput);
+use helpers::{description, runtime, walk_attributes};
 
-    let expanded = match &input.data {
-        Data::Struct(_) => generate_instruct_macro_struct(&input),
-        Data::Enum(_) => generate_instruct_macro_enum(&input),
-        _ => panic!("InstructMacro can only be derived for structs and enums"),
-    };
-
-    // Hand the output tokens back to the compiler
-    TokenStream::from(expanded)
-}
-
-fn generate_instruct_macro_enum(input: &DeriveInput) -> proc_macro2::TokenStream {
-    let name = &input.ident;
-
-    let variants = match &input.data {
-        Data::Enum(data) => &data.variants,
-        _ => panic!("Only enums are supported"),
-    };
-
-    let enum_variants: Vec<String> = variants.iter().map(|v| v.ident.to_string()).collect();
-
-    // Extract struct-level comment
-    let description = extract_attribute_value(&input.attrs, "description");
-
-    let enum_info = quote! {
-        instruct_macros_types::InstructMacroResult::Enum(instruct_macros_types::EnumInfo {
-            title: stringify!(#name).to_string(),
-            r#enum: vec![#(#enum_variants.to_string()),*],
-            r#type: stringify!(#name).to_string(),
-            description: #description.to_string(),
-            is_optional:false,
-            is_list: false
-        })
-    };
-
-    quote! {
-        impl instruct_macros_types::InstructMacro for #name {
-            fn get_info() -> instruct_macros_types::InstructMacroResult {
-                #enum_info
-            }
-
-
-            fn validate(&self) -> Result<(), String> {
-                Ok(())
-            }
-        }
+/// Define a typed response and its streaming snapshot from one declaration.
+/// Adds Serde, JSON Schema, Instructor validation and PartialModel derives.
+#[proc_macro_attribute]
+pub fn model(args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut input = parse_macro_input!(input as DeriveInput);
+    if !args.is_empty() {
+        return syn::Error::new_spanned(Tokens::from(args), "model takes no arguments")
+            .to_compile_error()
+            .into();
     }
-}
-
-fn extract_attribute_value(attrs: &[Attribute], attr_name: &str) -> String {
-    attrs
-        .iter()
-        .filter_map(|attr| {
-            if attr.path().is_ident(attr_name) {
-                attr.parse_args::<syn::LitStr>().ok().map(|lit| lit.value())
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<String>>()
-        .join(" ")
-}
-
-fn generate_instruct_macro_struct(input: &DeriveInput) -> proc_macro2::TokenStream {
-    let name = &input.ident;
-
-    let description = extract_attribute_value(&input.attrs, "description");
-
-    let fields = match &input.data {
-        Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => &fields.named,
-            _ => panic!("Only named fields are supported"),
-        },
-        _ => panic!("Only structs are supported"),
-    };
-
-    let validation_fields: Vec<_> = fields
-        .iter()
-        .filter_map(|f| {
-            let field_name = &f.ident;
-            f.attrs
-                .iter()
-                .find(|attr| attr.path().is_ident("validate"))
-                .map(|attr| {
-                    let meta = attr.parse_args().expect("Unable to parse attribute");
-                    parse_validation_attribute(field_name, &meta)
-                })
-        })
-        .collect();
-
-    // Process each field in the struct
-    let fields = if let Data::Struct(data) = &input.data {
-        if let Fields::Named(fields) = &data.fields {
-            fields
-        } else {
-            panic!("Unnamed fields are not supported");
+    let (types, macros) = runtime();
+    let serde_path = quote!(#types::serde).to_string();
+    let schemars_path = quote!(#types::schemars).to_string();
+    if let Err(error) = walk_attributes(&mut input, |attrs| {
+        if attrs.iter().any(|a| a.path().is_ident("description")) {
+            let text = description(attrs)?;
+            attrs.push(parse_quote!(#[schemars(description = #text)]));
         }
-    } else {
-        panic!("Only structs are supported");
-    };
+        Ok(())
+    }) {
+        return error.into_compile_error().into();
+    }
+    quote! {
+        #[derive(
+            #types::serde::Serialize, #types::serde::Deserialize,
+            #types::schemars::JsonSchema, #macros::InstructMacro, #macros::PartialModel
+        )]
+        #[serde(crate = #serde_path)]
+        #[schemars(crate = #schemars_path)]
+        #[instructor_schema]
+        #input
+    }
+    .into()
+}
 
-    let parameters = helpers::extract_parameters(fields);
+#[proc_macro_derive(PartialModel)]
+pub fn partial_model(input: TokenStream) -> TokenStream {
+    partial::derive(parse_macro_input!(input as DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
 
-    let expanded = quote! {
-        impl instruct_macros_types::InstructMacro for #name {
-            fn get_info() -> instruct_macros_types::InstructMacroResult {
-                let mut parameters = Vec::new();
-                #(#parameters)*
+#[proc_macro_derive(InstructMacro, attributes(validate, description, instructor_schema))]
+pub fn instruct_validate_derive(input: TokenStream) -> TokenStream {
+    instruct(&parse_macro_input!(input as DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
 
-                instruct_macros_types::InstructMacroResult::Struct(StructInfo {
+fn instruct(input: &DeriveInput) -> syn::Result<Tokens> {
+    let (types, _) = runtime();
+    let name = &input.ident;
+    let mut generics = input.generics.clone();
+    for ty in generics.type_params_mut() {
+        ty.bounds.push(parse_quote!(#types::InstructMacro));
+    }
+    let model_description = description(&input.attrs)?;
+    let info = match &input.data {
+        Data::Struct(data) => {
+            let mut params = Vec::new();
+            for (i, field) in data.fields.iter().enumerate() {
+                let ty = &field.ty;
+                let label = helpers::label(field, i);
+                let text = description(&field.attrs)?;
+                params.push(quote! {
+                    <#ty as #types::InstructMacro>::parameter(#label.to_string(), #text.to_string())
+                });
+            }
+            quote! {
+                #types::InstructMacroResult::Struct(#types::StructInfo {
                     name: stringify!(#name).to_string(),
-                    description: #description.to_string(),
-                    parameters,
-                    is_optional:false,
+                    description: #model_description.to_string(),
+                    parameters: #types::legacy_parameters::<Self>(|| vec![#(#params),*]),
+                    is_optional: false,
                     is_list: false,
                 })
             }
-
-            fn validate(&self) -> Result<(), String> {
-                #(#validation_fields)*
-                Ok(())
+        }
+        Data::Enum(data) => {
+            let variants = data.variants.iter().map(|v| v.ident.to_string());
+            quote! {
+                #types::InstructMacroResult::Enum(#types::EnumInfo {
+                    title: stringify!(#name).to_string(),
+                    r#enum: vec![#(#variants.to_string()),*],
+                    r#type: stringify!(#name).to_string(),
+                    description: #model_description.to_string(),
+                    is_optional: false,
+                    is_list: false,
+                })
             }
         }
+        Data::Union(_) => return Err(syn::Error::new_spanned(name, "unions are unsupported")),
     };
-
-    expanded
-}
-
-/// Parses the validation attribute and generates corresponding validation code.
-///
-/// This function processes custom validation attributes, expanding them into function calls
-/// that perform the specified validation. It supports custom validators that take a reference
-/// to the field type and return a Result with a string error type.
-fn parse_validation_attribute(
-    field_name: &Option<syn::Ident>,
-    meta: &Meta,
-) -> proc_macro2::TokenStream {
-    let mut output = proc_macro2::TokenStream::new();
-
-    match meta {
-        Meta::NameValue(name_value) if name_value.path.is_ident("custom") => {
-            if let Expr::Lit(ExprLit {
-                lit: Lit::Str(lit_str),
-                ..
-            }) = &name_value.value
-            {
-                let func = syn::Ident::new(&lit_str.value(), proc_macro2::Span::call_site());
-                let tokens = quote! {
-                    if let Err(e) = #func(&self.#field_name) {
-                        return Err(format!("Validation failed for field '{}': {}", stringify!(#field_name), e));
-                    }
-                };
-                output.extend(tokens);
-            } else {
-                panic!("Custom validator must be a string literal");
+    let schema = if input
+        .attrs
+        .iter()
+        .any(|a| a.path().is_ident("instructor_schema"))
+    {
+        for ty in generics.type_params_mut() {
+            ty.bounds.push(parse_quote!(#types::schemars::JsonSchema));
+            ty.bounds.push(parse_quote!(#types::serde::Serialize));
+            ty.bounds
+                .push(parse_quote!(#types::serde::de::DeserializeOwned));
+        }
+        generics.make_where_clause().predicates.push(parse_quote!(
+            Self: #types::schemars::JsonSchema + #types::serde::Serialize + #types::serde::de::DeserializeOwned
+        ));
+        let prepare = snapshots::method(input, &types)?;
+        quote! {
+            #prepare
+            fn analysis_schema() -> #types::serde_json::Value {
+                #types::schemars::schema_for!(Self).to_value()
+            }
+            fn describe(generator: &mut #types::schemars::SchemaGenerator) -> #types::schemars::Schema {
+                <Self as #types::schemars::JsonSchema>::json_schema(generator)
             }
         }
-        _ => panic!("Unsupported validation attribute"),
-    }
-
-    output
+    } else {
+        quote!()
+    };
+    let methods = validation::methods(input, &types)?;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    Ok(quote! {
+        impl #impl_generics #types::InstructMacro for #name #ty_generics #where_clause {
+            fn get_info() -> #types::InstructMacroResult { #info }
+            fn model_name() -> String { stringify!(#name).to_string() }
+            #schema
+            #methods
+        }
+    })
 }
 
-/// Custom attribute macro for field validation in structs.
-///
-/// This procedural macro attribute is designed to be applied to structs,
-/// enabling custom validation for their fields. When the `validate` method
-/// is called on an instance of the decorated struct, it triggers the specified
-/// custom validation functions for each annotated field.
+/// Optional marker on a validator function. Preserves its visibility and attributes.
 #[proc_macro_attribute]
 pub fn validate(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(item as syn::ItemFn);
-    let syn::ItemFn { sig, block, .. } = input;
-
-    let expanded = quote! {
-        #sig {
-            #block
-        }
-    };
-
-    TokenStream::from(expanded)
+    item
 }
