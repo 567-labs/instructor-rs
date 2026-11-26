@@ -221,8 +221,7 @@ fn text(value: Value) -> String {
 fn render(value: &mut Value, context: &Value) -> Result<(), String> {
     match value {
         Value::String(s) => {
-            *s = crate::render(s, context)
-                .map_err(|e| format!("invalid instruction template: {e}"))?;
+            crate::render(s, context).map_err(|e| format!("invalid instruction template: {e}"))?;
         }
         Value::Array(items) => {
             for item in items {

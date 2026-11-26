@@ -178,7 +178,11 @@ impl Client {
     }
 
     pub(crate) fn emit(&self, request: &Request, attempt: u64, event: Event<'_>) {
-        for hook in self.hooks.iter().chain(&request.hooks) {
+        Self::notify(self.hooks.iter().chain(&request.hooks), attempt, event);
+    }
+
+    fn notify<'a>(hooks: impl Iterator<Item = &'a Hook>, attempt: u64, event: Event<'_>) {
+        for hook in hooks {
             if let Callback::Event(callback) = hook.as_ref() {
                 callback(attempt, event);
             }
@@ -194,9 +198,9 @@ impl Client {
     }
 
     pub async fn create<T: ResponseModel>(&self, request: impl Into<Request>) -> Result<T, Error> {
-        self.create_with_completion(request)
+        self.create_with_usage(request)
             .await
-            .map(|(value, _)| value)
+            .map(|(result, _)| result.value)
     }
 
     /// Return the validated value and its original successful provider response.
@@ -204,9 +208,9 @@ impl Client {
         &self,
         request: impl Into<Request>,
     ) -> Result<(T, Value), Error> {
-        self.create_with_metadata(request)
+        self.create_with_usage(request)
             .await
-            .map(Completion::into_pair)
+            .map(|(result, _)| result.into_pair())
     }
 
     /// Return the full result including the number of attempts and cumulative usage.
@@ -345,7 +349,7 @@ impl Client {
             }
         }
 
-        let mut attempts = Attempts::new();
+        let mut attempts = Attempts::new(req.retry_timeout);
         loop {
             let attempt = attempts.next();
             let raw = match self.send_json(req, &wire, attempt).await {
@@ -433,7 +437,7 @@ impl Client {
     ) -> Result<OutputStream<T>, Error> {
         let req = request.prepare(false)?;
         let mut wire = self.config.request(&req, Some(&schema.value), true)?;
-        let mut attempts = Attempts::new();
+        let mut attempts = Attempts::new(req.retry_timeout);
         loop {
             let num = attempts.next();
             self.emit(&req, num, Event::Request(&wire.body));
@@ -458,12 +462,14 @@ impl Client {
                         .await?;
                 }
                 Some(Ok(first)) => {
-                    let client = self.clone();
+                    // Once a stream has yielded, only the terminal callbacks are needed.
+                    let client_hooks = self.hooks.clone();
+                    let request_hooks = req.hooks;
                     return Ok(async_stream::stream! {
                         yield Ok(first);
                         while let Some(result) = stream.next().await {
                             if let Err(error) = result {
-                                client.emit(&req, num, Event::LastAttempt(&error));
+                                Self::notify(client_hooks.iter().chain(&request_hooks), num, Event::LastAttempt(&error));
                                 drop(stream);
                                 yield Err(error);
                                 break;

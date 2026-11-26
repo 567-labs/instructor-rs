@@ -1,21 +1,26 @@
 use super::{tool_name, Mode, Provider, ProviderConfig};
 use crate::Error;
 use serde_json::Value;
+use std::borrow::Cow;
 
 impl ProviderConfig {
-    pub(crate) fn extract(&self, raw: &Value, schema: &Value) -> Result<String, Error> {
+    pub(crate) fn extract<'a>(
+        &self,
+        raw: &'a Value,
+        schema: &Value,
+    ) -> Result<Cow<'a, str>, Error> {
         check_error(raw)?;
         let name = tool_name(schema);
         match self.provider {
-            Provider::OpenAI if self.mode == Mode::ResponsesTools => responses_output(raw, &name),
+            Provider::OpenAI if self.mode == Mode::ResponsesTools => responses_output(raw, name),
             Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => {
                 let choice = candidate(raw, "choices")?;
                 check_finish(&choice["finish_reason"])?;
-                chat_output(&choice["message"], self.mode, &name)
+                chat_output(&choice["message"], self.mode, name)
             }
             Provider::Cohere => {
                 check_finish(&raw["finish_reason"])?;
-                chat_output(&raw["message"], self.mode, &name)
+                chat_output(&raw["message"], self.mode, name)
             }
             Provider::Anthropic => {
                 check_finish(&raw["stop_reason"])?;
@@ -24,7 +29,7 @@ impl ProviderConfig {
                 }
                 let mut calls = entries(&raw["content"]).filter(|b| b["type"] == "tool_use");
                 let call = single_call(&mut calls)?;
-                check_name(&call["name"], &name)?;
+                check_name(&call["name"], name)?;
                 arguments(&call["input"])
             }
             Provider::Google => {
@@ -39,7 +44,7 @@ impl ProviderConfig {
                     .filter(|p| p["thought"] != true)
                     .filter_map(|p| p.get("functionCall"));
                 let call = single_call(&mut calls)?;
-                check_name(&call["name"], &name)?;
+                check_name(&call["name"], name)?;
                 arguments(&call["args"])
             }
         }
@@ -79,7 +84,11 @@ pub(crate) fn check_finish(value: &Value) -> Result<bool, Error> {
     let reason = value
         .as_str()
         .ok_or_else(|| Error::Protocol("Expected textual finish reason".into()))?;
-    match reason.to_ascii_lowercase().as_str() {
+    let mut normalized = Cow::Borrowed(reason);
+    if reason.bytes().any(|c| c.is_ascii_uppercase()) {
+        normalized.to_mut().make_ascii_lowercase();
+    }
+    match normalized.as_ref() {
         "" | "finish_reason_unspecified" => Ok(false),
         "stop" | "end_turn" | "tool_use" | "tool_calls" | "function_call" | "tool_call"
         | "complete" | "stop_sequence" => Ok(true),
@@ -135,19 +144,19 @@ pub(super) fn check_name(candidate: &Value, expected: &str) -> Result<(), Error>
     Ok(())
 }
 
-pub(super) fn arguments(arg: &Value) -> Result<String, Error> {
+pub(super) fn arguments(arg: &Value) -> Result<Cow<'_, str>, Error> {
     match arg {
-        Value::String(text) => Ok(text.clone()),
-        Value::Object(_) => Ok(arg.to_string()),
+        Value::String(text) => Ok(Cow::Borrowed(text)),
+        Value::Object(_) => Ok(Cow::Owned(arg.to_string())),
         _ => Err(Error::Parse("Missing or invalid tool arguments".into())),
     }
 }
 
-pub(super) fn collect_text(parts: &Value) -> Result<String, Error> {
+pub(super) fn collect_text(parts: &Value) -> Result<Cow<'_, str>, Error> {
     if let Some(text) = parts.as_str() {
         return Ok(text.into());
     }
-    let mut result = String::new();
+    let mut result = Cow::Borrowed("");
     for part in entries(parts) {
         check_refusal(part)?;
         if part["thought"] == true
@@ -156,13 +165,13 @@ pub(super) fn collect_text(parts: &Value) -> Result<String, Error> {
             continue;
         }
         if let Some(text) = part["text"].as_str() {
-            result.push_str(text);
+            result += text;
         }
     }
     Ok(result)
 }
 
-fn text_content(parts: &Value) -> Result<String, Error> {
+fn text_content(parts: &Value) -> Result<Cow<'_, str>, Error> {
     let result = collect_text(parts)?;
     if result.trim().is_empty() {
         return Err(Error::Parse("Missing response text".into()));
@@ -170,7 +179,7 @@ fn text_content(parts: &Value) -> Result<String, Error> {
     Ok(result)
 }
 
-fn chat_output(message: &Value, mode: Mode, name: &str) -> Result<String, Error> {
+fn chat_output<'a>(message: &'a Value, mode: Mode, name: &str) -> Result<Cow<'a, str>, Error> {
     check_refusal(message)?;
     if !mode.is_tool() {
         return text_content(&message["content"]);
@@ -197,10 +206,10 @@ pub(super) fn check_responses_status(raw: &Value) -> Result<(), Error> {
     }
 }
 
-pub(super) fn responses_output(raw: &Value, name: &str) -> Result<String, Error> {
+pub(super) fn responses_output<'a>(raw: &'a Value, name: &str) -> Result<Cow<'a, str>, Error> {
     check_responses_status(raw)?;
     let mut tool = None;
-    let mut text = String::new();
+    let mut text = Cow::Borrowed("");
     for item in entries(&raw["output"]) {
         match item["type"].as_str() {
             Some("function_call" | "tool_call") if item["name"] == name => {
@@ -210,7 +219,7 @@ pub(super) fn responses_output(raw: &Value, name: &str) -> Result<String, Error>
                 tool = Some(arguments(&item["arguments"])?);
             }
             Some("message") if item["phase"] != "commentary" => {
-                text.push_str(&collect_text(&item["content"])?)
+                text += collect_text(&item["content"])?
             }
             _ => (),
         }

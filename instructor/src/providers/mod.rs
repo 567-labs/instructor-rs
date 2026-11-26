@@ -271,21 +271,9 @@ impl ProviderConfig {
     }
 }
 
-fn tool_name(schema: &Value) -> String {
-    let name = schema["title"]
-        .as_str()
-        .filter(|name| !name.is_empty())
-        .unwrap_or("Response");
-    name.chars()
-        .take(64)
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
+// Schema construction normalizes the title once per Rust type.
+fn tool_name(schema: &Value) -> &str {
+    schema["title"].as_str().unwrap_or("Response")
 }
 
 #[cfg(test)]

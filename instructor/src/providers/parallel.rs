@@ -59,10 +59,10 @@ impl ProviderConfig {
     pub(crate) fn parallel_calls<'a>(
         &self,
         raw: &'a Value,
-    ) -> Result<Vec<(&'a str, String)>, Error> {
+    ) -> Result<Vec<(&'a str, std::borrow::Cow<'a, str>)>, Error> {
         check_error(raw)?;
         let mut calls = Vec::new();
-        let mut add = |name: &'a Value, args: &Value| -> Result<(), Error> {
+        let mut add = |name: &'a Value, args: &'a Value| -> Result<(), Error> {
             let name = name
                 .as_str()
                 .ok_or_else(|| Error::Parse("missing tool name".into()))?;

@@ -7,15 +7,15 @@ use std::time::Duration;
 use tokio::time::Instant;
 
 pub(crate) struct Attempts {
-    started: Instant,
+    deadline: Option<Instant>,
     usage: TokenUsage,
     failures: Vec<FailedAttempt>,
 }
 
 impl Attempts {
-    pub fn new() -> Self {
+    pub fn new(timeout: Option<Duration>) -> Self {
         Self {
-            started: Instant::now(),
+            deadline: timeout.and_then(|limit| Instant::now().checked_add(limit)),
             usage: TokenUsage::ZERO,
             failures: Vec::new(),
         }
@@ -56,12 +56,13 @@ impl Attempts {
             Some(policy) => policy(failed).ok_or(StopReason::Policy)?,
             None => Duration::ZERO,
         };
-        if Instant::now().checked_add(delay).is_none()
-            || req
-                .retry_timeout
-                .is_some_and(|limit| self.started.elapsed().saturating_add(delay) >= limit)
-        {
-            return Err(StopReason::Timeout);
+        if self.deadline.is_some() || !delay.is_zero() {
+            let next = Instant::now()
+                .checked_add(delay)
+                .ok_or(StopReason::Timeout)?;
+            if self.deadline.is_some_and(|deadline| next >= deadline) {
+                return Err(StopReason::Timeout);
+            }
         }
         Ok(delay)
     }
@@ -120,9 +121,9 @@ impl Client {
                 if !delay.is_zero() {
                     tokio::time::sleep(delay).await;
                 }
-                if req
-                    .retry_timeout
-                    .is_none_or(|limit| attempts.started.elapsed() < limit)
+                if attempts
+                    .deadline
+                    .is_none_or(|deadline| Instant::now() < deadline)
                 {
                     return Ok(());
                 }

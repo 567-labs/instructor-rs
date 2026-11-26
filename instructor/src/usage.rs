@@ -55,7 +55,14 @@ impl TokenUsage {
 
     /// Normalize the usage in a single native response envelope.
     pub fn from_response(provider: Provider, raw: &Value) -> Self {
-        let usage = &raw["usage"];
+        let key = if provider == Provider::Google {
+            "usageMetadata"
+        } else {
+            "usage"
+        };
+        let Some(usage) = raw.get(key) else {
+            return Self::default();
+        };
         let mut counts = match provider {
             Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => {
                 let input_details = usage
@@ -105,7 +112,6 @@ impl TokenUsage {
                 }
             }
             Provider::Google => {
-                let usage = &raw["usageMetadata"];
                 let thoughts = &usage["thoughtsTokenCount"];
                 Self {
                     input_tokens: usage["promptTokenCount"].as_u64(),

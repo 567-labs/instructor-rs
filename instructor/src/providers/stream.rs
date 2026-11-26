@@ -17,7 +17,7 @@ impl ProviderConfig {
         schema: &Value,
         iterable: bool,
     ) -> BoxStream<'static, Result<String, Error>> {
-        let mut parser = Parser::new(self.provider, self.mode, tool_name(schema));
+        let mut parser = Parser::new(self.provider, self.mode, tool_name(schema).to_owned());
         if iterable
             && matches!(self.mode, Mode::Tools | Mode::ToolsStrict)
             && matches!(
@@ -175,7 +175,7 @@ impl Parser {
         let delta = &choice["delta"];
         check_refusal(delta)?;
         if !self.mode.is_tool() {
-            return collect_text(&delta["content"]);
+            return collect_text(&delta["content"]).map(std::borrow::Cow::into_owned);
         }
         if let Some(indexed) = &mut self.indexed {
             return indexed.feed(&delta["tool_calls"], &self.expected);
@@ -208,7 +208,7 @@ impl Parser {
         if func["arguments"].is_null() {
             return Ok(String::new());
         }
-        arguments(&func["arguments"])
+        arguments(&func["arguments"]).map(std::borrow::Cow::into_owned)
     }
 
     fn anthropic(&mut self, kind: &str, raw: &Value) -> Result<String, Error> {
@@ -225,7 +225,7 @@ impl Parser {
                     check_name(&block["name"], &self.expected)?;
                     self.select(idx)?;
                     if block["input"].as_object().is_some_and(|v| !v.is_empty()) {
-                        return arguments(&block["input"]);
+                        return arguments(&block["input"]).map(std::borrow::Cow::into_owned);
                     }
                     self.pending_empty_tool = block["input"].is_object();
                 }
@@ -347,7 +347,8 @@ impl Parser {
                 check_responses_status(response)?;
                 self.done = true;
                 if !self.has_output {
-                    return responses_output(response, &self.expected);
+                    return responses_output(response, &self.expected)
+                        .map(std::borrow::Cow::into_owned);
                 }
                 // Validate any final refusal or unexpected multiplicity reported in
                 // the canonical output, even after preview fragments were emitted.

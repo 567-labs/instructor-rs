@@ -161,7 +161,7 @@ impl<T: ResponseModel> Batch<T> {
         }
     }
 
-    fn request(&self, req: Request, id: &str) -> Result<Value, Error> {
+    fn request(&self, req: Request, id: String) -> Result<Value, Error> {
         let config = &self.client.config;
         let mut req = req.prepare(false)?;
         if !req.hooks.is_empty() {
@@ -202,35 +202,44 @@ impl<T: ResponseModel> Batch<T> {
                 "name":self.schema.value["title"],"schema":self.schema.value,"strict":false
             }});
         }
-        body.as_object_mut()
-            .expect("request body is an object")
-            .remove("stream");
-        Ok(match self.provider() {
+        let fields = body.as_object_mut().expect("request body is an object");
+        fields.remove("stream");
+        let mut record = json!({});
+        record["custom_id"] = id.into();
+        match self.provider() {
             Provider::Anthropic => {
                 if config.mode() == Mode::Tools {
-                    let mut schema = self.schema.value.clone();
+                    let tool = &mut body["tools"][0];
+                    tool["name"] = "extract_data".into();
+                    tool["description"] =
+                        format!("Extract data matching the {} schema", T::model_name()).into();
+                    // Restore the root metadata omitted from ordinary tool parameters.
+                    let schema = &mut tool["input_schema"];
+                    for key in ["title", "description"] {
+                        if let Some(value) = self.schema.value.get(key) {
+                            schema[key] = value.clone();
+                        }
+                    }
                     if schema.get("additionalProperties").is_none() {
                         schema["additionalProperties"] = false.into();
                     }
-                    body["tools"][0] = json!({
-                        "name": "extract_data",
-                        "description": format!("Extract data matching the {} schema", T::model_name()),
-                        "input_schema": schema,
-                    });
                     if body["tool_choice"]["type"] == "tool" {
                         body["tool_choice"]["name"] = "extract_data".into();
                     }
                 }
-                json!({"custom_id":id, "params":body})
+                record["params"] = body;
             }
             Provider::Mistral => {
-                body.as_object_mut()
-                    .expect("request body is an object")
-                    .remove("model");
-                json!({"custom_id":id,"body":body})
+                fields.remove("model");
+                record["body"] = body;
             }
-            _ => json!({"custom_id":id,"method":"POST","url":self.endpoint(),"body":body}),
-        })
+            _ => {
+                record["method"] = "POST".into();
+                record["url"] = self.endpoint().into();
+                record["body"] = body;
+            }
+        }
+        Ok(record)
     }
 
     /// Build a complete JSONL payload in memory, including the final newline.
@@ -239,20 +248,20 @@ impl<T: ResponseModel> Batch<T> {
         requests: impl IntoIterator<Item = R>,
     ) -> Result<String, Error> {
         let mut seen = HashSet::new();
-        let mut lines = String::new();
+        let mut lines = Vec::new();
         for (index, item) in requests.into_iter().enumerate() {
             let item = item.into();
             let id = item.id.unwrap_or_else(|| format!("request-{index}"));
             self.validate_id(&mut seen, &id)?;
-            lines.push_str(&self.request(item.request, &id)?.to_string());
-            lines.push('\n');
+            serde_json::to_writer(&mut lines, &self.request(item.request, id)?)?;
+            lines.push(b'\n');
         }
         if seen.is_empty() {
             return Err(Error::Configuration(
                 "batch requires at least one item".into(),
             ));
         }
-        Ok(lines)
+        Ok(String::from_utf8(lines).expect("serde_json writes UTF-8"))
     }
 
     /// Atomically replace a request file after preparing and validating all items.

@@ -128,7 +128,9 @@ impl<T: ResponseModel> Batch<T> {
                     "Anthropic batches do not accept metadata".into(),
                 ));
             }
-            json!({"requests":requests})
+            let mut body = json!({});
+            body["requests"] = Value::Array(requests);
+            body
         } else {
             let file = Part::bytes(jsonl.as_bytes().to_vec())
                 .file_name("batch.jsonl")
