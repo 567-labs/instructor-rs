@@ -4,10 +4,10 @@ Instructor uses the type of your result to build the request and validate the an
 
 ## Try the parser locally
 
-From the repository root, inspect a schema and parse a sample response. This command runs entirely on local data.
+From the repository root, replay a short response to see the difference between a preview and a completed model. This command runs entirely on local data.
 
 ```sh
-cargo run -p instructor-ai --example types
+cargo run -p instructor-ai --example replay
 ```
 
 ## Make a provider request
@@ -65,6 +65,8 @@ Both clients expose the following methods. The async client returns a future tha
 | Inspect provider metadata | `create_with_completion::<T>(request)` | `(T, serde_json::Value)` |
 | Count attempts and tokens | `create_with_metadata::<T>(request)` | `Completion<T>` |
 | Read the provider response as JSON | `create_raw(request)` | `serde_json::Value` |
+| Show a preview of one object | `create_partial::<T>(request)` | Stream or iterator of `Result<PartialEvent<T>, Error>` |
+| Process completed records as they arrive | `create_iterable::<T>(request)` | Stream or iterator of `Result<T, Error>` |
 | Apply a check after deserialization | `create_validated(request, check)` | `T` |
 
 ## Moving from the original Rust client

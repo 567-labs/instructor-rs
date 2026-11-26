@@ -1,4 +1,4 @@
-//! Typed structured outputs.
+//! Typed structured outputs and streaming.
 //!
 //! ```no_run
 //! use instructor_ai::{model, from_provider};
@@ -29,9 +29,12 @@ pub mod providers;
 mod request;
 mod retry;
 mod schema;
+pub mod streaming;
 
 pub use analysis::{analyze_schema, select_mode, SchemaAnalysis, SchemaFinding, Severity};
-pub use client::{from_provider, BlockingClient, Client, Completion, HookHandle};
+pub use client::{
+    from_provider, BlockingClient, Client, Completion, HookHandle, OutputIterator, OutputStream,
+};
 pub use error::{Error, FailedAttempt, StopReason};
 pub use instruct_macros::{model, InstructMacro, PartialModel};
 pub use instruct_macros_types::{InstructMacro, Partial, PartialModel};
@@ -40,8 +43,7 @@ pub use media::Media;
 pub use providers::{Mode, Provider, ProviderConfig};
 pub use request::{CacheTtl, Event, Message, Request};
 pub use schema::{parse_response, response_schema, ResponseModel};
+pub use streaming::PartialEvent;
 
 #[doc(hidden)]
 pub use instruct_macros_types as __private;
-
-mod markdown;

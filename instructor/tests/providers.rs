@@ -1,6 +1,10 @@
 //! End-to-end contract tests against deterministic loopback endpoints.
+#[path = "providers/parallel.rs"]
+mod parallel;
+use futures_util::{StreamExt, TryStreamExt};
 use instructor_ai::{
-    model, response_schema, Client, Error, Message, Mode, Provider, ProviderConfig, Request,
+    model, response_schema, BlockingClient, Client, Error, Message, Mode, PartialEvent, Provider,
+    ProviderConfig, Request,
 };
 use mockito::{Matcher, Mock, Server};
 use serde_json::{json, Value};
@@ -191,6 +195,228 @@ async fn all_providers_send_native_requests_and_return_original_envelopes() {
     }
 }
 
+fn frame(raw: &Value) -> String {
+    let event = raw["type"]
+        .as_str()
+        .map(|k| format!("event: {k}\r\n"))
+        .unwrap_or_default();
+    format!("{event}data: {raw}\r\n\r\n")
+}
+
+fn events(p: Provider, mode: Mode, name: &str, fragments: &[&str]) -> String {
+    let mut stream = String::from(": keepalive\r\n\r\n");
+    let mut send = |v: Value| stream.push_str(&frame(&v));
+    match p {
+        Provider::Google => {
+            send(json!({"candidates":[{"content":{"parts":[{"thought":true,"text":"…"}]}}]}));
+            if tool(mode) {
+                let args: Value = serde_json::from_str(&fragments.concat()).unwrap();
+                send(
+                    json!({"candidates":[{"content":{"parts":[{"functionCall":{"name":name,"args":args}}]}}]}),
+                );
+            } else {
+                for s in fragments {
+                    send(json!({"candidates":[{"content":{"parts":[{"text":s}]}}]}));
+                }
+            }
+            send(
+                json!({"candidates":[{"finishReason":"STOP"}],"usageMetadata":{"totalTokenCount":10}}),
+            );
+        }
+        Provider::Anthropic => {
+            send(json!({"type":"message_start","message":{"role":"assistant","content":[]}}));
+            send(
+                json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}),
+            );
+            send(
+                json!({"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"…"}}),
+            );
+            send(json!({"type":"content_block_stop","index":0}));
+            let block = if tool(mode) {
+                json!({"type":"tool_use","id":"tool_1","name":name,"input":{}})
+            } else {
+                json!({"type":"text","text":""})
+            };
+            send(json!({"type":"content_block_start","index":1,"content_block":block}));
+            send(json!({"type":"ping"}));
+            for s in fragments {
+                let delta = if tool(mode) {
+                    json!({"type":"input_json_delta","partial_json":s})
+                } else {
+                    json!({"type":"text_delta","text":s})
+                };
+                send(json!({"type":"content_block_delta","index":1,"delta":delta}));
+            }
+            send(json!({"type":"content_block_stop","index":1}));
+            send(
+                json!({"type":"message_delta","delta":{"stop_reason":if tool(mode){"tool_use"}else{"end_turn"}}}),
+            );
+            send(json!({"type":"message_stop"}));
+        }
+        Provider::Cohere => {
+            send(
+                json!({"type":"message-start","id":"id","delta":{"message":{"role":"assistant"}}}),
+            );
+            if tool(mode) {
+                send(
+                    json!({"type":"tool-call-start","index":0,"delta":{"message":{"tool_calls":{"id":"call_1","function":{"name":name,"arguments":""}}}}}),
+                );
+                for s in fragments {
+                    send(
+                        json!({"type":"tool-call-delta","index":0,"delta":{"message":{"tool_calls":{"function":{"arguments":s}}}}}),
+                    );
+                }
+                send(json!({"type":"tool-call-end","index":0}));
+            } else {
+                for s in fragments {
+                    send(
+                        json!({"type":"content-delta","index":0,"delta":{"message":{"content":{"text":s}}}}),
+                    );
+                }
+            }
+            send(
+                json!({"type":"message-end","delta":{"finish_reason":if tool(mode){"TOOL_CALL"}else{"COMPLETE"}}}),
+            );
+        }
+        _ => {
+            send(
+                json!({"choices":[{"index":0,"delta":{"role":"assistant","reasoning":"thinking"}}]}),
+            );
+            if tool(mode) {
+                send(
+                    json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":name,"arguments":""}}]}}]}),
+                );
+            }
+            for s in fragments {
+                let delta = if tool(mode) {
+                    json!({"tool_calls":[{"index":0,"function":{"arguments":s}}]})
+                } else {
+                    json!({"content":s})
+                };
+                send(json!({"choices":[{"index":0,"delta":delta}]}));
+            }
+            send(
+                json!({"choices":[{"delta":{},"finish_reason":if tool(mode){"tool_calls"}else{"stop"}}]}),
+            );
+            send(json!({"choices":[],"usage":{"total_tokens":12}}));
+            stream.push_str("data: [DONE]\n\n");
+        }
+    }
+    stream
+}
+
+fn fragmented(mock: Mock, stream: String) -> Mock {
+    mock.with_header("content-type", "text/event-stream; charset=utf-8")
+        .with_chunked_body(move |writer| {
+            for chunk in stream.as_bytes().chunks(13) {
+                writer.write_all(chunk)?;
+            }
+            Ok(())
+        })
+}
+
+#[tokio::test]
+async fn fragmented_native_streams_yield_typed_partials_then_complete() {
+    let mut server = Server::new_async().await;
+    for p in PROVIDERS {
+        for mode in [Mode::Tools, Mode::JsonSchema] {
+            let raw = events(
+                p,
+                mode,
+                "Person",
+                &[r#"{"name":"Ren"#, r#"ée","age":"#, "41}"],
+            );
+            let endpoint = fragmented(
+                mock(&mut server, p, mode, true).match_body(Matcher::PartialJson(
+                    structured_request(p, mode, true, "Person"),
+                )),
+                raw,
+            )
+            .create_async()
+            .await;
+            let client = Client::new(config(&server, p, mode)).unwrap();
+            let stream = client.create_partial::<Person>(request()).await;
+            endpoint.assert_async().await;
+            let items: Vec<_> = stream.unwrap().try_collect().await.unwrap();
+            if p != Provider::Google || !tool(mode) {
+                assert!(items.iter().any(|item|matches!(item,PartialEvent::Partial(part) if part.name.as_deref()==Some("Renée") && part.age.is_none())), "{p} {mode:?}");
+            }
+            assert!(
+                matches!(items.last(),Some(PartialEvent::Complete(model)) if model.name=="Renée" && model.age==41)
+            );
+            assert_eq!(
+                items
+                    .iter()
+                    .filter(|i| matches!(i, PartialEvent::Complete(_)))
+                    .count(),
+                1
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn all_default_provider_streams_yield_iterable_items_in_order() {
+    let mut server = Server::new_async().await;
+    let schema = response_schema::<Vec<Person>>();
+    let name = schema["title"].as_str().unwrap();
+    for p in PROVIDERS {
+        let mode = p.default_mode();
+        let stream = events(
+            p,
+            mode,
+            name,
+            &[
+                r#"{"tasks":[{"name":"Renée","age":41}"#,
+                r#",{"name":"Li","age":2}"#,
+                "]}",
+            ],
+        );
+        let endpoint = fragmented(
+            mock(&mut server, p, mode, true).match_body(Matcher::PartialJson(structured_request(
+                p, mode, true, name,
+            ))),
+            stream,
+        )
+        .create_async()
+        .await;
+        let client = Client::new(config(&server, p, mode)).unwrap();
+        let stream = client.create_iterable::<Person>(request()).await;
+        endpoint.assert_async().await;
+        let people: Vec<Person> = stream.unwrap().try_collect().await.unwrap();
+        assert_eq!(
+            people
+                .iter()
+                .map(|p| (p.name.as_str(), p.age))
+                .collect::<Vec<_>>(),
+            vec![("Renée", 41), ("Li", 2)]
+        );
+    }
+}
+
+#[test]
+fn blocking_facade_consumes_streams_for_primary_providers() {
+    let mut server = Server::new();
+    for p in [Provider::OpenAI, Provider::Anthropic, Provider::OpenRouter] {
+        let raw = events(
+            p,
+            Mode::Tools,
+            "Person",
+            &[r#"{"name":"Ren"#, r#"ée","age":41}"#],
+        );
+        let endpoint = fragmented(mock(&mut server, p, Mode::Tools, true), raw).create();
+        let client = BlockingClient::new(config(&server, p, Mode::Tools)).unwrap();
+        let output: Result<Vec<_>, _> = client
+            .create_partial::<Person>("Renée is 41")
+            .unwrap()
+            .collect();
+        assert!(
+            matches!(output.unwrap().last(),Some(PartialEvent::Complete(model)) if model.name=="Renée")
+        );
+        endpoint.assert();
+    }
+}
+
 #[tokio::test]
 async fn native_tool_retries_replay_correlated_messages_and_preserve_signatures() {
     let mut server = Server::new_async().await;
@@ -296,6 +522,48 @@ async fn all_providers_flag_truncation_even_for_parseable_json() {
 }
 
 #[tokio::test]
+async fn errors_after_provisional_output_are_terminal_and_skip_complete() {
+    let mut server = Server::new_async().await;
+    for p in PROVIDERS {
+        let json = r#"{"name":"Renée","age":"#;
+        let (content, stop) = match p {
+            Provider::Google => (
+                json!({"candidates":[{"content":{"parts":[{"text":json}]}}]}),
+                json!({"candidates":[{"finishReason":"MAX_TOKENS"}]}),
+            ),
+            Provider::Cohere => (
+                json!({"type":"content-delta","delta":{"message":{"content":{"text":json}}}}),
+                json!({"type":"message-end","delta":{"finish_reason":"MAX_TOKENS"}}),
+            ),
+            Provider::Anthropic => (
+                json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":json}}),
+                json!({"type":"message_delta","delta":{"stop_reason":"max_tokens"}}),
+            ),
+            _ => (
+                json!({"choices":[{"delta":{"content":json}}]}),
+                json!({"choices":[{"delta":{},"finish_reason":"length"}]}),
+            ),
+        };
+        let endpoint = mock(&mut server, p, Mode::JsonSchema, true)
+            .with_body(frame(&content) + &frame(&stop))
+            .create_async()
+            .await;
+        let client = Client::new(config(&server, p, Mode::JsonSchema)).unwrap();
+        let mut values = client.create_partial::<Person>("Renée").await.unwrap();
+        assert!(matches!(
+            values.next().await,
+            Some(Ok(PartialEvent::Partial(_)))
+        ));
+        assert!(matches!(
+            values.next().await,
+            Some(Err(Error::Incomplete(_)))
+        ));
+        assert!(values.next().await.is_none());
+        endpoint.assert_async().await;
+    }
+}
+
+#[tokio::test]
 async fn openai_and_anthropic_and_router_handle_http_errors_refusals_and_malformed_tools() {
     let mut server = Server::new_async().await;
     for p in [Provider::OpenAI, Provider::Anthropic, Provider::OpenRouter] {
@@ -354,6 +622,38 @@ async fn openrouter_preserves_routing_and_reports_errors_inside_successful_http(
         .unwrap_err();
     assert!(matches!(err,Error::Provider(msg) if msg.contains("502")));
     endpoint.assert_async().await;
+    let endpoint=mock(&mut server,p,Mode::JsonSchema,true).with_body(
+        ": OPENROUTER PROCESSING\n\ndata: {\"error\":{\"message\":\"upstream\"},\"choices\":[{\"finish_reason\":\"error\"}]}\n\ndata: [DONE]\n\n"
+    ).create_async().await;
+    assert!(
+        matches!(client.create_partial::<Person>(request()).await,Err(Error::Provider(msg)) if msg.contains("upstream"))
+    );
+    endpoint.assert_async().await;
+}
+
+#[tokio::test]
+async fn streams_require_completion_markers_and_well_formed_events() {
+    let mut server = Server::new_async().await;
+    for suffix in ["", "data: invalid\n\n", "event: error\ndata: overload\n\n"] {
+        let endpoint = mock(&mut server, Provider::OpenAI, Mode::JsonSchema, true)
+            .with_body(
+                frame(&json!({"choices":[{"delta":{"content":person().to_string()}}]})) + suffix,
+            )
+            .create_async()
+            .await;
+        let client = Client::new(config(&server, Provider::OpenAI, Mode::JsonSchema)).unwrap();
+        let err = client
+            .create_partial::<Person>(request())
+            .await
+            .err()
+            .unwrap();
+        match suffix {
+            "" => assert!(matches!(err, Error::Incomplete(_))),
+            "data: invalid\n\n" => assert!(matches!(err, Error::Protocol(_))),
+            _ => assert!(matches!(err, Error::Provider(_))),
+        }
+        endpoint.assert_async().await;
+    }
 }
 
 #[tokio::test]
@@ -573,6 +873,42 @@ async fn responses_can_return_text_with_builtins_and_ignore_commentary() {
 }
 
 #[tokio::test]
+async fn responses_stream_selects_one_matching_output_and_skips_auxiliary_deltas() {
+    let mut server = Server::new_async().await;
+    for (ty, delta) in [
+        ("function_call", "response.function_call_arguments.delta"),
+        ("message", "response.output_text.delta"),
+    ] {
+        let data=[
+            json!({"type":"response.created","response":{"status":"in_progress"}}),
+            json!({"type":"response.output_item.added","output_index":1,"item":{"type":"function_call","name":"foreign"}}),
+            json!({"type":"response.function_call_arguments.delta","output_index":1,"delta":"bad"}),
+            json!({"type":"response.output_item.added","output_index":2,"item":{"type":"message","phase":"commentary"}}),
+            json!({"type":"response.output_text.delta","output_index":2,"delta":"Searching…"}),
+            json!({"type":"response.output_item.added","output_index":3,"item":{"type":ty,"name":"Person"}}),
+            json!({"type":delta,"output_index":3,"delta":r#"{"name":"Renée","age":"#}),
+            json!({"type":delta,"output_index":3,"delta":"41}"}),
+            json!({"type":"response.completed","response":{"status":"completed"}}),
+        ].iter().map(frame).collect();
+        let m = fragmented(
+            mock(&mut server, Provider::OpenAI, Mode::ResponsesTools, true),
+            data,
+        )
+        .create_async()
+        .await;
+        let client = Client::new(config(&server, Provider::OpenAI, Mode::ResponsesTools)).unwrap();
+        let mut output = client.create_partial::<Person>(request()).await.unwrap();
+        let preview = output.next().await.unwrap().unwrap();
+        assert!(
+            matches!(preview,PartialEvent::Partial(p) if p.name.as_deref()==Some("Renée") && p.age.is_none())
+        );
+        let rest: Vec<_> = output.try_collect().await.unwrap();
+        assert!(matches!(rest.last(),Some(PartialEvent::Complete(p)) if p.age==41));
+        m.assert_async().await;
+    }
+}
+
+#[tokio::test]
 async fn responses_failures_refusals_and_incomplete_states_are_typed() {
     let mut server = Server::new_async().await;
     let client = Client::new(config(&server, Provider::OpenAI, Mode::ResponsesTools)).unwrap();
@@ -591,17 +927,32 @@ async fn responses_failures_refusals_and_incomplete_states_are_typed() {
         ),
     ];
     for (state, raw) in examples {
-        let m = mock(&mut server, Provider::OpenAI, Mode::ResponsesTools, false)
-            .with_body(raw.to_string())
-            .create_async()
-            .await;
-        let err = client.create::<Person>(request()).await.unwrap_err();
-        match state {
-            "failed" => assert!(matches!(err, Error::Provider(_))),
-            "incomplete" => assert!(matches!(err, Error::Incomplete(_))),
-            _ => assert!(matches!(err, Error::Refusal(_))),
+        for stream in [false, true] {
+            let body = if stream {
+                frame(&json!({"type":format!("response.{state}"),"response":raw}))
+            } else {
+                raw.to_string()
+            };
+            let m = mock(&mut server, Provider::OpenAI, Mode::ResponsesTools, stream)
+                .with_body(body)
+                .create_async()
+                .await;
+            let err = if stream {
+                client
+                    .create_partial::<Person>(request())
+                    .await
+                    .err()
+                    .unwrap()
+            } else {
+                client.create::<Person>(request()).await.unwrap_err()
+            };
+            match state {
+                "failed" => assert!(matches!(err, Error::Provider(_))),
+                "incomplete" => assert!(matches!(err, Error::Incomplete(_))),
+                _ => assert!(matches!(err, Error::Refusal(_))),
+            }
+            m.assert_async().await;
         }
-        m.assert_async().await;
     }
 }
 

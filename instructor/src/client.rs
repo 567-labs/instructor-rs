@@ -6,17 +6,20 @@ use std::{
 };
 
 use crate::cache::Cache;
+use futures_util::{stream::BoxStream, StreamExt};
 use serde_json::Value;
 use tokio::runtime::Runtime;
 
 use crate::{
-    markdown,
     providers::WireRequest,
     request::Hook,
     retry::Attempts,
     schema::{schema, Schema},
-    Error, Event, Mode, ProviderConfig, Request, ResponseModel,
+    streaming, Error, Event, Mode, PartialEvent, PartialModel, ProviderConfig, Request,
+    ResponseModel,
 };
+
+pub type OutputStream<T> = BoxStream<'static, Result<T, Error>>;
 
 /// A typed result, original provider response and the cost of producing it
 /// during this invocation. Historical usage on a cache hit is in `raw`.
@@ -215,7 +218,7 @@ impl Client {
     ) -> Result<T, Error> {
         let payload = self.config.extract(raw, &schema.value)?;
         let text = if self.config.mode() == Mode::MarkdownJson {
-            markdown::extract_markdown_json(&payload)?
+            streaming::extract_markdown_json(&payload)?
         } else {
             &payload
         };
@@ -320,6 +323,92 @@ impl Client {
             }
         }
     }
+
+    /// Stream provisional typed snapshots followed by one fully validated model.
+    pub async fn create_partial<T>(
+        &self,
+        request: impl Into<Request>,
+    ) -> Result<OutputStream<PartialEvent<T>>, Error>
+    where
+        T: ResponseModel + PartialModel + Send,
+        T::Partial: Send + 'static,
+    {
+        let schema = schema::<T>();
+        self.stream(request.into(), schema, false, |fragments, context| {
+            streaming::partial_async_with_context::<T>(fragments, context).boxed()
+        })
+        .await
+    }
+
+    /// Stream validated items as each element of the tasks array ends.
+    pub async fn create_iterable<T: ResponseModel + Send>(
+        &self,
+        request: impl Into<Request>,
+    ) -> Result<OutputStream<T>, Error> {
+        self.stream(
+            request.into(),
+            schema::<Vec<T>>(),
+            true,
+            |fragments, context| {
+                streaming::iterable_async_with_context::<T>(fragments, context).boxed()
+            },
+        )
+        .await
+    }
+
+    async fn stream<T: Send + 'static>(
+        &self,
+        request: Request,
+        schema: Arc<Schema>,
+        iterable: bool,
+        decode: fn(OutputStream<String>, Value) -> OutputStream<T>,
+    ) -> Result<OutputStream<T>, Error> {
+        let req = request.prepare(false)?;
+        let mut wire = self.config.request(&req, Some(&schema.value), true)?;
+        let mut attempts = Attempts::new();
+        loop {
+            let num = attempts.next();
+            self.emit(&req, num, Event::Request(&wire.body));
+            let resp = match wire.send(&self.http).await {
+                Ok(resp) => resp,
+                Err(error) => {
+                    self.reject(&req, &mut wire, &mut attempts, Value::Null, error)
+                        .await?;
+                    continue;
+                }
+            };
+            let mut fragments = self.config.deltas(resp, &schema.value, iterable);
+            if self.config.mode() == Mode::MarkdownJson {
+                fragments = streaming::markdown_fragments(fragments, iterable);
+            }
+            let mut stream = decode(fragments, req.context.clone());
+            // Replay is safe only before handing the caller the first item.
+            match stream.next().await {
+                Some(Err(error)) => {
+                    drop(stream);
+                    self.reject(&req, &mut wire, &mut attempts, Value::Null, error)
+                        .await?;
+                }
+                Some(Ok(first)) => {
+                    let client = self.clone();
+                    return Ok(async_stream::stream! {
+                        yield Ok(first);
+                        while let Some(result) = stream.next().await {
+                            if let Err(error) = result {
+                                client.emit(&req, num, Event::LastAttempt(&error));
+                                drop(stream);
+                                yield Err(error);
+                                break;
+                            }
+                            yield result;
+                        }
+                    }
+                    .boxed());
+                }
+                None => return Ok(futures_util::stream::empty().boxed()),
+            }
+        }
+    }
 }
 
 /// Synchronous entry point for callers outside an async runtime.
@@ -327,6 +416,19 @@ impl Client {
 pub struct BlockingClient {
     pub(crate) client: Client,
     pub(crate) runtime: Arc<Runtime>,
+}
+
+/// Dropping an iterator releases its underlying HTTP stream.
+pub struct OutputIterator<T> {
+    stream: OutputStream<T>,
+    runtime: Arc<Runtime>,
+}
+
+impl<T> Iterator for OutputIterator<T> {
+    type Item = Result<T, Error>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.runtime.block_on(self.stream.next())
+    }
 }
 
 impl BlockingClient {
@@ -422,5 +524,35 @@ impl BlockingClient {
 
     pub fn create_raw(&self, request: impl Into<Request>) -> Result<Value, Error> {
         self.runtime.block_on(self.client.create_raw(request))
+    }
+
+    pub fn create_partial<T>(
+        &self,
+        request: impl Into<Request>,
+    ) -> Result<OutputIterator<PartialEvent<T>>, Error>
+    where
+        T: ResponseModel + PartialModel + Send,
+        T::Partial: Send + 'static,
+    {
+        let stream = self
+            .runtime
+            .block_on(self.client.create_partial::<T>(request))?;
+        Ok(OutputIterator {
+            stream,
+            runtime: self.runtime.clone(),
+        })
+    }
+
+    pub fn create_iterable<T: ResponseModel + Send>(
+        &self,
+        request: impl Into<Request>,
+    ) -> Result<OutputIterator<T>, Error> {
+        let stream = self
+            .runtime
+            .block_on(self.client.create_iterable::<T>(request))?;
+        Ok(OutputIterator {
+            stream,
+            runtime: self.runtime.clone(),
+        })
     }
 }

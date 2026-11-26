@@ -19,9 +19,11 @@ Pass any row's argument to the extraction examples. Each of the commands below u
 
 ```sh
 cargo run -p instructor-ai --example extract -- openai/gpt-6-luna
+cargo run -p instructor-ai --example stream_partial -- anthropic/claude-haiku-5-5
+cargo run -p instructor-ai --example stream_iterable -- openrouter/google/gemini-3.8-flash
 ```
 
-The `gemini/` prefix is an alias for `google/`. Both use the Gemini Developer API, with `GOOGLE_API_KEY` taking precedence.
+The `gemini/` prefix is an alias for `google/`. Both use the Gemini Developer API, with `GOOGLE_API_KEY` taking precedence. Gemini streams via `:streamGenerateContent?alt=sse`. The other APIs select streaming through a field in the request body.
 
 ## Choose an output mode
 
@@ -120,6 +122,8 @@ fn main() -> Result<(), Error> {
 }
 ```
 
+For an incremental display, pass the same model ID to the `stream_partial` example. The parser reads streamed tool arguments. [Typed snapshots](streaming.md)
+
 ### Reuse a prompt prefix
 
 For Anthropic or a compatible OpenRouter route, `Message::system(long_prefix).cache()` puts an ephemeral prompt cache marker on the last content block of that message. The default lifetime is five minutes. Use `.cache_for(CacheTtl::OneHour)` for one hour. A user message with media can also have a marker after its last attachment. The provider decides eligibility, including minimum token count and supported TTL. Reuse an identical prefix before a changing user question and inspect the raw completion's usage to see whether it hit the provider cache. This mechanism reuses provider work on the prefix. The local response cache reuses a complete answer. [Response cache](concepts.md#observe-attempts-and-reuse-responses)
@@ -144,11 +148,11 @@ fn main() -> Result<(), Error> {
 
 ## Gemini, Cohere, and Mistral
 
-- **Gemini** defaults to `JsonSchema` mode. Pass generation settings under `generationConfig`, for example `.option("generationConfig", serde_json::json!({"maxOutputTokens": 2048}))`.
+- **Gemini** sends text incrementally in `JsonSchema` mode. Its tool mode returns function arguments as an object, so previews can arrive together. Pass generation settings under `generationConfig`, for example `.option("generationConfig", serde_json::json!({"maxOutputTokens": 2048}))`.
 - **Cohere** uses the v2 Chat API and a native required tool call in `Tools` mode. Select a model that supports `tool_choice`.
 - **Mistral** uses its own Chat Completions endpoint. Check the model's function calling or structured output support when choosing a mode.
 
-Provider-specific options use the field names of the native HTTP API. Each client manages model selection, messages, streaming, and schema placement. The shared message type carries text and user-supplied attachments. [Media input](media.md) · [Validation and retries](concepts.md)
+Provider-specific options use the field names of the native HTTP API. Each client manages model selection, messages, streaming, and schema placement. The shared message type carries text and user-supplied attachments. [Media input](media.md) · [Streaming](streaming.md) · [Validation and retries](concepts.md)
 
 ## Check provider access
 

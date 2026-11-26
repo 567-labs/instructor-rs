@@ -1,8 +1,10 @@
 //! Native HTTP protocols for the supported Instructor providers.
 
+mod indexed;
 mod reask;
 mod request;
 mod response;
+mod stream;
 
 pub(crate) use request::WireRequest;
 
