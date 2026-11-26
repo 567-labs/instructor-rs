@@ -55,7 +55,7 @@ concurrency:
 
 env:
   RUST_REVISION: ${{ inputs.rust_revision || github.event.pull_request.head.sha || github.sha }}
-  PYTHON_REVISION: c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867
+  PYTHON_REVISION: 0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7
 
 jobs:
   prepare:
@@ -183,6 +183,7 @@ jobs:
           done
       - name: Run exact Rust and Python contracts
         if: matrix.provider != 'collection'
+        shell: bash
         env:
           PROVIDER: ${{ matrix.provider }}
           INSTRUCTOR_ENV: CI
@@ -198,5 +199,7 @@ jobs:
           OPENROUTER_DECISIONS_MODEL: ${{ vars.OPENROUTER_DECISIONS_MODEL }}
           TYPESAFE_DECISIONS_MODEL: ${{ vars.TYPESAFE_DECISIONS_MODEL }}
         run: |
+          # Redact the key preview OpenAI echoes in authentication errors.
           .venv/bin/python "$RUNNER_TEMP/paired/paired_live.py" run "$PROVIDER" \
-            --rust-binary "$RUNNER_TEMP/paired/live" --python-repo .
+            --rust-binary "$RUNNER_TEMP/paired/live" --python-repo . 2>&1 |
+            sed -uE 's/(Incorrect API key provided: )[^[:space:]]+/\1[redacted]/gI'

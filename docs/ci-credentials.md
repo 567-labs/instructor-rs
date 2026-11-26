@@ -52,7 +52,7 @@ python -m unittest discover -s scripts/tests
 
 ## Run the same contracts in both languages
 
-**Paired live contracts** selects 75 test pairs. A pair consists of one exact Rust test and one exact pytest node. Each language sends its own requests using the same provider key, model and input, then checks its typed result. The nine core cases cover an integer, an object, an enum, a list, a nested object, a collection with nested enums and nullable fields, validation with a retry, partial streaming, and iterable streaming. Six documented-model checks and six Decisions checks complete the suite. Running every pair executes 150 tests and incurs provider charges, including requests made during retries. [Rust contracts](parity.md#opt-in-live-checks) · [Python reference](https://github.com/567-labs/instructor/tree/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm)
+**Paired live contracts** selects 75 test pairs. A pair consists of one exact Rust test and one exact pytest node. Each language sends its own requests using the same provider key, model and input, then checks its typed result. The nine core cases cover an integer, an object, an enum, a list, a nested object, a collection with nested enums and nullable fields, validation with a retry, partial streaming, and iterable streaming. Six documented-model checks and six Decisions checks complete the suite. Running every pair executes 150 tests and incurs provider charges, including requests made during retries. [Rust contracts](parity.md#opt-in-live-checks) · [Python reference](https://github.com/567-labs/instructor/tree/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm)
 
 | Provider | Core pairs | Documented model pairs | Decisions pairs | Model selection |
 | --- | ---: | ---: | ---: | --- |
