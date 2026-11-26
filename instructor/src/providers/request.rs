@@ -245,7 +245,7 @@ impl ProviderConfig {
                             if requires_auto_choice(&self.model, &body["thinking"]) {
                                 json!({"type":"auto"})
                             } else {
-                                json!({"type":"tool","name":name})
+                                json!({"type":"tool","name":name,"disable_parallel_tool_use":true})
                             };
                     }
                     _ => {

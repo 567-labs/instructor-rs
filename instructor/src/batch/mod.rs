@@ -224,7 +224,7 @@ impl<T: ResponseModel> Batch<T> {
                         schema["additionalProperties"] = false.into();
                     }
                     if body["tool_choice"]["type"] == "tool" {
-                        body["tool_choice"]["name"] = "extract_data".into();
+                        body["tool_choice"] = json!({"type":"tool","name":"extract_data"});
                     }
                 }
                 record["params"] = body;
