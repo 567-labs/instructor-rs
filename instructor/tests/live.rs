@@ -1,5 +1,6 @@
 //! Opt-in provider contracts. See docs/providers.md for generation credentials.
-use instructor_ai::{model, Client, Mode, ProviderConfig, Request};
+use futures_util::{StreamExt, TryStreamExt};
+use instructor_ai::{model, Client, Mode, PartialEvent, ProviderConfig, Request};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -31,10 +32,14 @@ async fn generation(route: &str, mode: Mode) -> TestResult {
         name: "Ali".into(),
         age: 28,
     };
+    let bo = Person {
+        name: "Bo".into(),
+        age: 35,
+    };
     let person = request("Extract the person. Ali is 28 years old.");
     let attempts = AtomicUsize::new(0);
     let result: Person = client
-        .create_validated(person.max_retries(1), |value| {
+        .create_validated(person.clone().max_retries(1), |value| {
             // Force one reask even when the model's first answer is correct.
             let answer = if attempts.fetch_add(1, Ordering::Relaxed) == 0 {
                 Err("Check both fields against the original text and submit them again.".into())
@@ -46,6 +51,27 @@ async fn generation(route: &str, mode: Mode) -> TestResult {
         .await?;
     assert_eq!(result, ali);
     assert_eq!(attempts.load(Ordering::Relaxed), 2);
+
+    let mut updates = client.create_partial::<Person>(person).await?;
+    let mut completed = None;
+    while let Some(update) = updates.next().await {
+        assert!(
+            completed.is_none(),
+            "received another event after completion"
+        );
+        if let PartialEvent::Complete(person) = update? {
+            completed = Some(person);
+        }
+    }
+    assert_eq!(completed.as_ref(), Some(&ali));
+
+    let list = request("List both people in order. Ali is 28 years old. Bo is 35 years old.");
+    let people: Vec<Person> = client
+        .create_iterable::<Person>(list)
+        .await?
+        .try_collect()
+        .await?;
+    assert_eq!(people, [ali, bo]);
     Ok(())
 }
 

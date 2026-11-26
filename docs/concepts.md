@@ -75,8 +75,8 @@ async fn main() -> Result<(), Error> {
 
 - `max_retries(0)` allows one attempt. `max_retries(2)` allows three attempts. The default is three additional attempts. The limit applies separately to each call.
 - `token_budget(n)` checks cumulative usage after a rejected typed response. Once usage reaches the budget or cannot be determined, Instructor stops asking for corrections. A successful response can exceed the budget. Use the provider's generation limit to bound an individual response. A budget must be positive and requires a non-streaming structured request.
-- The HTTP timeout applies per attempt, including reading its body. `Client::with_timeout(config, duration)` customizes the default of 180 seconds. To bound a whole async operation, wrap the operation, in `tokio::time::timeout`.
-- By default, parse and validation failures can trigger a correction.
+- The HTTP timeout applies per attempt, including reading its body. `Client::with_timeout(config, duration)` customizes the default of 180 seconds. To bound a whole async operation, wrap the operation, including any stream consumption, in `tokio::time::timeout`.
+- By default, parse and validation failures can trigger a correction. A stream can retry before returning the first value. Once a caller receives a value, further errors terminate that stream.
 - `Request::retry_timeout(duration)` sets an elapsed-time limit for starting retries. `retry_policy` takes a closure examining a `FailedAttempt`. Return `None` to stop or `Some(delay)` to retry, including for a selected transport error. Attempt, time, and token limits still apply. Refusals and incomplete output end the operation.
 
 When corrections stop, `Error::Retry` includes a `StopReason`, the optional cumulative token count, and ordered `FailedAttempt` values. Each rejected completion includes the attempt number, native response, and local error. A token count of `None` indicates unavailable usage. The last successful raw completion is available via `create_with_completion`.

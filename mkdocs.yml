@@ -94,4 +94,5 @@ nav:
       - Providers and modes: providers.md
       - Response types: types.md
       - Validation and retries: concepts.md
+      - Streaming: streaming.md
       - Media input: media.md

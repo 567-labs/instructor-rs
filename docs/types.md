@@ -71,6 +71,8 @@ fn main() -> Result<(), Error> {
 }
 ```
 
+For a sequence processed item by item, pass the element type to `create_iterable::<T>`. For a preview of a single object, pass the complete type to `create_partial::<T>`. [Streaming and partial types](streaming.md) · [Contextual validators](concepts.md)
+
 ## Analyze a schema before selecting a mode
 
 `analyze_schema::<T>()` reports structural findings, complexity, and an optional mode recommendation. To get a provider-specific choice, use `select_mode::<T>(provider)`, which prefers strict output, or reuse the report with `report.select_mode(provider, prefer_strict)`. Apply the returned mode to the provider configuration to use it. This local analysis uses heuristics, including a token estimate of 15 per declared field. Check the chosen model's capabilities before relying on its recommendation.

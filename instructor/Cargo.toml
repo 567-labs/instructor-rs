@@ -13,10 +13,13 @@ license = "MIT OR Apache-2.0"
 changelog = "CHANGELOG.md"
 
 [dependencies]
+async-stream = "0.3"
 base64 = "0.22"
+futures-util = "0.3"
+jiter = "0.19"
 lru = "0.16"
 minijinja = "2"
-reqwest = { version = "0.12", default-features = false, features = ["json", "blocking", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "blocking", "rustls-tls"] }
 tempfile = "3"
 sha2 = "0.10"
 thiserror = "2"

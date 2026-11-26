@@ -165,6 +165,10 @@ fn invalid_budget_and_undefined_templates_are_rejected_before_io() {
         Err(Error::Configuration(_))
     ));
     assert!(matches!(
+        client.create_partial::<Amount>(req.clone()),
+        Err(Error::Configuration(_))
+    ));
+    assert!(matches!(
         client.create::<Amount>(req.token_budget(0)),
         Err(Error::Configuration(_))
     ));
@@ -377,6 +381,35 @@ fn malformed_or_unsupported_media_fails_before_io() {
             Err(Error::Configuration(_))
         ));
     }
+}
+
+fn sse(text: &str) -> String {
+    let event = json!({"choices":[{"index":0,"delta":{"content":text},"finish_reason":"stop"}]});
+    format!("data: {event}\n\ndata: [DONE]\n\n")
+}
+
+#[test]
+fn streams_retry_only_before_exposing_an_item() {
+    let mut server = Server::new();
+    let first = server
+        .mock("POST", "/chat/completions")
+        .with_body(sse(r#"{"tasks":[{"value":1}]}"#))
+        .create();
+    let retry = server
+        .mock("POST", "/chat/completions")
+        .match_body(Matcher::Regex("below minimum".into()))
+        .with_body(sse(r#"{"tasks":[{"value":8},{"value":1}]}"#))
+        .create();
+    let req = Request::new("read").context(json!({"min":5}));
+    let mut iter = BlockingClient::new(config(&server))
+        .unwrap()
+        .create_iterable::<Amount>(req)
+        .unwrap();
+    assert_eq!(iter.next().unwrap().unwrap().value, 8);
+    assert!(matches!(iter.next(), Some(Err(Error::Validation(_)))));
+    assert!(iter.next().is_none());
+    first.assert();
+    retry.assert();
 }
 
 #[test]
