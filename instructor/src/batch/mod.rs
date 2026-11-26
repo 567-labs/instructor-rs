@@ -1,0 +1,285 @@
+//! Provider-managed jobs over batches of typed requests.
+//!
+//! ```no_run
+//! use instructor_ai::{model, Client};
+//!
+//! #[model]
+//! struct Ticket { topic: String }
+//!
+//! # async fn run() -> Result<(), instructor_ai::Error> {
+//! let client = Client::from_provider("openai/gpt-6-luna")?;
+//! let batch = client.batch::<Ticket>()?;
+//! let requests = batch.prepare(["Double charged", "Cannot log in"])?;
+//! let id = batch.submit(&requests).await?;
+//! // Store the ID and check again later.
+//! if batch.status(&id).await?.status == "completed" {
+//!     for record in batch.results(&id).await? {
+//!         match record.result {
+//!             Ok(ticket) => println!("{:?}: {}", record.custom_id, ticket.topic),
+//!             Err(error) => eprintln!("{:?}: {}", record.custom_id, error),
+//!         }
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+
+mod blocking;
+mod jobs;
+mod results;
+
+pub use blocking::BlockingBatch;
+pub use results::{BatchFailure, BatchResult};
+
+use crate::{
+    schema::{schema, Schema},
+    Client, Error, Mode, Provider, Request, ResponseModel,
+};
+use serde_json::{json, Value};
+use std::{collections::HashSet, io::Write, marker::PhantomData, path::Path, sync::Arc};
+
+/// Provider-specific options for job creation.
+#[derive(Debug, Clone, Default)]
+pub struct BatchOptions {
+    /// Job metadata for OpenAI or Mistral.
+    pub metadata: Option<Value>,
+    /// OpenAI completion window, default 24h.
+    pub completion_window: Option<String>,
+}
+
+/// Job metadata including the original provider object.
+#[derive(Debug, Clone)]
+pub struct BatchJob {
+    pub id: String,
+    pub status: String,
+    pub request_counts: Value,
+    pub raw: Value,
+}
+
+/// One conversation and its optional caller-assigned identifier.
+pub struct BatchItem {
+    request: Request,
+    id: Option<String>,
+}
+
+impl BatchItem {
+    pub fn new(request: impl Into<Request>) -> Self {
+        Self {
+            request: request.into(),
+            id: None,
+        }
+    }
+
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
+    }
+}
+
+impl<R: Into<Request>> From<R> for BatchItem {
+    fn from(request: R) -> Self {
+        Self::new(request)
+    }
+}
+
+/// Async batch processor bound to one provider, model type, and output mode.
+pub struct Batch<T> {
+    client: Client,
+    schema: Arc<Schema>,
+    strict: bool,
+    model: PhantomData<fn() -> T>,
+}
+
+impl Client {
+    /// OpenAI and Mistral use native JSON schemas. Anthropic uses a named tool.
+    pub fn batch<T: ResponseModel>(&self) -> Result<Batch<T>, Error> {
+        let mode = if self.config.provider() == Provider::Anthropic {
+            Mode::Tools
+        } else {
+            Mode::JsonSchema
+        };
+        self.batch_with_mode(mode)
+    }
+
+    pub fn batch_with_mode<T: ResponseModel>(&self, mode: Mode) -> Result<Batch<T>, Error> {
+        if !matches!(
+            self.config.provider(),
+            Provider::OpenAI | Provider::Anthropic | Provider::Mistral
+        ) {
+            return Err(Error::Configuration(format!(
+                "{} has no batch processor",
+                self.config.provider()
+            )));
+        }
+        let mut client = self.clone();
+        client.config = client.config.with_mode(mode);
+        client.config.validate()?;
+        Ok(Batch {
+            client,
+            schema: schema::<T>(),
+            strict: true,
+            model: PhantomData,
+        })
+    }
+}
+
+impl<T: ResponseModel> Batch<T> {
+    fn provider(&self) -> Provider {
+        self.client.config.provider()
+    }
+
+    /// Set schema strictness for the OpenAI or Mistral JSON schema mode.
+    pub fn strict(mut self, strict: bool) -> Self {
+        self.strict = strict;
+        self
+    }
+
+    fn validate_id(&self, seen: &mut HashSet<String>, id: &str) -> Result<(), Error> {
+        if id.trim().is_empty() || !seen.insert(id.into()) {
+            return Err(Error::Configuration(format!(
+                "empty or duplicate batch custom ID: {id:?}"
+            )));
+        }
+        if self.provider() == Provider::Anthropic
+            && (id.len() > 64
+                || !id
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'))
+        {
+            return Err(Error::Configuration(format!(
+                "invalid Anthropic custom ID {id:?}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn endpoint(&self) -> &'static str {
+        if self.client.config.mode() == Mode::ResponsesTools {
+            "/v1/responses"
+        } else {
+            "/v1/chat/completions"
+        }
+    }
+
+    fn request(&self, req: Request, id: &str) -> Result<Value, Error> {
+        let config = &self.client.config;
+        let mut req = req.prepare(false)?;
+        if !req.hooks.is_empty() {
+            return Err(Error::Configuration(
+                "batch jobs cannot run per-request hooks".into(),
+            ));
+        }
+        let opts = &mut req.options;
+        if !opts.contains_key("max_completion_tokens") && !opts.contains_key("max_output_tokens") {
+            opts.entry("max_tokens").or_insert(json!(1000));
+        }
+        if self.provider() == Provider::OpenAI
+            && config.model() == "gpt-6-luna"
+            && config.mode() != Mode::ResponsesTools
+        {
+            if let Some(limit) = opts.remove("max_tokens") {
+                opts.entry("max_completion_tokens").or_insert(limit);
+            }
+            opts.entry("reasoning_effort").or_insert(json!("none"));
+        }
+        opts.entry("temperature").or_insert(json!(0.1));
+        if opts["temperature"].is_null()
+            || (self.provider() == Provider::Anthropic && config.model() == "claude-haiku-5-5")
+        {
+            opts.remove("temperature");
+        }
+        let loose = !self.strict
+            && config.mode() == Mode::JsonSchema
+            && matches!(self.provider(), Provider::OpenAI | Provider::Mistral);
+        let schema = if loose {
+            None
+        } else {
+            Some(&self.schema.value)
+        };
+        let mut body = config.request(&req, schema, false)?.body;
+        if loose {
+            body["response_format"] = json!({"type":"json_schema","json_schema":{
+                "name":self.schema.value["title"],"schema":self.schema.value,"strict":false
+            }});
+        }
+        body.as_object_mut()
+            .expect("request body is an object")
+            .remove("stream");
+        Ok(match self.provider() {
+            Provider::Anthropic => {
+                if config.mode() == Mode::Tools {
+                    let mut schema = self.schema.value.clone();
+                    if schema.get("additionalProperties").is_none() {
+                        schema["additionalProperties"] = false.into();
+                    }
+                    body["tools"][0] = json!({
+                        "name": "extract_data",
+                        "description": format!("Extract data matching the {} schema", T::model_name()),
+                        "input_schema": schema,
+                    });
+                    if body["tool_choice"]["type"] == "tool" {
+                        body["tool_choice"]["name"] = "extract_data".into();
+                    }
+                }
+                json!({"custom_id":id, "params":body})
+            }
+            Provider::Mistral => {
+                body.as_object_mut()
+                    .expect("request body is an object")
+                    .remove("model");
+                json!({"custom_id":id,"body":body})
+            }
+            _ => json!({"custom_id":id,"method":"POST","url":self.endpoint(),"body":body}),
+        })
+    }
+
+    /// Build a complete JSONL payload in memory, including the final newline.
+    pub fn prepare<R: Into<BatchItem>>(
+        &self,
+        requests: impl IntoIterator<Item = R>,
+    ) -> Result<String, Error> {
+        let mut seen = HashSet::new();
+        let mut lines = String::new();
+        for (index, item) in requests.into_iter().enumerate() {
+            let item = item.into();
+            let id = item.id.unwrap_or_else(|| format!("request-{index}"));
+            self.validate_id(&mut seen, &id)?;
+            lines.push_str(&self.request(item.request, &id)?.to_string());
+            lines.push('\n');
+        }
+        if seen.is_empty() {
+            return Err(Error::Configuration(
+                "batch requires at least one item".into(),
+            ));
+        }
+        Ok(lines)
+    }
+
+    /// Atomically replace a request file after preparing and validating all items.
+    pub fn prepare_file<R: Into<BatchItem>>(
+        &self,
+        requests: impl IntoIterator<Item = R>,
+        path: impl AsRef<Path>,
+    ) -> Result<(), Error> {
+        atomic_write(path.as_ref(), &self.prepare(requests)?)
+    }
+}
+
+fn atomic_write(path: &Path, text: &str) -> Result<(), Error> {
+    fn write(path: &Path, text: &str) -> std::io::Result<()> {
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let mut file = tempfile::NamedTempFile::new_in(parent)?;
+        file.write_all(text.as_bytes())?;
+        if let Ok(metadata) = std::fs::symlink_metadata(path) {
+            if metadata.is_file() {
+                file.as_file().set_permissions(metadata.permissions())?;
+            }
+        }
+        file.persist(path)?;
+        Ok(())
+    }
+    write(path, text).map_err(|e| Error::Configuration(format!("writing {}: {e}", path.display())))
+}

@@ -8,6 +8,7 @@ mod response;
 mod stream;
 
 pub(crate) use request::WireRequest;
+pub(crate) use response::check_finish;
 
 use crate::Error;
 use serde_json::Value;

@@ -19,7 +19,7 @@ futures-util = "0.3"
 jiter = "0.19"
 lru = "0.16"
 minijinja = "2"
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "blocking", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "multipart", "blocking", "rustls-tls"] }
 tempfile = "3"
 sha2 = "0.10"
 thiserror = "2"
