@@ -55,7 +55,7 @@ pub use models::{Citations, CitationsPartial, Maybe, MaybePartial};
 pub use parallel::{ParallelTool, ParallelTools};
 pub use providers::{Mode, Provider, ProviderConfig};
 pub use request::{CacheTtl, Event, Message, Request};
-pub use schema::{parse_response, response_schema, ResponseModel};
+pub use schema::{parse_completion, parse_response, response_schema, ResponseModel};
 pub use streaming::PartialEvent;
 pub use usage::TokenUsage;
 pub use validation::TextRule;

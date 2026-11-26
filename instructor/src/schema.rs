@@ -1,4 +1,4 @@
-use crate::{Error, InstructMacro};
+use crate::{streaming, Error, InstructMacro, Mode, Provider};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use std::{
@@ -113,12 +113,45 @@ pub fn response_schema<T: InstructMacro + 'static>() -> Value {
     schema::<T>().value.clone()
 }
 
-/// Decode provider JSON, unwrap native values and run contextual validation.
+/// Decode the extracted JSON payload, unwrap native values and run contextual validation.
+/// Use [`parse_completion`] for a full provider response.
 pub fn parse_response<T: ResponseModel>(input: &str, context: &Value) -> Result<T, Error> {
     schema::<T>().parse(input, context)
 }
 
+/// Parse a saved native completion using its original provider and mode.
+///
+/// Uses the same extraction and contextual validation as
+/// [`Client::create_with_completion`](crate::Client::create_with_completion).
+/// In tool modes, the schema for `T` determines the expected function name.
+/// Pass [`Value::Null`] for an empty context. The first error is returned directly.
+pub fn parse_completion<T: ResponseModel>(
+    provider: Provider,
+    mode: Mode,
+    raw: &Value,
+    context: &Value,
+) -> Result<T, Error> {
+    provider.validate_mode(mode)?;
+    schema::<T>().parse_completion(provider, mode, raw, context)
+}
+
 impl Schema {
+    pub(crate) fn parse_completion<T: ResponseModel>(
+        &self,
+        provider: Provider,
+        mode: Mode,
+        raw: &Value,
+        context: &Value,
+    ) -> Result<T, Error> {
+        let payload = provider.extract(mode, raw, &self.value)?;
+        let text = if mode == Mode::MarkdownJson {
+            streaming::extract_markdown_json(&payload)?
+        } else {
+            &payload
+        };
+        self.parse(text, context)
+    }
+
     pub fn parse<T: ResponseModel>(&self, input: &str, context: &Value) -> Result<T, Error> {
         let input = input.trim();
         let input = input

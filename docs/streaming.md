@@ -67,6 +67,8 @@ cargo run -p instructor-ai --example replay
 
 For these three fragments, the first preview has `name = Some("Ad")` and an absent age. The second has `name = Some("Ada")`. The completed model contains `"Ada"` and `37`. The local variants are `streaming::partial` and `streaming::iterable` for iterators, with `partial_async` and `iterable_async` for async streams. Each input is a `Result`, allowing a source error to propagate at its position in the stream.
 
+To replay with the original validation context, pass it as the second argument to `streaming::partial_with_context(fragments, context)` or `streaming::iterable_with_context(fragments, context)`. For async sources, use `partial_async_with_context` or `iterable_async_with_context`.
+
 ## Process complete records
 
 Python's `client.create_iterable(response_model=Assignment, ...)` corresponds to `create_iterable::<Assignment>(request)`. Each yielded `Ok(assignment)` has passed validation, including any contextual validator. The parser can emit the first record while the model is still writing the next one. Run the blocking example with `OPENROUTER_API_KEY` set.

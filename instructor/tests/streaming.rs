@@ -2,8 +2,8 @@ use futures_util::{stream, StreamExt};
 use instructor_ai::{
     model,
     streaming::{
-        iterable, iterable_async, iterable_async_with_context, partial, partial_async,
-        partial_async_with_context,
+        iterable, iterable_async, iterable_async_with_context, iterable_with_context, partial,
+        partial_async, partial_async_with_context, partial_with_context,
     },
     Error, PartialEvent,
 };
@@ -41,7 +41,8 @@ fn positive(n: &i64) -> Result<(), String> {
     }
 }
 fn scale(n: &mut i64, context: &Value) -> Result<(), String> {
-    *n *= context["factor"].as_i64().unwrap_or(1);
+    let factor = context["factor"].as_i64().unwrap_or(1);
+    *n = n.checked_mul(factor).ok_or("scale overflow")?;
     Ok(())
 }
 
@@ -282,18 +283,37 @@ fn synchronous_reader_is_lazy_and_releases_source() {
 #[tokio::test]
 async fn context_applies_only_to_complete_values_and_each_item() {
     let context = json!({"factor": 3});
-    let source = stream::iter([Ok(r#"{"value":2"#), Ok("}")]);
-    let mut values = partial_async_with_context::<Count>(source, context.clone()).boxed();
-    assert!(
-        matches!(values.next().await, Some(Ok(PartialEvent::Partial(n))) if n.value == Some(2))
-    );
-    assert!(matches!(values.next().await, Some(Ok(PartialEvent::Complete(n))) if n.value == 6));
-    let source = stream::iter([Ok(r#"[{"value":2},{"value":4}]"#)]);
-    let scaled: Vec<_> = iterable_async_with_context::<Count>(source, context)
-        .map(|result| result.unwrap().value)
-        .collect()
-        .await;
-    assert_eq!(scaled, [6, 12]);
+    let fragments = || [Ok(r#"{"tasks":[{"value":2"#), Ok("}"), Ok("]}")];
+    let sync = partial_with_context::<Vec<Count>>(fragments(), context.clone());
+    let asynchronous =
+        partial_async_with_context::<Vec<Count>>(stream::iter(fragments()), context.clone());
+    for mut events in [stream::iter(sync).boxed(), asynchronous.boxed()] {
+        for expected in [2, 6] {
+            let PartialEvent::Partial(counts) = events.next().await.unwrap().unwrap() else {
+                panic!("expected a preview");
+            };
+            assert_eq!(counts[0].value, Some(expected));
+        }
+        assert!(
+            matches!(events.next().await, Some(Ok(PartialEvent::Complete(v))) if v[0].value == 6)
+        );
+    }
+
+    let fragments = || {
+        [Ok(
+            r#"[{"value":2},{"value":4},{"value":9223372036854775807}]"#,
+        )]
+    };
+    let sync = iterable_with_context::<Count>(fragments(), context.clone());
+    let asynchronous = iterable_async_with_context::<Count>(stream::iter(fragments()), context);
+    for mut items in [stream::iter(sync).boxed(), asynchronous.boxed()] {
+        assert_eq!(items.next().await.unwrap().unwrap().value, 6);
+        assert_eq!(items.next().await.unwrap().unwrap().value, 12);
+        assert!(
+            matches!(items.next().await, Some(Err(Error::Validation(e))) if e.contains("scale overflow"))
+        );
+        assert!(items.next().await.is_none());
+    }
 }
 
 #[tokio::test]
