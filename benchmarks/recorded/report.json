@@ -1,0 +1,2683 @@
+{
+  "environment": {
+    "run_started_utc": "2026-11-26T21:06:35.911463+00:00",
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "logical_cpus": 5,
+    "cgroup_cpu_max": "400000 100000",
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)",
+    "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)",
+    "rustflags": "",
+    "python_revision": "b01fff4e01ecab2bdcea6ad24e795bc3f549b89d",
+    "python_tracked_changes": false,
+    "rust_revision": "c644289e941e9121343d55b787cddb1ddc689a51",
+    "rust_and_benchmark_source_sha256": "82dfe2a60876f83418f5388096f73549f3ebf960c1ede5ef3d689d6cd1c9a9c8",
+    "cargo_lock_sha256": "e2182bf1c3decd79a475bd45b313e2eda8848e3ab6f7c8ebd980ee8d3d61244e",
+    "uv_lock_sha256": "62f417cde23da2fcbcc36973f22d66e9769311be97439c0aa8fda944ada0b364",
+    "distributions": {
+      "instructor": "1.18.0",
+      "pydantic": "2.11.7",
+      "pydantic-core": "2.33.2",
+      "jiter": "0.18.0",
+      "httpx": "0.28.1",
+      "openai": "2.54.0",
+      "anthropic": "2.3.0",
+      "google-genai": "2.8.0",
+      "cohere": "7.3.0",
+      "mistralai": "3.6.0",
+      "jinja2": "3.1.6"
+    },
+    "cgroup_throttled_us_during_rounds": 0
+  },
+  "rounds": 6,
+  "target_ms": 10,
+  "samples": {
+    "schema/batch": {
+      "python": [
+        {
+          "iterations": 64,
+          "elapsed_ns": 15284905
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 15781930
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 15259986
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 15860533
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 14832912
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 15233319
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 10256195,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 10389641,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 10289174,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 10147936,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 10199858,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 10244353,
+          "iterations": 4096
+        }
+      ]
+    },
+    "parse/1": {
+      "python": [
+        {
+          "iterations": 8192,
+          "elapsed_ns": 13070904
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 13273157
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 13132157
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 13527282
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 13111401
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12980892
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 10264948,
+          "iterations": 65536
+        },
+        {
+          "elapsed_ns": 10221204,
+          "iterations": 65536
+        },
+        {
+          "elapsed_ns": 10208637,
+          "iterations": 65536
+        },
+        {
+          "elapsed_ns": 10372628,
+          "iterations": 65536
+        },
+        {
+          "elapsed_ns": 10244025,
+          "iterations": 65536
+        },
+        {
+          "elapsed_ns": 10241525,
+          "iterations": 65536
+        }
+      ]
+    },
+    "parse/16": {
+      "python": [
+        {
+          "iterations": 2048,
+          "elapsed_ns": 17906383
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18343713
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 9083121
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18591448
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18231919
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18092413
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 11992207,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11977385,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11957340,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 12156484,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11941594,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11955214,
+          "iterations": 8192
+        }
+      ]
+    },
+    "parse/128": {
+      "python": [
+        {
+          "iterations": 256,
+          "elapsed_ns": 15625998
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 15901169
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 15548473
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 15789117
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 15709251
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 15803161
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 18555195,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 19579084,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 18459944,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 18733913,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 18520386,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 19132056,
+          "iterations": 2048
+        }
+      ]
+    },
+    "parse/fenced": {
+      "python": [
+        {
+          "iterations": 512,
+          "elapsed_ns": 10202348
+        },
+        {
+          "iterations": 512,
+          "elapsed_ns": 10602536
+        },
+        {
+          "iterations": 512,
+          "elapsed_ns": 10580167
+        },
+        {
+          "iterations": 512,
+          "elapsed_ns": 11217748
+        },
+        {
+          "iterations": 512,
+          "elapsed_ns": 10529388
+        },
+        {
+          "iterations": 512,
+          "elapsed_ns": 10420066
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 10458412,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11003951,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10524831,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10504423,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10632028,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10506097,
+          "iterations": 8192
+        }
+      ]
+    },
+    "parse/invalid": {
+      "python": [
+        {
+          "iterations": 8192,
+          "elapsed_ns": 19084772
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 19266574
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 19661767
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 19545170
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 19914260
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 19073408
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 14844788,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14632184,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14771766,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14697359,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14690365,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14713694,
+          "iterations": 32768
+        }
+      ]
+    },
+    "context/validate": {
+      "python": [
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18512590
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 19274443
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18981707
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 19208232
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18975089
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18845272
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 10499390,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10578939,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10594025,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10429775,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10245022,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10527846,
+          "iterations": 8192
+        }
+      ]
+    },
+    "context/validate_error": {
+      "python": [
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16211406
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16578236
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16458691
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16790776
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16522888
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16293827
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 10972380,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11206898,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11130546,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11024845,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 11023970,
+          "iterations": 8192
+        },
+        {
+          "elapsed_ns": 10930358,
+          "iterations": 8192
+        }
+      ]
+    },
+    "partial/1x8": {
+      "python": [
+        {
+          "iterations": 256,
+          "elapsed_ns": 20202470
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10506639
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10340126
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10371485
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10736754
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10475150
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 14615665,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 14821689,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 14556538,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 14948922,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 14634293,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 14681936,
+          "iterations": 4096
+        }
+      ]
+    },
+    "partial/16x16": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 9811268
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 9882540
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 9995218
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 9795725
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 10124437
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 9899974
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 11009861,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11532748,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10917773,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11092785,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11048977,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11012316,
+          "iterations": 64
+        }
+      ]
+    },
+    "partial/16x128": {
+      "python": [
+        {
+          "iterations": 64,
+          "elapsed_ns": 11112370
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 11188101
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 11228911
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 11090254
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 11275033
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 11001347
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 20162467,
+          "iterations": 1024
+        },
+        {
+          "elapsed_ns": 20483735,
+          "iterations": 1024
+        },
+        {
+          "elapsed_ns": 10002311,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 9992622,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 19868329,
+          "iterations": 1024
+        },
+        {
+          "elapsed_ns": 10026906,
+          "iterations": 512
+        }
+      ]
+    },
+    "partial/128x128": {
+      "python": [
+        {
+          "iterations": 2,
+          "elapsed_ns": 12503224
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 12818648
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 14146433
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 12651184
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 12515350
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 12405650
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 11451996,
+          "iterations": 8
+        },
+        {
+          "elapsed_ns": 11497241,
+          "iterations": 8
+        },
+        {
+          "elapsed_ns": 11353534,
+          "iterations": 8
+        },
+        {
+          "elapsed_ns": 11431642,
+          "iterations": 8
+        },
+        {
+          "elapsed_ns": 11390919,
+          "iterations": 8
+        },
+        {
+          "elapsed_ns": 11308922,
+          "iterations": 8
+        }
+      ]
+    },
+    "iterable/1x8": {
+      "python": [
+        {
+          "iterations": 2048,
+          "elapsed_ns": 17307388
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 17498218
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 17475847
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 17733275
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 17248902
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 18568698
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12155155,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 12564366,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 12211099,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 12142184,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 11820280,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 12180806,
+          "iterations": 16384
+        }
+      ]
+    },
+    "iterable/16x16": {
+      "python": [
+        {
+          "iterations": 128,
+          "elapsed_ns": 10296316
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10477020
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10424760
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 11462638
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10723239
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10180154
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12761493,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13510369,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12728088,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12776305,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12743876,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12836493,
+          "iterations": 2048
+        }
+      ]
+    },
+    "iterable/16x128": {
+      "python": [
+        {
+          "iterations": 256,
+          "elapsed_ns": 17548022
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 68106596
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 17534401
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 17819511
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 17363318
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 17014963
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12095240,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12774936,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12260253,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12040802,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12212217,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 12128306,
+          "iterations": 2048
+        }
+      ]
+    },
+    "iterable/128x128": {
+      "python": [
+        {
+          "iterations": 32,
+          "elapsed_ns": 17475347
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 17510337
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 16892079
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 18350024
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 17028320
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 16789239
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 11831578,
+          "iterations": 256
+        },
+        {
+          "elapsed_ns": 11879252,
+          "iterations": 256
+        },
+        {
+          "elapsed_ns": 12107162,
+          "iterations": 256
+        },
+        {
+          "elapsed_ns": 12218719,
+          "iterations": 256
+        },
+        {
+          "elapsed_ns": 11811634,
+          "iterations": 256
+        },
+        {
+          "elapsed_ns": 11987618,
+          "iterations": 256
+        }
+      ]
+    },
+    "partial_first/16x20": {
+      "python": [
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16256425
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16780053
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16779244
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 17609710
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16457067
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16277769
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13732450,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 14090755,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 13825027,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 13923452,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 13698852,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 13797973,
+          "iterations": 16384
+        }
+      ]
+    },
+    "iterable_first/16x20": {
+      "python": [
+        {
+          "iterations": 2048,
+          "elapsed_ns": 14459401
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 14575969
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 14613626
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 15712373
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 14472415
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 14910908
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 17658839,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 17990415,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 17858551,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 17919310,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 17446418,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 17791660,
+          "iterations": 32768
+        }
+      ]
+    },
+    "partial_async/16x16": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 9923031
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 10765083
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 10384985
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 10427729
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 10203628
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 10304475
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 11230303,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12033018,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11225390,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11164672,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11236579,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11208949,
+          "iterations": 64
+        }
+      ]
+    },
+    "iterable_async/16x16": {
+      "python": [
+        {
+          "iterations": 128,
+          "elapsed_ns": 13677130
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 13791574
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 14012051
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 14282085
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 13718242
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 13511241
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13624599,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 14141344,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13538617,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13510083,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13633693,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13702887,
+          "iterations": 2048
+        }
+      ]
+    },
+    "decision/jev-latest/questions": {
+      "python": [
+        {
+          "iterations": 16,
+          "elapsed_ns": 12953408
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 14901120
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13371664
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13024905
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 12970597
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 12698906
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 11308465,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 11603113,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 11068897,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 11098900,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 11300917,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 11087335,
+          "iterations": 2048
+        }
+      ]
+    },
+    "decision/jev-latest/answers": {
+      "python": [
+        {
+          "iterations": 4096,
+          "elapsed_ns": 17413197
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 18411044
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 17817521
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 18697176
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 17910018
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 17815275
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12162380,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 12063834,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 12012557,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 13588890,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 11982100,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 12057218,
+          "iterations": 32768
+        }
+      ]
+    },
+    "decision/jev-latest/reject": {
+      "python": [
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12041189
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12489374
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12448248
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12900907
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12228692
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12374938
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13623381,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14143575,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 15507700,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 15535206,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 13746988,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 15442916,
+          "iterations": 32768
+        }
+      ]
+    },
+    "decision/gpt-6-luna/questions": {
+      "python": [
+        {
+          "iterations": 16,
+          "elapsed_ns": 13757930
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 14058957
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13421089
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13378132
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13326741
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13317781
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13759970,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13872958,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13397518,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13567593,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13445946,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 13391145,
+          "iterations": 2048
+        }
+      ]
+    },
+    "decision/gpt-6-luna/answers": {
+      "python": [
+        {
+          "iterations": 2048,
+          "elapsed_ns": 11409931
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 11589507
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 11244420
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 11897602
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 11381706
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 11371913
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12825701,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 13130325,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 12773739,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 12812251,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 12817987,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 12836287,
+          "iterations": 32768
+        }
+      ]
+    },
+    "decision/gpt-6-luna/reject": {
+      "python": [
+        {
+          "iterations": 4096,
+          "elapsed_ns": 10477142
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 10624173
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 11833724
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 10907022
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 10665875
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 10219957
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 16441060,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 16866434,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14627361,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14702338,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 16443695,
+          "iterations": 32768
+        },
+        {
+          "elapsed_ns": 14581296,
+          "iterations": 32768
+        }
+      ]
+    },
+    "batch-prepare/openai": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 21008516
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10687119
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10086168
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10107529
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10076563
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10209856
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12176043,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12315663,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12320226,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12583015,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12093988,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12521095,
+          "iterations": 64
+        }
+      ]
+    },
+    "batch-parse/openai": {
+      "python": [
+        {
+          "iterations": 128,
+          "elapsed_ns": 15667898
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 26976953
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15472743
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15494960
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 39162933
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15540706
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 15377677,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 15751142,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 15336261,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 15353086,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 13997728,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 15125072,
+          "iterations": 512
+        }
+      ]
+    },
+    "batch-prepare/anthropic": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 17577514
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17203860
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17644966
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17478544
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17156104
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17854262
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 14298152,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14476750,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13958305,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14083065,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14258188,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14146648,
+          "iterations": 64
+        }
+      ]
+    },
+    "batch-parse/anthropic": {
+      "python": [
+        {
+          "iterations": 128,
+          "elapsed_ns": 13628213
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 13340860
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 14032340
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 14172464
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 14094356
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 13210466
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 18461725,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 18507582,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 18605554,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 18617528,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 18815316,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 18734701,
+          "iterations": 512
+        }
+      ]
+    },
+    "batch-prepare/mistral": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 18144323
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17819352
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 18401542
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17099038
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 9528227
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17176226
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 11829975,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12881756,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11794250,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11686869,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11851122,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11793884,
+          "iterations": 64
+        }
+      ]
+    },
+    "batch-parse/mistral": {
+      "python": [
+        {
+          "iterations": 128,
+          "elapsed_ns": 15102937
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15433622
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15632086
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15961428
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15836147
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15191120
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 36582830,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 12398731,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 15821596,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 15519122,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 15671553,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 15862733,
+          "iterations": 512
+        }
+      ]
+    },
+    "cache/hit": {
+      "python": [
+        {
+          "iterations": 32,
+          "elapsed_ns": 16832317
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 17375581
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 24907731
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 39891710
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 16971431
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 16763981
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 14600480,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 11318376,
+          "iterations": 512
+        },
+        {
+          "elapsed_ns": 19691871,
+          "iterations": 2048
+        },
+        {
+          "elapsed_ns": 9948919,
+          "iterations": 1024
+        },
+        {
+          "elapsed_ns": 9913196,
+          "iterations": 1024
+        },
+        {
+          "elapsed_ns": 10065440,
+          "iterations": 1024
+        }
+      ]
+    },
+    "http/openai": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 14767878
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15011088
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 18104630
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15193435
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15032627
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14822233
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 15032471,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 7508949,
+          "iterations": 16
+        },
+        {
+          "elapsed_ns": 11744052,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 17365151,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14353478,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 7739691,
+          "iterations": 32
+        }
+      ]
+    },
+    "http/anthropic": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 17858864
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15465621
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15278255
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15418865
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15043326
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15219360
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13638165,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11358955,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10867184,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11749625,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11772474,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14192956,
+          "iterations": 64
+        }
+      ]
+    },
+    "http/openrouter": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 14702443
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17882832
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17254713
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14546332
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15251415
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14524488
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12435071,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 9693892,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13639660,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11358989,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11105826,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11571842,
+          "iterations": 64
+        }
+      ]
+    },
+    "http/google": {
+      "python": [
+        {
+          "iterations": 4,
+          "elapsed_ns": 17522211
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17526557
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 16950617
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17576500
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 16942148
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17432259
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 9562325,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13163540,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11484214,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13055510,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13333494,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10605695,
+          "iterations": 64
+        }
+      ]
+    },
+    "http/cohere": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 14772851
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 11906121
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 17219757
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 12352514
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14464355
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 12130962
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13388026,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 25983113,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 11033730,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12318920,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12009396,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11179047,
+          "iterations": 64
+        }
+      ]
+    },
+    "http/mistral": {
+      "python": [
+        {
+          "iterations": 1,
+          "elapsed_ns": 9144720
+        },
+        {
+          "iterations": 1,
+          "elapsed_ns": 9212031
+        },
+        {
+          "iterations": 1,
+          "elapsed_ns": 9425980
+        },
+        {
+          "iterations": 1,
+          "elapsed_ns": 9260284
+        },
+        {
+          "iterations": 1,
+          "elapsed_ns": 8879597
+        },
+        {
+          "iterations": 1,
+          "elapsed_ns": 9269914
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13977749,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13380677,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13995732,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 15586033,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14635853,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10931818,
+          "iterations": 64
+        }
+      ]
+    },
+    "http/retry": {
+      "python": [
+        {
+          "iterations": 2,
+          "elapsed_ns": 7829745
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15055252
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 19850524
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15433238
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15679113
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15713276
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 14272286,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 13863407,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 11793842,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 11686543,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 12448046,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 11449839,
+          "iterations": 32
+        }
+      ]
+    },
+    "http-parallel/openai": {
+      "python": [
+        {
+          "iterations": 4,
+          "elapsed_ns": 14986534
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 13906550
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 14164038
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 14092427
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15251079
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 13812223
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13069703,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13186295,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 17074530,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16663049,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16130505,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12458900,
+          "iterations": 64
+        }
+      ]
+    },
+    "http-stream/openai": {
+      "python": [
+        {
+          "iterations": 4,
+          "elapsed_ns": 18861469
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 19304825
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 19011893
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 21073584
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 9967096
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 10044149
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 14353368,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10346576,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 14657027,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16639488,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14684716,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18596345,
+          "iterations": 64
+        }
+      ]
+    },
+    "http-parallel/anthropic": {
+      "python": [
+        {
+          "iterations": 4,
+          "elapsed_ns": 11502015
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 11061764
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 12015261
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10989017
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 11049782
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 16540073
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 16145060,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12597429,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16525602,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12414715,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16491319,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13040065,
+          "iterations": 64
+        }
+      ]
+    },
+    "http-stream/anthropic": {
+      "python": [
+        {
+          "iterations": 4,
+          "elapsed_ns": 15994343
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 18719641
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15901540
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 18589720
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 8485893
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17269115
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 13395070,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13407509,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16015657,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14973694,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16085207,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10637383,
+          "iterations": 32
+        }
+      ]
+    },
+    "http-parallel/openrouter": {
+      "python": [
+        {
+          "iterations": 4,
+          "elapsed_ns": 15194693
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 14237465
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 21123277
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17104978
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 13899971
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 13943350
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12139819,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12883755,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12799019,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12852130,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 16838598,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13606976,
+          "iterations": 64
+        }
+      ]
+    },
+    "http-stream/openrouter": {
+      "python": [
+        {
+          "iterations": 4,
+          "elapsed_ns": 20395917
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 10675844
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 21067982
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 21141134
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 10067621
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 10524171
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 18134056,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18797768,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18677534,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 19040637,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 15819709,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13377612,
+          "iterations": 64
+        }
+      ]
+    },
+    "http-decision/typesafe/jev-latest": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 13461033
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14165648
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 13462641
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14390296
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 16012801
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 8321221
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12174658,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12747181,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12417825,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12926346,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14432218,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12909443,
+          "iterations": 64
+        }
+      ]
+    },
+    "http-decision/openrouter/typesafe/jev-1.13": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 13876148
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 26848831
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 13459307
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14692645
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 16085754
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14686574
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 14859721,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10742938,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14922360,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14698337,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13440611,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13376059,
+          "iterations": 64
+        }
+      ]
+    },
+    "http-decision/openai/gpt-6-luna": {
+      "python": [
+        {
+          "iterations": 8,
+          "elapsed_ns": 17237591
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 16514677
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 13989677
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14319554
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 14651758
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 16307178
+        }
+      ],
+      "rust": [
+        {
+          "elapsed_ns": 12916341,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 14001164,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 43401077,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13325964,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 20708494,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 11078469,
+          "iterations": 64
+        }
+      ]
+    }
+  }
+}

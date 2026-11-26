@@ -1,4 +1,4 @@
-//! Opt-in provider contracts. See docs/providers.md for generation credentials.
+//! Opt-in provider contracts. See docs/parity.md for credentials and invocation.
 use futures_util::{StreamExt, TryStreamExt};
 use instructor_ai::{
     decisions::{Choices, DecisionModel, DecisionsClient, Noul, Score},

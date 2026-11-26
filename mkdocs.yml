@@ -101,3 +101,6 @@ nav:
       - Media input: media.md
       - Batch jobs: batch.md
       - Distillation: distillation.md
+  - Comparison:
+      - Python and Rust: parity.md
+      - Benchmarks: benchmarks.md
