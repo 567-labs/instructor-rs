@@ -154,15 +154,4 @@ For Jev via OpenRouter, use the Decisions client with a decision model. [Jev on 
 - **Cohere** uses the v2 Chat API and a native required tool call in `Tools` mode. Select a model that supports `tool_choice`.
 - **Mistral** uses its own Chat Completions endpoint. Check the model's function calling or structured output support when choosing a mode.
 
-Provider-specific options use the field names of the native HTTP API. Each client manages model selection, messages, streaming, and schema placement. The shared message type carries text and user-supplied attachments. [Media input](media.md) · [Streaming](streaming.md) · [Validation and retries](concepts.md)
-
-## Check provider access
-
-Run `cargo test -p instructor-ai --test providers` for the local contract fixtures. For a live generation check, set the provider's key and run one of the commands below. Each command sends requests to its respective service.
-
-```sh
-cargo test -p instructor-ai --test live openai_chat -- --ignored --exact
-cargo test -p instructor-ai --test live openai_responses -- --ignored --exact
-cargo test -p instructor-ai --test live anthropic_messages -- --ignored --exact
-cargo test -p instructor-ai --test live openrouter_chat -- --ignored --exact
-```
+Provider-specific options use the field names of the native HTTP API. Each client manages model selection, messages, streaming, and schema placement. The shared message type carries text and user-supplied attachments. [Media input](media.md) · [Streaming](streaming.md) · [Validation and retries](concepts.md) · [Scope of the Python comparison](parity.md)

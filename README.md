@@ -52,3 +52,4 @@ cargo run -p instructor-ai --example validate_quote -- openai/gpt-6-luna
 - Display fields as they arrive or process a sequence of completed records. [Streaming](docs/streaming.md)
 - Classify input and recover typed choices, probabilities, and scores. [Decisions with OpenAI and Jev](docs/decisions.md)
 - Work with source passages, media attachments, multiple tool calls, or provider-managed jobs. [Grounded extraction](docs/grounded-extraction.md) · [Media input](docs/media.md) · [Parallel tools](docs/parallel.md) · [Batch jobs](docs/batch.md)
+- Trace each workflow to its Python counterpart and reproduce the measurements. [Python comparison](docs/parity.md) · [Benchmarks](docs/benchmarks.md)
