@@ -5,8 +5,8 @@ mod cache_backend;
 use std::sync::{Arc, Mutex};
 
 use instructor_ai::{
-    model, parse_response, response_schema, BlockingClient, Client, Error, Event, Media, Message,
-    Mode, Provider, ProviderConfig, Request, StopReason,
+    model, parse_completion, parse_response, response_schema, BlockingClient, Client, Error, Event,
+    Media, Message, Mode, Provider, ProviderConfig, Request, StopReason,
 };
 use mockito::{Matcher, Server};
 use serde_json::{json, Value};
@@ -77,6 +77,18 @@ fn reask_accumulates_usage_and_preserves_request_and_raw_response() {
     let (parsed, completion): (Amount, _) = client.create_with_completion(req.clone()).unwrap();
     assert_eq!(parsed.value, 8);
     assert_eq!(completion, raw);
+    let revalidate = |min| {
+        parse_completion::<Amount>(
+            Provider::OpenAI,
+            Mode::JsonSchema,
+            &completion,
+            &json!({"min": min}),
+        )
+    };
+    assert_eq!(revalidate(8).unwrap(), parsed);
+    assert!(
+        matches!(revalidate(9), Err(Error::Validation(reason)) if reason.contains("below minimum"))
+    );
     assert_eq!(req.messages.len(), 1);
     assert_eq!(req.messages[0].content, "minimum {{ min }}");
     assert_eq!(

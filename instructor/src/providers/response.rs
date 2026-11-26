@@ -1,30 +1,31 @@
-use super::{tool_name, Mode, Provider, ProviderConfig};
+use super::{tool_name, Mode, Provider};
 use crate::Error;
 use serde_json::Value;
 use std::borrow::Cow;
 
-impl ProviderConfig {
+impl Provider {
     pub(crate) fn extract<'a>(
-        &self,
+        self,
+        mode: Mode,
         raw: &'a Value,
         schema: &Value,
     ) -> Result<Cow<'a, str>, Error> {
         check_error(raw)?;
         let name = tool_name(schema);
-        match self.provider {
-            Provider::OpenAI if self.mode == Mode::ResponsesTools => responses_output(raw, name),
+        match self {
+            Provider::OpenAI if mode == Mode::ResponsesTools => responses_output(raw, name),
             Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => {
                 let choice = candidate(raw, "choices")?;
                 check_finish(&choice["finish_reason"])?;
-                chat_output(&choice["message"], self.mode, name)
+                chat_output(&choice["message"], mode, name)
             }
             Provider::Cohere => {
                 check_finish(&raw["finish_reason"])?;
-                chat_output(&raw["message"], self.mode, name)
+                chat_output(&raw["message"], mode, name)
             }
             Provider::Anthropic => {
                 check_finish(&raw["stop_reason"])?;
-                if !self.mode.is_tool() {
+                if !mode.is_tool() {
                     return text_content(&raw["content"]);
                 }
                 let mut calls = entries(&raw["content"]).filter(|b| b["type"] == "tool_use");
@@ -37,7 +38,7 @@ impl ProviderConfig {
                 let candidate = candidate(raw, "candidates")?;
                 check_finish(&candidate["finishReason"])?;
                 let parts = &candidate["content"]["parts"];
-                if !self.mode.is_tool() {
+                if !mode.is_tool() {
                     return text_content(parts);
                 }
                 let mut calls = entries(parts)

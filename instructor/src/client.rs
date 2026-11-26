@@ -278,13 +278,7 @@ impl Client {
         schema: &Schema,
         context: &Value,
     ) -> Result<T, Error> {
-        let payload = self.config.extract(raw, &schema.value)?;
-        let text = if self.config.mode() == Mode::MarkdownJson {
-            streaming::extract_markdown_json(&payload)?
-        } else {
-            &payload
-        };
-        schema.parse(text, context)
+        schema.parse_completion(self.config.provider(), self.config.mode(), raw, context)
     }
 
     async fn complete<T, F, Fut>(

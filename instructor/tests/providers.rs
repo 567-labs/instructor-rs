@@ -9,8 +9,8 @@ mod parallel;
 mod usage;
 use futures_util::{StreamExt, TryStreamExt};
 use instructor_ai::{
-    model, response_schema, BlockingClient, Client, Error, Message, Mode, PartialEvent, Provider,
-    ProviderConfig, Request,
+    model, parse_completion, response_schema, BlockingClient, Client, Error, Message, Mode,
+    PartialEvent, Provider, ProviderConfig, Request,
 };
 use mockito::{Matcher, Mock, Server};
 use serde_json::{json, Value};
@@ -25,7 +25,7 @@ const PROVIDERS: [Provider; 6] = [
 ];
 
 #[model]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Person {
     name: String,
     age: u32,
@@ -212,6 +212,10 @@ async fn all_providers_send_native_requests_and_return_original_envelopes() {
             assert_eq!(p.name, "Renée");
             assert_eq!(p.age, 41);
             assert_eq!(raw, envelope);
+            assert_eq!(
+                parse_completion::<Person>(provider, mode, &raw, &Value::Null).unwrap(),
+                p
+            );
         }
     }
 }
@@ -936,6 +940,14 @@ async fn responses_uses_input_and_named_tool_with_aligned_text_format() {
         .unwrap();
     assert_eq!(p.age, 41);
     assert_eq!(envelope, raw);
+    let reparse = |provider| {
+        parse_completion::<Person>(provider, Mode::ResponsesTools, &envelope, &Value::Null)
+    };
+    assert_eq!(reparse(Provider::OpenAI).unwrap(), p);
+    assert!(matches!(
+        reparse(Provider::OpenRouter),
+        Err(Error::Configuration(_))
+    ));
     endpoint.assert_async().await;
 }
 

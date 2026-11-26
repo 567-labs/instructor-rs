@@ -41,7 +41,15 @@ pub fn partial<T>(
 where
     T: PartialModel + ResponseModel,
 {
-    decode(Snapshots::<T>::new(Value::Null), fragments)
+    partial_with_context(fragments, Value::Null)
+}
+
+/// Like [partial], with context for validating closed children and the final model.
+pub fn partial_with_context<T: PartialModel + ResponseModel>(
+    fragments: impl IntoIterator<Item = Result<impl AsRef<str>, Error>>,
+    context: Value,
+) -> impl Iterator<Item = Result<PartialEvent<T>, Error>> {
+    decode(Snapshots::<T>::new(context), fragments)
 }
 
 /// Validate and emit each item in a bare array or a top-level "tasks" array.
@@ -52,7 +60,15 @@ pub fn iterable<T>(
 where
     T: InstructMacro + DeserializeOwned,
 {
-    decode(Items::<T>::new(Value::Null), fragments)
+    iterable_with_context(fragments, Value::Null)
+}
+
+/// Like [iterable], with context for validating each item as it arrives.
+pub fn iterable_with_context<T: InstructMacro + DeserializeOwned>(
+    fragments: impl IntoIterator<Item = Result<impl AsRef<str>, Error>>,
+    context: Value,
+) -> impl Iterator<Item = Result<T, Error>> {
+    decode(Items::<T>::new(context), fragments)
 }
 
 /// Asynchronous equivalent of [partial].

@@ -35,6 +35,29 @@ cargo run -p instructor-ai --example types
 
 `meetingTitle` appears on the wire and `meeting.title` in Rust. The `kind` tag determines which fields deserialize into `Venue`. Check the target model's schema capabilities before sending a union or open-ended map in a constrained mode. [Provider modes](providers.md)
 
+## Parse a saved completion
+
+Save the raw JSON value returned by `create_with_completion` with its provider and mode. Pass all three to `parse_completion` to run extraction and validation again locally. Supply a new validation context or use `&Value::Null` for an empty one. For a file, load the envelope with `serde_json::from_reader(std::fs::File::open(path)?)?`. This example checks quotes from a saved Anthropic tool call against a source passage. [Python `ResponseSchema.from_response`](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/instructor/v2/core/function_calls.py#L168)
+
+```rust
+use instructor_ai::{parse_completion, Citations, Error, Mode, Provider};
+use serde_json::json;
+
+fn main() -> Result<(), Error> {
+    let raw = json!({
+        "stop_reason": "tool_use",
+        "content": [{
+            "type": "tool_use", "id": "toolu_1", "name": "Citations",
+            "input": {"substring_quotes": ["opened in 1901", "A grant funded it."]}
+        }]
+    });
+    let source = json!({"context": "The library opened in 1901."});
+    let citations: Citations = parse_completion(Provider::Anthropic, Mode::Tools, &raw, &source)?;
+    assert_eq!(citations.substring_quotes, ["opened in 1901"]);
+    Ok(())
+}
+```
+
 ## Return a scalar or collection directly
 
 Providers often require an object at the root of a tool schema. Instructor wraps a scalar in a `content` field and an array in a `tasks` field, then unwraps the result for the caller. Inspect the native schema using `T::json_schema()` with the `InstructMacro` trait in scope.

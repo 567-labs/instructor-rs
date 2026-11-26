@@ -56,6 +56,20 @@ impl Provider {
             _ => Mode::Tools,
         }
     }
+
+    pub(crate) fn validate_mode(self, mode: Mode) -> Result<(), Error> {
+        if mode == Mode::ToolsStrict && !matches!(self, Provider::OpenAI | Provider::OpenRouter) {
+            return Err(Error::Configuration(
+                "ToolsStrict requires OpenAI or OpenRouter".into(),
+            ));
+        }
+        if mode == Mode::ResponsesTools && self != Provider::OpenAI {
+            return Err(Error::Configuration(
+                "ResponsesTools requires OpenAI".into(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl FromStr for Provider {
@@ -242,18 +256,7 @@ impl ProviderConfig {
                 self.provider.api_key_env()
             )));
         }
-        if self.mode == Mode::ToolsStrict
-            && !matches!(self.provider, Provider::OpenAI | Provider::OpenRouter)
-        {
-            return Err(Error::Configuration(
-                "ToolsStrict requires OpenAI or OpenRouter".into(),
-            ));
-        }
-        if self.mode == Mode::ResponsesTools && self.provider != Provider::OpenAI {
-            return Err(Error::Configuration(
-                "ResponsesTools requires OpenAI".into(),
-            ));
-        }
+        self.provider.validate_mode(self.mode)?;
         let url = reqwest::Url::parse(&self.base_url)
             .map_err(|_| Error::Configuration("Invalid base URL".into()))?;
         if !matches!(url.scheme(), "http" | "https")
