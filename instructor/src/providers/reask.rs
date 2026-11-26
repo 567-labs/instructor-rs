@@ -1,0 +1,134 @@
+use super::response::entries;
+use super::{Mode, Provider, ProviderConfig, WireRequest};
+use serde_json::{json, Value};
+
+impl ProviderConfig {
+    /// Append a correction in the provider's turn format. A failed stream may
+    /// lack a replayable response, in which case feedback is a new user turn.
+    pub(crate) fn reask(&self, wire: &mut WireRequest, raw: &Value, feedback: &str) {
+        match self.provider {
+            Provider::Google => {
+                if let Some(history) = wire.body["contents"].as_array_mut() {
+                    google(history, &raw["candidates"][0]["content"], feedback);
+                }
+            }
+            Provider::OpenAI if self.mode == Mode::ResponsesTools => {
+                if let Some(input) = wire.body["input"].as_array_mut() {
+                    // Include the previous result without depending on server-side
+                    // response storage or a replayable encrypted reasoning item.
+                    let mut text = feedback.to_owned();
+                    for item in entries(&raw["output"]) {
+                        if item["type"] == "function_call" {
+                            text.push_str(&format!(
+                                "\nPrevious call to {}: {}",
+                                item["name"], item["arguments"]
+                            ));
+                        }
+                    }
+                    input.push(user_feedback(&text));
+                }
+            }
+            provider => {
+                if let Some(history) = wire.body["messages"].as_array_mut() {
+                    match provider {
+                        Provider::Anthropic => anthropic(history, &raw["content"], feedback),
+                        Provider::Cohere => chat(history, &raw["message"], feedback),
+                        _ => chat(history, &raw["choices"][0]["message"], feedback),
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn user_feedback(text: &str) -> Value {
+    json!({"role":"user","content":text})
+}
+
+fn chat(history: &mut Vec<Value>, message: &Value, feedback: &str) {
+    let mut results = Vec::new();
+    let mut calls = Vec::new();
+    for call in entries(&message["tool_calls"]) {
+        let (Some(id), Some(name)) = (call["id"].as_str(), call["function"]["name"].as_str())
+        else {
+            history.push(user_feedback(feedback));
+            return;
+        };
+        let args = &call["function"]["arguments"];
+        let arguments = args
+            .as_str()
+            .map(str::to_owned)
+            .unwrap_or_else(|| args.to_string());
+        calls.push(
+            json!({"id":id,"type":"function","function":{"name":name,"arguments":arguments}}),
+        );
+        results.push(json!({"role":"tool","tool_call_id":id,"content":feedback}));
+    }
+    if !calls.is_empty() || !message["content"].is_null() {
+        let mut prior = json!({"role":"assistant"});
+        for key in [
+            "content",
+            "reasoning_details",
+            "reasoning",
+            "reasoning_content",
+            "tool_plan",
+        ] {
+            if !message[key].is_null() {
+                prior[key] = message[key].clone();
+            }
+        }
+        if !calls.is_empty() {
+            prior["tool_calls"] = calls.into();
+        }
+        history.push(prior);
+    }
+    if results.is_empty() {
+        results.push(user_feedback(feedback));
+    }
+    history.extend(results);
+}
+
+fn anthropic(history: &mut Vec<Value>, content: &Value, feedback: &str) {
+    let mut results = Vec::new();
+    for block in entries(content).filter(|b| b["type"] == "tool_use") {
+        let Some(id) = block["id"].as_str() else {
+            history.push(user_feedback(feedback));
+            return;
+        };
+        results.push(
+            json!({"type":"tool_result","tool_use_id":id,"is_error":true,"content":feedback}),
+        );
+    }
+    if entries(content).next().is_some() {
+        // Signed thinking blocks must survive the round trip with the tool use.
+        history.push(json!({"role":"assistant","content":content}));
+    }
+    if results.is_empty() {
+        history.push(user_feedback(feedback));
+    } else {
+        history.push(json!({"role":"user","content":results}));
+    }
+}
+
+fn google(history: &mut Vec<Value>, content: &Value, feedback: &str) {
+    let mut parts = Vec::new();
+    let mut feedback_parts = vec![json!({"text":feedback})];
+    for call in entries(&content["parts"]).filter_map(|p| p.get("functionCall")) {
+        let Some(name) = call["name"].as_str() else {
+            history.push(json!({"role":"user","parts":feedback_parts}));
+            return;
+        };
+        let mut function = json!({"name":name,"response":{"error":feedback}});
+        if let Some(id) = call["id"].as_str() {
+            function["id"] = json!(id);
+        }
+        parts.push(json!({"functionResponse":function}));
+    }
+    if entries(&content["parts"]).next().is_some() {
+        history.push(json!({"role":"model","parts":content["parts"]}));
+    }
+    if parts.is_empty() {
+        std::mem::swap(&mut parts, &mut feedback_parts);
+    }
+    history.push(json!({"role":"user","parts":parts}));
+}

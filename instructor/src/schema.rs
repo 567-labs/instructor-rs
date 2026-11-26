@@ -16,6 +16,22 @@ pub(crate) struct Schema {
     pub wrapper: Option<&'static str>,
 }
 
+pub(crate) fn tool_description(schema: &Value) -> &str {
+    schema["description"]
+        .as_str()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("Return the extracted structured data.")
+}
+
+pub(crate) fn tool_parameters(schema: &Value) -> Value {
+    let mut params = schema.clone();
+    if let Some(root) = params.as_object_mut() {
+        root.remove("title");
+        root.remove("description");
+    }
+    params
+}
+
 // JSON Schema definitions referenced by "#/$defs/..." must stay at the root
 // when a scalar, union or collection is wrapped for a provider.
 fn wrap(key: &str, mut inner: Value) -> Value {

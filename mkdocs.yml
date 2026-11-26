@@ -91,5 +91,7 @@ markdown_extensions:
 nav:
   - Getting started: index.md
   - Guides:
+      - Providers and modes: providers.md
       - Response types: types.md
       - Validation and retries: concepts.md
+      - Media input: media.md

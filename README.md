@@ -1,86 +1,44 @@
-# instructor-rs
+# Instructor for Rust
 
-Instructor is a Rust library that makes it a breeze to work with structured outputs from large language models (LLMs). it provides a simple and easy API to help maanage LLM Workflows by abstrating away validation, retries and streamning responses.
-
-Now, let's see Instructor in action with a simple example:
+Use a Rust type to specify what to extract from an LLM response. Instructor derives the JSON Schema, sends it to the provider, deserializes the answer, and runs your validators. A failed extraction can send feedback to the model for another attempt.
 
 ```rust
-let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
-let instructor_client = from_openai(client);
+use instructor_ai::{model, BlockingClient, Error};
 
-#[derive(InstructMacro, Debug, Serialize, Deserialize)]
-// This represents a single user
-struct UserInfo {
-    // This represents the name of the user
+#[model]
+struct Person {
     name: String,
-    // This represents the age of the user
     age: u8,
 }
 
-let req = ChatCompletionRequest::new(
-    GPT3_5_TURBO.to_string(),
-    vec![chat_completion::ChatCompletionMessage {
-        role: chat_completion::MessageRole::user,
-        content: chat_completion::Content::Text(String::from(
-            "John Doe is a 30 year old software engineer",
-        )),
-        name: None,
-    }],
-);
-
-let result = instructor_client
-    .chat_completion::<UserInfo>(req, 3)
-    .unwrap();
-
-println!("{}", result.name); // John Doe
-println!("{}", result.age); // 30
-
+fn main() -> Result<(), Error> {
+    let client = BlockingClient::from_provider("openai/gpt-6-luna")?;
+    let person: Person = client.create("Extract the person. Ada Chen is 37 years old.")?;
+    println!("{} is {}", person.name, person.age);
+    Ok(())
+}
 ```
 
-## Structured Validation
+These APIs are in the workspace checkout. To use them from a sibling Cargo project, add the path dependency below to its `Cargo.toml`.
 
-We can use native inbuilt serde functions in order to handle validation of specific values.
-
-```rust
-let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
-let instructor_client = from_openai(client);
-
-#[derive(InstructMacro, Debug, Serialize, Deserialize)]
-// This represents a single user
-struct UserInfo {
-    // This represents the name of the user
-    #[validate(custom = "validate_uppercase")]
-    name: String,
-    // This represents the age of the user
-    age: u8,
-}
-
-#[validate]
-fn validate_uppercase(name: &String) -> Result<String, String> {
-    if name.chars().any(|c| c.is_lowercase()) {
-        return Err(format!(
-            "Name '{}' should be entirely in uppercase. Examples: 'TIMOTHY', 'JANE SMITH'",
-            name
-        ));
-    }
-    Ok(name.to_uppercase())
-}
-
-let req = ChatCompletionRequest::new(
-    GPT3_5_TURBO.to_string(),
-    vec![chat_completion::ChatCompletionMessage {
-        role: chat_completion::MessageRole::user,
-        content: chat_completion::Content::Text(String::from(
-            "John Doe is a 30 year old software engineer",
-        )),
-        name: None,
-    }],
-);
-
-let result = instructor_client
-    .chat_completion::<UserInfo>(req, 3)
-    .unwrap();
-
-println!("{}", result.name); // JOHN DOE
-println!("{}", result.age); // 30
+```toml
+[dependencies]
+instructor-ai = { path = "../instructor-rs/instructor" }
 ```
+
+## Try it
+
+The source for each command is a Cargo example. [Runnable examples](instructor/examples)
+
+For live extraction, set the credential for the selected provider. The examples work with model IDs from OpenAI, Anthropic, OpenRouter, Gemini, Cohere, and Mistral. Each command starts a separate provider request. [Provider IDs and credentials](docs/providers.md)
+
+```sh
+cargo run -p instructor-ai --example extract -- openai/gpt-6-luna
+cargo run -p instructor-ai --example validate_quote -- openai/gpt-6-luna
+```
+
+## Guides
+
+- Choose a blocking or async client and configure your provider. [Getting started](docs/index.md) · [Providers and modes](docs/providers.md)
+- Derive schemas, write context-aware validators, and inspect the raw completion. [Response types](docs/types.md) · [Validation and retries](docs/concepts.md)
+- Supply media to supported routes. [Media input](docs/media.md)

@@ -4,6 +4,8 @@ Apply `#[model]` to your output type and each nested type you own. It derives Se
 
 ## Port a Python type annotation
 
+The Python call `client.create(response_model=Meeting, messages=...)` corresponds to `let meeting: Meeting = client.create(request)?;` or `client.create::<Meeting>(request)?` on a blocking client. On an async client, append `.await?` to the call. Rust also infers the output type from a function's return type.
+
 | Python output | Rust output | Behavior |
 | --- | --- | --- |
 | `str`, `bool`, `int`, `float` | `String`, `bool`, an integer type, `f64` | The chosen integer type sets the accepted range. |
@@ -31,7 +33,7 @@ cargo run -p instructor-ai --example types
 --8<-- "instructor/examples/types.rs"
 ```
 
-`meetingTitle` appears on the wire and `meeting.title` in Rust. The `kind` tag determines which fields deserialize into `Venue`. Check the target model's schema capabilities before sending a union or open-ended map in a constrained mode.
+`meetingTitle` appears on the wire and `meeting.title` in Rust. The `kind` tag determines which fields deserialize into `Venue`. Check the target model's schema capabilities before sending a union or open-ended map in a constrained mode. [Provider modes](providers.md)
 
 ## Return a scalar or collection directly
 
@@ -51,3 +53,42 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 ```
+
+Use `ResponseModel` as the bound in helpers that extract arbitrary supported types. It includes the Instructor schema and validation trait and owned Serde deserialization. The caller retains the concrete return type.
+
+```rust
+use instructor_ai::{BlockingClient, Error, ResponseModel};
+
+fn extract<T: ResponseModel>(client: &BlockingClient, text: &str) -> Result<T, Error> {
+    client.create(text)
+}
+
+fn main() -> Result<(), Error> {
+    let client = BlockingClient::from_provider("anthropic/claude-haiku-5-5")?;
+    let names: Vec<String> = extract(&client, "List the names. Ali and Bo attended.")?;
+    println!("{names:?}");
+    Ok(())
+}
+```
+
+## Analyze a schema before selecting a mode
+
+`analyze_schema::<T>()` reports structural findings, complexity, and an optional mode recommendation. To get a provider-specific choice, use `select_mode::<T>(provider)`, which prefers strict output, or reuse the report with `report.select_mode(provider, prefer_strict)`. Apply the returned mode to the provider configuration to use it. This local analysis uses heuristics, including a token estimate of 15 per declared field. Check the chosen model's capabilities before relying on its recommendation.
+
+```rust
+use instructor_ai::{analyze_schema, model, select_mode, Provider};
+
+#[model]
+struct Label {
+    name: String,
+}
+
+fn main() {
+    let report = analyze_schema::<Label>();
+    let mode = select_mode::<Label>(Provider::OpenAI);
+    println!("Complexity {}, mode {mode:?}", report.complexity_score());
+    assert_eq!(mode, report.select_mode(Provider::OpenAI, true));
+}
+```
+
+For an existing schema value, call `SchemaAnalysis::from_json_schema(&schema)`. Use `has_warnings()` and `has_errors()` to inspect findings. [Provider modes](providers.md)
