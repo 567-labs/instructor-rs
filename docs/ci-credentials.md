@@ -100,3 +100,47 @@ jobs:
 ```
 
 The caller supplies the credential for the duration of that job. For independent runs triggered by the Rust repository, check its own grant with the audit above. To update the Python reference, review the new revision, change `PYTHON_REVISION` in `.github/workflows/paired-live.yml`, and check every selector in `scripts/paired_live.py` against that checkout. Update the Rust SHA in the caller after reviewing the new workflow and tests.
+
+## Replay the paired tests without credentials
+
+Use `scripts/paired_replay.py` to run the same 75 Rust tests and 75 Python selectors on a local HTTP server. Both clients receive fixed synthetic answers for the original prompts, including the billing ticket for OpenAI Decisions, routed Jev and direct Jev. All 14 streaming pairs consume server-sent events over chunked HTTP. The original tests check the typed results. This exercises request construction, SDK parsing, validation, reasks and streaming. Credential access, model availability and answer quality require a live run.
+
+### Prepare the two checkouts
+
+Use an existing Rust toolchain, Python 3.11, Git and uv. From a fresh Rust checkout, prepare the pinned Python environment and Cargo dependency cache once with network access. The reference SHA comes from the paired workflow. If you already have the clean Python checkout and caches, start at the replay command.
+
+```sh
+ref=../instructor-reference
+revision=$(sed -n 's/^  PYTHON_REVISION: //p' .github/workflows/paired-live.yml)
+git clone --no-checkout https://github.com/567-labs/instructor.git "$ref"
+git -C "$ref" fetch origin "$revision"
+git -C "$ref" checkout --detach "$revision"
+uv sync --project "$ref" --python 3.11 --no-python-downloads --frozen \
+  --no-build --no-install-project --extra dev --extra google-genai --extra cohere --extra mistral
+cp benchmarks/recorded/Cargo.lock Cargo.lock
+cargo fetch --locked
+```
+
+### Run the replay
+
+```sh
+ref=../instructor-reference
+"$ref/.venv/bin/python" scripts/paired_replay.py --python-repo "$ref" --output replay.json
+```
+
+Add `--provider openrouter` to select just OpenRouter generation and routed Jev, or choose any provider from `--help`. The runner verifies the clean Python reference, builds the Rust integration test with `cargo test --offline --locked --no-run` and starts the server on `127.0.0.1` at an ephemeral port. Test processes receive a fresh environment and synthetic credentials. The Rust test binary uses loopback endpoints. Python redirects the expected SDK hosts to the fixture port and restricts socket resolution and connections to that address. On Linux, add `--isolate-network` to require a network namespace with loopback as its only interface during execution. This option requires permission to create user and network namespaces.
+
+Each JSON report identifies the two commits and the exact test names. It records assertion outcomes and a trace for every accepted POST, including the endpoint path, model, hashes of the original user text and fixture answer, and the SSE event count. The server checks the original prompt, enum labels, second-request validation feedback and the full Decisions questions and state. Comparisons use the application data inside each provider envelope. For example, Python's Cohere handler prepends a schema instruction and reads JSON text, while Rust's Cohere handler requests a native tool call. Both receive the same result data. The stream tests check final values and collected items. The number of intermediate typed snapshots can vary.
+
+### Inspect the Gemini retry result
+
+| Python reference | Passing assertion pairs | Matching request traces | Rust / Python requests |
+| --- | ---: | ---: | ---: |
+| Paired CI pin `0ab894f` | 75 / 75 | 74 / 75 | 82 / 81 |
+| Local retry-test revision `0d5558b` | 75 / 75 | 75 / 75 | 82 / 82 |
+
+Both runs used isolated Linux networks. In the pinned Gemini test, `google-genai` 2.8.0 runs the model validator on the first reply and catches its error. Python Instructor validates the same text again, satisfying the test's two-validation assertion after one HTTP request. Rust sends a second request with the validation feedback. The replay labels that single trace as a known difference on the pinned revision. Add `--strict` to fail on it. Missing requests, rejected inputs, skipped tests, failed assertions and other trace differences fail the default run. [Pinned retry test](https://github.com/567-labs/instructor/blob/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm/test_core_providers/test_retries.py)
+
+The candidate Python test counts completion attempts using the `completion:kwargs` hook and rejects every validation of the first completion. Both clients then perform a reask with feedback. To compare a local candidate, point `--python-repo` to its clean checkout and set `--python-revision` to the full commit SHA. Use its locked dependencies and add `--strict --isolate-network` to repeat the second comparison on Linux.
+
+Run the transport and reporting checks from the Rust root with `python -m unittest discover -s scripts/tests`.

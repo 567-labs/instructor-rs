@@ -53,4 +53,4 @@ cargo run -p instructor-ai --example validate_quote -- openai/gpt-6-luna
 - Classify input and recover typed choices, probabilities, and scores. [Decisions with OpenAI and Jev](docs/decisions.md)
 - Work with source passages, media attachments, multiple tool calls, or provider-managed jobs. [Grounded extraction](docs/grounded-extraction.md) · [Media input](docs/media.md) · [Parallel tools](docs/parallel.md) · [Batch jobs](docs/batch.md)
 - Trace each workflow to its Python counterpart and reproduce the measurements. [Python comparison](docs/parity.md) · [Benchmarks](docs/benchmarks.md)
-- Check which provider credentials both repositories can use in GitHub Actions. [CI credentials](docs/ci-credentials.md)
+- Replay the paired tests locally and inspect historical provider access. [Credential-free replay](docs/ci-credentials.md#replay-the-paired-tests-without-credentials) · [Historical endpoint results](docs/parity.md#historical-endpoint-verification) · [CI credentials](docs/ci-credentials.md)

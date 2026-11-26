@@ -1,11 +1,37 @@
 //! Opt-in provider contracts. See docs/parity.md for credentials and invocation.
 use instructor_ai::{
-    decisions::{BlockingDecisionsClient, Choices, DecisionModel, DecisionsClient, Noul, Score},
+    decisions::{Choices, DecisionError, DecisionModel, DecisionsConfig, Noul, Score},
     Mode, ProviderConfig,
 };
 use serde_json::{json, Value};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+const REPLAY_KEY: &str = "synthetic-replay";
+
+// Enabled only in the binary built by scripts/paired_replay.py. It requires an
+// explicit port and constructs clients without reading credential variables.
+fn replay_host() -> Option<String> {
+    option_env!("INSTRUCTOR_BUILD_REPLAY").map(|_| {
+        let port = std::env::var("INSTRUCTOR_REPLAY_PORT")
+            .expect("replay port required")
+            .parse::<std::num::NonZeroU16>()
+            .expect("invalid replay port");
+        format!("http://127.0.0.1:{port}")
+    })
+}
+
+fn generation_config(route: &str) -> Result<ProviderConfig, instructor_ai::Error> {
+    if let Some(host) = replay_host() {
+        let (provider, model) = route.split_once('/').unwrap();
+        let provider: instructor_ai::Provider = provider.parse()?;
+        let base = reqwest::Url::parse(provider.default_base_url()).unwrap();
+        Ok(ProviderConfig::new(provider, model, REPLAY_KEY)
+            .with_base_url(format!("{host}{}", base.path())))
+    } else {
+        ProviderConfig::from_env(route)
+    }
+}
 
 fn route(provider: &str, variable: &str, default_model: &str) -> String {
     let model = std::env::var(variable).unwrap_or_else(|_| default_model.to_owned());
@@ -77,7 +103,7 @@ macro_rules! provider_suite {
 
             fn core()->Result<Generation,instructor_ai::Error>{
                 let (_,route)=routes();
-                Generation::new(ProviderConfig::from_env(&route)?.with_mode($mode))
+                Generation::new(generation_config(&route)?.with_mode($mode))
             }
 
             cases!(
@@ -96,7 +122,7 @@ macro_rules! provider_suite {
                 #[ignore = "live documented model, see docs/parity.md for credentials"]
                 async fn $documented()->TestResult {
                     let (route,_)=routes();
-                    Generation::new(ProviderConfig::from_env(&route)?.with_mode(Mode::Tools))?
+                    Generation::new(generation_config(&route)?.with_mode(Mode::Tools))?
                         .test_current_documented_model().await?;
                     Ok(())
                 }
@@ -231,6 +257,20 @@ const TYPESAFE_JEV: DecisionRoute = DecisionRoute {
 };
 
 impl DecisionRoute {
+    fn config(&self) -> Result<DecisionsConfig, DecisionError> {
+        let config = DecisionsConfig::new(&self.spec())?;
+        let Some(host) = replay_host() else {
+            return Ok(config);
+        };
+        let path = match self.provider {
+            "openai" => "/v1/decisions",
+            "openrouter" => "/api/alpha/decisions",
+            "typesafe" => "/v1/systemone",
+            _ => unreachable!("unknown replay provider"),
+        };
+        Ok(config.api_key(REPLAY_KEY).endpoint(format!("{host}{path}")))
+    }
+
     fn spec(&self) -> String {
         let legacy = std::env::var(self.legacy_variable)
             .ok()
@@ -371,7 +411,7 @@ fn assert_decision(provider: &str, ticket: &Ticket, raw: &Value) {
 }
 
 async fn decisions(route: DecisionRoute) -> TestResult {
-    let client = DecisionsClient::from_provider(&route.spec())?;
+    let client = route.config()?.build()?;
     let (ticket, raw) = client
         .create_with_completion::<Ticket>(decision_context())
         .await?;
@@ -380,7 +420,7 @@ async fn decisions(route: DecisionRoute) -> TestResult {
 }
 
 fn blocking_decisions(route: DecisionRoute) -> TestResult {
-    let client = BlockingDecisionsClient::from_provider(&route.spec())?;
+    let client = route.config()?.build_blocking()?;
     let (ticket, raw) = client.create_with_completion::<Ticket>(decision_context())?;
     assert_decision(route.provider, &ticket, &raw);
     Ok(())

@@ -163,9 +163,32 @@ cargo test -p instructor-ai --test live typesafe_jev_blocking -- --ignored --exa
 
 With every credential configured, run `cargo test -p instructor-ai --test live -- --ignored` for all 75 checks. GitHub Actions matches each Rust test with its Python counterpart. Open the paired workflow run summary to inspect credential availability, selection, and outcomes for both implementations. [Credential setup and paired CI](ci-credentials.md)
 
+### Historical endpoint verification
+
+On November 26, 2026, the Python repository ran a pinned workflow with both clients. Each live pair used one credential from the Python job. The caller was at `e24f62c`, the Python contracts at `0ab894f`, and the Rust contracts at `c630e8a`. The Rust repository ran the same comparison with its own Actions credentials. The results below apply to those revisions and those runs. [Caller](https://github.com/567-labs/instructor/blob/e24f62c3fc451f76d6dad76b590a40fa73dfb7d7/.github/workflows/paired-live.yml) · [Python contracts](https://github.com/567-labs/instructor/tree/0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7/tests/llm) · [Rust contracts](https://github.com/567-labs/instructor-rs/blob/c630e8af30e8743e03f981b618d68a79e916075d/instructor/tests/live.rs)
+
+| Route | Pairs | Python Actions job | Rust Actions job |
+| --- | ---: | --- | --- |
+| OpenAI Chat Completions | 10 | Passed | HTTP 401 |
+| OpenAI Responses | 9 | Passed | HTTP 401 |
+| OpenAI Decisions | 2 | Passed | HTTP 401 |
+| Anthropic Messages | 10 | Passed | Collected |
+| Cohere | 10 | Passed | Collected |
+| Google Gemini | 10 | HTTP 402 | Collected |
+| OpenRouter generation | 10 | Collected | Collected |
+| OpenRouter Jev | 2 | Collected | Collected |
+| Direct Typesafe Jev | 2 | Collected | Collected |
+| Mistral | 10 | Collected | Collected |
+
+**Passed** records success in both languages. HTTP 401 indicates an invalid OpenAI credential, and HTTP 402 indicates depleted Google credits. **Collected** means both test names were found and the job had no credential bound for that provider. In total, the Python job executed 51 pairs with 41 passing. The Rust job executed 21 pairs and received 21 authentication failures. The remaining cases only exercised discovery. [Python results](https://github.com/567-labs/instructor/actions/runs/45898277923/attempts/1) · [Rust results](https://github.com/567-labs/instructor-rs/actions/runs/45898236914/attempts/1)
+
+### Compare later changes locally
+
+The credential-free runner exercises the same 75 pairs with fixed answers over loopback HTTP. All 75 assertion pairs passed against the pinned Python contracts. Comparing the request traces found that the Gemini retry test accepted two validations after one Python request. Rust sent two requests. A local Python correction counting completion attempts produced matching traces for all 75 pairs. The runner and the endpoint jobs answer separate questions. Use replay for reproducible client behavior and the historical jobs for the observed model access at their pinned revisions. [Replay commands, trace fields and retry comparison](ci-credentials.md#replay-the-paired-tests-without-credentials)
+
 ## Prioritized next steps
 
-1. **Verify the primary integrations against live endpoints.** Run the opt-in suite above with OpenAI, Anthropic, and OpenRouter credentials, including Jev through OpenRouter and OpenAI Decisions. Record the model ID, mode, and date for each route. Turn any observed incompatibility into a loopback regression fixture, then repeat the failed live test.
+1. **Review the Python retry assertion and keep both test inventories aligned.** Count distinct completion attempts and assert that feedback reaches the second request on every paired route. Use strict replay against the corrected reference. When endpoint verification is authorized, prioritize the 12 OpenRouter cases, including routed Jev, then direct Jev and the other outstanding routes. Record the model, mode, date and both revisions for future runs.
 2. **Track usage through streamed responses.** Replay terminal usage events from OpenAI, Anthropic, and OpenRouter, including disconnects before the count arrives. Expose final counts to stream consumers with the same availability semantics as structured calls. [Python usage](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/usage.md) · [Hooks](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/hooks.md)
 3. **Exercise the shared cache interface with a remote store.** Implement a Redis adapter and test competing writers, scoped clearing, and expiration across processes. [Python cache isolation](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/v2/test_cache_identity_contracts.py)
 4. **Stream remote batch downloads.** Feed incremental records through the same parser used by local files, and test pagination and interrupted downloads with mixed-success fixtures. [Python batch](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/batch.md) · [Provider capabilities](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/llm/test_core_providers/capabilities.py)
