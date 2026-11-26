@@ -161,7 +161,7 @@ cargo test -p instructor-ai --test live openrouter_jev -- --ignored --exact
 cargo test -p instructor-ai --test live typesafe_jev_blocking -- --ignored --exact
 ```
 
-With every credential configured, run `cargo test -p instructor-ai --test live -- --ignored` for all 75 checks. The local comparison environment compiled and listed the contracts. Provider execution requires credentials with access to the selected models.
+With every credential configured, run `cargo test -p instructor-ai --test live -- --ignored` for all 75 checks. GitHub Actions matches each Rust test with its Python counterpart. Open the paired workflow run summary to inspect credential availability, selection, and outcomes for both implementations. [Credential setup and paired CI](ci-credentials.md)
 
 ## Prioritized next steps
 
