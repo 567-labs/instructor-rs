@@ -83,6 +83,14 @@ fn mock(server: &mut Server, p: Provider, mode: Mode, stream: bool) -> Mock {
             .match_header("x-goog-api-key", "fake-key")
             .match_header("authorization", Matcher::Missing),
         Provider::Anthropic => mock
+            .match_request(|req| {
+                let body: Value = serde_json::from_slice(req.body().unwrap()).unwrap();
+                let choice = &body["tool_choice"];
+                match choice["type"].as_str() {
+                    Some("tool") => choice["disable_parallel_tool_use"] == true,
+                    _ => choice.get("disable_parallel_tool_use").is_none(),
+                }
+            })
             .match_header("x-api-key", "fake-key")
             .match_header("anthropic-version", "2023-06-01")
             .match_header("authorization", Matcher::Missing),

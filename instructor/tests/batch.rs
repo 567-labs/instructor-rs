@@ -70,6 +70,10 @@ fn per_provider_preparation_and_defaults() {
             assert_eq!(params["messages"], json!([{"role":"user","content":"300"}]));
             assert!(params.get("temperature").is_none());
             assert_eq!(params["tools"][0]["name"], "extract_data");
+            assert_eq!(
+                params["tool_choice"],
+                json!({"type":"tool","name":"extract_data"})
+            );
             let schema = &params["tools"][0]["input_schema"];
             assert_eq!(schema["title"], "Amount");
             assert_eq!(schema["additionalProperties"], false);
