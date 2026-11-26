@@ -98,3 +98,4 @@ nav:
       - Decisions: decisions.md
       - Parallel tools: parallel.md
       - Media input: media.md
+      - Batch jobs: batch.md

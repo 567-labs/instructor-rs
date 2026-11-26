@@ -19,6 +19,7 @@
 extern crate self as instructor_ai;
 
 mod analysis;
+pub mod batch;
 mod cache;
 mod client;
 pub mod decisions;

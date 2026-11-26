@@ -30,6 +30,16 @@ impl WireRequest {
 }
 
 impl ProviderConfig {
+    pub(crate) fn authenticated(
+        &self,
+        client: &reqwest::Client,
+        method: reqwest::Method,
+        path: &str,
+    ) -> Result<reqwest::RequestBuilder, Error> {
+        let url = format!("{}{path}", self.base_url.trim_end_matches('/'));
+        Ok(client.request(method, url).headers(self.headers(false)?))
+    }
+
     pub(crate) fn request(
         &self,
         req: &Request,
