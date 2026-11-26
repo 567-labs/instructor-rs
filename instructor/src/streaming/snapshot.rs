@@ -12,6 +12,7 @@ pub(super) struct Snapshots<T> {
     json: String,
     boundaries: Boundaries,
     closed: bool,
+    string_value: bool,
     context: Value,
     schema: Arc<Schema>,
     model: PhantomData<fn() -> T>,
@@ -23,6 +24,7 @@ impl<T: ResponseModel> Snapshots<T> {
             json: String::new(),
             boundaries: Boundaries::default(),
             closed: false,
+            string_value: false,
             context,
             schema: schema::<T>(),
             model: PhantomData,
@@ -55,6 +57,9 @@ impl<T: ResponseModel> Snapshots<T> {
                 }
                 continue;
             }
+            if ch == '"' && !self.boundaries.quoted {
+                self.string_value = self.json.trim_end().ends_with(':');
+            }
             self.json.push(ch);
             self.closed = self.boundaries.read(ch)?;
         }
@@ -80,7 +85,16 @@ impl<T: ResponseModel + PartialModel> Decoder for Snapshots<T> {
             let parsed = JsonValue::parse_with_config(self.json.trim().as_bytes(), false, mode)
                 .map_err(|e| Error::Protocol(format!("invalid partial JSON: {e}")))?;
             if let Some(mut value) = serde_value(&parsed) {
-                let path = open_path(&parsed, self.boundaries.depth);
+                // In trailing-strings mode Jiter includes an unfinished value
+                // (but not a field name) as the object's last entry. Mark it
+                // open so an enum tag cannot select a validator prematurely.
+                let unfinished_value = self.boundaries.quoted
+                    && self.string_value
+                    && matches!(mode, PartialMode::TrailingStrings);
+                let path = open_path(
+                    &parsed,
+                    self.boundaries.depth + usize::from(unfinished_value),
+                );
                 let mut path = path.as_slice();
                 if let Some(key) = self.schema.wrapper {
                     let Some(content) = value.get_mut(key) else {

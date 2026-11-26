@@ -26,7 +26,7 @@ const MAX_DEPTH: usize = 128;
 /// A view of a streamed model at a particular stage of generation.
 #[derive(Debug)]
 pub enum PartialEvent<T: PartialModel> {
-    /// Provisional, typed fields. Model validation is deferred.
+    /// Provisional, typed fields. Closed child models may already be validated.
     Partial(T::Partial),
     /// A full, validated model yielded once after a successful stream.
     Complete(T),
@@ -65,7 +65,7 @@ where
     partial_async_with_context(fragments, Value::Null)
 }
 
-/// Pass a request-specific context to final model validation.
+/// Pass a request-specific context to closed child and final model validation.
 pub fn partial_async_with_context<T>(
     fragments: impl Stream<Item = Result<impl AsRef<str>, Error>>,
     context: Value,
