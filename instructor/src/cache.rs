@@ -12,18 +12,44 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-#[derive(Clone, Serialize, Deserialize)]
-struct Record {
-    expires: Option<SystemTime>,
-    raw: Value,
+/// The original provider response from a successful structured call.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CacheRecord {
+    /// Absolute expiration time. `None` keeps the record eligible until eviction.
+    pub expires: Option<SystemTime>,
+    /// Original provider envelope, including completion metadata.
+    pub raw: Value,
+}
+
+/// Thread-safe storage for structured completions. Attach a shared adapter using
+/// [`crate::Client::with_cache_backend`] or [`crate::BlockingClient::with_cache_backend`].
+///
+/// Both `scope` and `key` are opaque hashes. Address each entry by the pair.
+/// Client clones and independent requests can access a scope concurrently.
+/// Instructor checks expiration, parses the envelope and validates each hit.
+/// Read and write errors emit [`crate::Event::CacheError`] and allow the request
+/// to continue. These operations run on Tokio's blocking pool.
+pub trait ResponseCache: Send + Sync {
+    /// Load a record, returning `Ok(None)` for a miss.
+    fn get(&self, scope: &str, key: &str) -> io::Result<Option<CacheRecord>>;
+
+    /// Atomically insert or replace this entry, preserving its expiration time.
+    fn put(&self, scope: &str, key: &str, record: CacheRecord) -> io::Result<()>;
+
+    /// Clear only entries in the given scope. Errors propagate to the caller.
+    fn clear(&self, scope: &str) -> io::Result<()>;
 }
 
 #[derive(Clone)]
 pub(crate) struct Cache(Arc<Store>);
 
 enum Store {
-    Memory(Mutex<LruCache<String, Record>>),
+    Memory(Mutex<LruCache<String, CacheRecord>>),
     Disk(PathBuf),
+    Backend {
+        scope: String,
+        adapter: Arc<dyn ResponseCache>,
+    },
 }
 
 // Hash a structured tuple to avoid ambiguous boundaries. Request bodies and
@@ -41,13 +67,26 @@ impl Cache {
             .map(|size| Self(Arc::new(Store::Memory(Mutex::new(LruCache::new(size))))))
     }
 
-    pub fn disk(config: &ProviderConfig, dir: &Path, namespace: &str) -> Result<Self, Error> {
+    fn scope(config: &ProviderConfig, namespace: &str) -> Result<String, Error> {
         if namespace.trim().is_empty() {
             return Err(Error::Configuration(
                 "persistent cache requires a nonempty namespace".into(),
             ));
         }
-        let key = digest(("v1", namespace, config.cache_identity()));
+        Ok(digest(("v1", namespace, config.cache_identity())))
+    }
+
+    pub fn backend(
+        config: &ProviderConfig,
+        adapter: Arc<dyn ResponseCache>,
+        namespace: &str,
+    ) -> Result<Self, Error> {
+        let scope = Self::scope(config, namespace)?;
+        Ok(Self(Arc::new(Store::Backend { scope, adapter })))
+    }
+
+    pub fn disk(config: &ProviderConfig, dir: &Path, namespace: &str) -> Result<Self, Error> {
+        let key = Self::scope(config, namespace)?;
         let dir = dir.join(format!("instructor-{key}"));
         fs::create_dir_all(&dir)
             .and_then(|_| fs::canonicalize(dir))
@@ -60,8 +99,17 @@ impl Cache {
     }
 
     pub fn clear(&self) -> io::Result<()> {
-        match &*self.0 {
+        Self::clear_store(&self.0)
+    }
+
+    pub async fn clear_async(&self) -> io::Result<()> {
+        self.access(Self::clear_store).await
+    }
+
+    fn clear_store(store: &Store) -> io::Result<()> {
+        match store {
             Store::Memory(cache) => cache.lock().unwrap().clear(),
+            Store::Backend { scope, adapter } => adapter.clear(scope)?,
             Store::Disk(dir) => {
                 for entry in fs::read_dir(dir)? {
                     let path = entry?.path();
@@ -88,17 +136,20 @@ impl Cache {
         let store = self.0.clone();
         match &*store {
             Store::Memory(_) => f(&store),
-            Store::Disk(_) => tokio::task::spawn_blocking(move || f(&store))
-                .await
-                .map_err(io::Error::other)?,
+            Store::Disk(_) | Store::Backend { .. } => {
+                tokio::task::spawn_blocking(move || f(&store))
+                    .await
+                    .map_err(io::Error::other)?
+            }
         }
     }
 
     pub async fn get(&self, key: &str) -> io::Result<Option<Value>> {
         let key = key.to_string();
         self.access(move |store| {
-            let record: Option<Record> = match store {
+            let record = match store {
                 Store::Memory(cache) => cache.lock().unwrap().get(&key).cloned(),
+                Store::Backend { scope, adapter } => adapter.get(scope, &key)?,
                 Store::Disk(dir) => match fs::read(dir.join(format!("{key}.json"))) {
                     Ok(bytes) => Some(serde_json::from_slice(&bytes)?),
                     Err(e) if e.kind() == io::ErrorKind::NotFound => None,
@@ -120,12 +171,13 @@ impl Cache {
                     .ok_or_else(|| io::Error::other("cache TTL exceeds clock range"))
             })
             .transpose()?;
-        let record = Record { expires, raw };
+        let record = CacheRecord { expires, raw };
         self.access(move |store| {
             match store {
                 Store::Memory(cache) => {
                     cache.lock().unwrap().put(key, record);
                 }
+                Store::Backend { scope, adapter } => adapter.put(scope, &key, record)?,
                 Store::Disk(dir) => {
                     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
                     serde_json::to_writer(&mut tmp, &record)?;
@@ -144,8 +196,8 @@ impl Cache {
                 cache.pop(key);
             }
         }
-        // Disk writers can run in other processes. A fresh successful
-        // validation replaces the old file atomically.
+        // Shared stores can have concurrent writers. Replace rejected
+        // records on successful validation to avoid deleting a newer value.
     }
 }
 
