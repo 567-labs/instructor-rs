@@ -71,6 +71,29 @@ async fn main() -> Result<(), Error> {
 }
 ```
 
+## Check text with a model
+
+`validate_text` sends a candidate and rule to the configured generation model. A passing check returns the original text. When overrides are enabled, a rejected candidate can produce the model's suggested replacement. Returning the replacement ends the check. If the rule fails without a permitted replacement, the call returns `Error::Validation`. A rule can be a string, or a `TextRule` with options. Its default temperature is `Some(0.0)`. Use `.temperature(None)` to let the model use its default.
+
+`moderate_text` calls OpenAI's moderation endpoint with `omni-moderation-latest`. Flagged text returns a validation error describing the categories. The following example performs two requests on success.
+
+```rust
+use instructor_ai::{BlockingClient, Error, TextRule};
+
+fn main() -> Result<(), Error> {
+    let client = BlockingClient::from_provider("openai/gpt-6-luna")?;
+    let rule = TextRule::new("Use a single complete sentence.")
+        .allow_override(true)
+        .temperature(None);
+    let sentence = client.validate_text(rule, "Arriving tomorrow")?;
+    let approved = client.moderate_text(&sentence)?;
+    println!("{approved}");
+    Ok(())
+}
+```
+
+Both clients expose the checks. To use one inside `create_validated`, pass it the candidate text in the validation callback and map a validation failure to the callback's error message. Each check makes its own provider request. [Python semantic validation](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/semantic_validation.md)
+
 ## Set retry limits
 
 - `max_retries(0)` allows one attempt. `max_retries(2)` allows three attempts. The default is three additional attempts. The limit applies separately to each call.
