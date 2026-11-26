@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     name: Rust (${{ matrix.toolchain }})
@@ -27,6 +31,9 @@ jobs:
       - uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
       - name: Test workspace and doctests
         run: cargo test --workspace
+      - name: Test CI helpers
+        if: matrix.toolchain == 'stable'
+        run: python3 -m unittest discover -s scripts/tests
       - name: Check documentation
         if: matrix.toolchain == 'stable'
         run: |
