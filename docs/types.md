@@ -10,7 +10,7 @@ The Python call `client.create(response_model=Meeting, messages=...)` correspond
 | --- | --- | --- |
 | `str`, `bool`, `int`, `float` | `String`, `bool`, an integer type, `f64` | The chosen integer type sets the accepted range. |
 | `list[Person]` | `Vec<Person>` | One result with the full list. |
-| `Person \| None` | `Option<Person>` | A nullable result or field. |
+| `Person \| None` | `Option<Person>` | A nullable result. For required fields, see the recipe below. |
 | `dict[str, T]` | `BTreeMap<String, T>` or `HashMap<String, T>` | String keys with typed values. |
 | `BaseModel` or `TypedDict` | `#[model] struct` | Named fields with compile-time access. |
 | `Literal` or string enum | Unit variants of a `#[model] enum` | Each variant represents an allowed value. |
@@ -20,6 +20,28 @@ The Python call `client.create(response_model=Meeting, messages=...)` correspond
 | `Partial[Meeting]` | `Partial<Meeting>` | Alias for the generated `MeetingPartial` snapshot type. |
 
 Use `Option<T>` on a struct field when the fact may be missing. Serde reads an absent field or JSON `null` as `None`. By default a required field with no value fails deserialization. `#[serde(default)]` opts a field into a default when the key is missing. Values must fit the Rust field type. For example, a string containing digits fails deserialization into `u16`, as does an integer outside the range 0 through 65535.
+
+### Require a field that accepts null
+
+In Pydantic v2, `email: str | None` requires the key and accepts JSON `null`. To get that behavior in Rust, define an untagged enum and use it directly as the field type. [Python partial validation tests](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/dsl/test_partial.py#L1015)
+
+```rust
+use instructor_ai::model;
+
+#[model]
+#[serde(untagged)]
+enum Nullable<T> {
+    Value(T),
+    Null,
+}
+
+#[model]
+struct Contact {
+    email: Nullable<String>,
+}
+```
+
+The schema lists `email` in `required` and allows a string or null. A string becomes `Nullable::Value(email)`, `{"email": null}` yields `Nullable::Null`, and `{}` fails deserialization. A streaming preview shows `None` for both pending and null values. On finalization, `PartialEvent::Complete` carries the enum for a present key, and an absent key yields an error. [Streaming guide](streaming.md)
 
 ## Inspect the schema and parse a sample locally
 
