@@ -1,9 +1,10 @@
 use super::MAX_BUFFER;
 use crate::Error;
 
-#[derive(Debug, PartialEq)]
+#[derive(Default)]
+#[cfg_attr(test, derive(Clone, Debug, PartialEq))]
 pub(crate) struct SseEvent {
-    pub event: Option<String>,
+    pub name: String,
     pub data: String,
 }
 
@@ -11,60 +12,55 @@ pub(crate) struct SseEvent {
 #[derive(Default)]
 pub(crate) struct SseDecoder {
     line: Vec<u8>,
-    name: Option<String>,
-    data: String,
+    event: SseEvent,
+    emitted: bool,
     after_cr: bool,
     started: bool,
 }
 
 impl SseDecoder {
-    pub fn feed(&mut self, bytes: &[u8]) -> Vec<Result<SseEvent, Error>> {
-        let mut events = Vec::new();
-        for &byte in bytes {
+    /// Consume through one event, borrowing its fields until the next read.
+    /// None as input indicates EOF, which can terminate the final event.
+    pub fn read(&mut self, chunk: &mut Option<&[u8]>) -> Result<Option<&SseEvent>, Error> {
+        if std::mem::take(&mut self.emitted) {
+            self.event.name.clear();
+            self.event.data.clear();
+        }
+        let Some(bytes) = chunk else {
+            if !self.line.is_empty() {
+                self.end_line()?;
+            }
+            return Ok(self.end_event().then_some(&self.event));
+        };
+        while let Some((&byte, rest)) = bytes.split_first() {
+            *bytes = rest;
             if std::mem::take(&mut self.after_cr) && byte == b'\n' {
                 continue;
             }
             if byte == b'\r' || byte == b'\n' {
                 self.after_cr = byte == b'\r';
-                match self.end_line() {
-                    Ok(Some(event)) => events.push(Ok(event)),
-                    Ok(None) => (),
-                    Err(error) => {
-                        events.push(Err(error));
-                        break;
-                    }
+                if self.end_line()? {
+                    return Ok(Some(&self.event));
                 }
-            } else if self.line.len() + self.data.len() >= MAX_BUFFER {
-                events.push(Err(Error::Protocol("SSE event exceeds 16 MiB".into())));
-                break;
+            } else if self.line.len() + self.event.data.len() >= MAX_BUFFER {
+                return Err(Error::Protocol("SSE event exceeds 16 MiB".into()));
             } else {
                 self.line.push(byte);
             }
         }
-        events
+        Ok(None)
     }
 
-    /// Some endpoints omit a blank line after the final event.
-    pub fn finish(&mut self) -> Vec<Result<SseEvent, Error>> {
-        if !self.line.is_empty() {
-            if let Err(error) = self.end_line() {
-                return vec![Err(error)];
-            }
-        }
-        self.take_event().map(Ok).into_iter().collect()
-    }
-
-    fn take_event(&mut self) -> Option<SseEvent> {
-        let event = self.name.take();
+    fn end_event(&mut self) -> bool {
         // Each data line contributes a trailing newline, including empty lines.
-        self.data.pop()?;
-        Some(SseEvent {
-            event,
-            data: std::mem::take(&mut self.data),
-        })
+        self.emitted = self.event.data.pop().is_some();
+        if !self.emitted {
+            self.event.name.clear();
+        }
+        self.emitted
     }
 
-    fn end_line(&mut self) -> Result<Option<SseEvent>, Error> {
+    fn end_line(&mut self) -> Result<bool, Error> {
         let mut line = std::str::from_utf8(&self.line)
             .map_err(|err| Error::Protocol(format!("invalid UTF-8 in SSE line: {err}")))?;
         if !self.started {
@@ -73,20 +69,23 @@ impl SseDecoder {
         }
         if line.is_empty() {
             self.line.clear();
-            return Ok(self.take_event());
+            return Ok(self.end_event());
         }
         let (field, value) = line.split_once(':').unwrap_or((line, ""));
         let value = value.strip_prefix(' ').unwrap_or(value);
         match field {
-            "event" => self.name = Some(value.to_owned()),
+            "event" => {
+                self.event.name.clear();
+                self.event.name.push_str(value);
+            }
             "data" => {
-                self.data.push_str(value);
-                self.data.push('\n');
+                self.event.data.push_str(value);
+                self.event.data.push('\n');
             }
             _ => (),
         }
         self.line.clear();
-        Ok(None)
+        Ok(false)
     }
 }
 
@@ -107,25 +106,24 @@ mod tests {
         for size in 1..=raw.len() {
             let mut decoder = SseDecoder::default();
             let mut events = Vec::new();
-            for chunk in raw.chunks(size) {
-                events.extend(decoder.feed(chunk));
+            for mut chunk in raw.chunks(size).map(Some).chain([None]) {
+                while let Some(event) = decoder.read(&mut chunk).unwrap() {
+                    events.push(event.clone());
+                }
             }
-            events.extend(decoder.finish());
-            assert!(decoder.finish().is_empty());
-            let events = events.into_iter().collect::<Result<Vec<_>, _>>().unwrap();
             assert_eq!(
                 events,
                 vec![
                     SseEvent {
-                        event: Some("delta".into()),
+                        name: "delta".into(),
                         data: "雪🌷\n second:line".into()
                     },
                     SseEvent {
-                        event: None,
+                        name: String::new(),
                         data: "".into()
                     },
                     SseEvent {
-                        event: None,
+                        name: String::new(),
                         data: "[DONE]".into()
                     },
                 ]
@@ -134,20 +132,18 @@ mod tests {
     }
 
     #[test]
-    fn utf8_error_keeps_prior_events_in_same_read() {
+    fn only_consumes_through_next_event() {
         let mut decoder = SseDecoder::default();
-        let mut events = decoder.feed(b"data:first\n\ndata:\xff\n\n").into_iter();
-        assert_eq!(events.next().unwrap().unwrap().data, "first");
-        assert!(matches!(events.next(), Some(Err(Error::Protocol(_)))));
+        let mut bytes = Some(&b"data:first\n\ndata:\xff\n\n"[..]);
+        assert_eq!(decoder.read(&mut bytes).unwrap().unwrap().data, "first");
+        assert_eq!(bytes.unwrap(), b"data:\xff\n\n");
+        assert!(matches!(decoder.read(&mut bytes), Err(Error::Protocol(_))));
     }
 
     #[test]
     fn incomplete_utf8_at_eof() {
         let mut decoder = SseDecoder::default();
-        assert!(decoder.feed(b"data:\xe9").is_empty());
-        assert!(matches!(
-            decoder.finish().as_slice(),
-            [Err(Error::Protocol(_))]
-        ));
+        assert!(decoder.read(&mut Some(b"data:\xe9")).unwrap().is_none());
+        assert!(matches!(decoder.read(&mut None), Err(Error::Protocol(_))));
     }
 }

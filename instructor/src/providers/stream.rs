@@ -31,19 +31,17 @@ impl ProviderConfig {
             let mut bytes = response.bytes_stream();
             let mut decoder = SseDecoder::default();
             loop {
-                let (events,eof) = match bytes.next().await {
-                    Some(bytes) => (decoder.feed(&bytes?),false),
-                    None => (decoder.finish(),true),
-                };
-                for event in events {
-                    let fragment = parser.event(event?)?;
+                let chunk = bytes.next().await.transpose()?;
+                let mut remaining = chunk.as_deref();
+                while let Some(event) = decoder.read(&mut remaining)? {
+                    let fragment = parser.event(event)?;
                     if !fragment.is_empty() {
                         parser.has_output = true;
                         yield fragment;
                     }
                     if parser.done { break; }
                 }
-                if parser.done || eof { break; }
+                if parser.done || chunk.is_none() { break; }
             }
             parser.finish()?;
             if let Some(indexed) = parser.indexed {
@@ -88,12 +86,12 @@ impl Parser {
         }
     }
 
-    fn event(&mut self, event: SseEvent) -> Result<String, Error> {
+    fn event(&mut self, event: &SseEvent) -> Result<String, Error> {
         let data = event.data.trim();
-        if event.event.as_deref() == Some("error") {
+        if event.name == "error" {
             return Err(Error::Provider(data.into()));
         }
-        if data.is_empty() || event.event.as_deref() == Some("ping") {
+        if data.is_empty() || event.name == "ping" {
             return Ok(String::new());
         }
         if data == "[DONE]" {
@@ -112,10 +110,7 @@ impl Parser {
         if !raw.is_object() {
             return Err(Error::Protocol("Expected SSE object".into()));
         }
-        let kind = raw["type"]
-            .as_str()
-            .or(event.event.as_deref())
-            .unwrap_or("");
+        let kind = raw["type"].as_str().unwrap_or(&event.name);
         check_error(&raw)?;
         if kind == "error" {
             return Err(Error::Provider(data.into()));
