@@ -73,6 +73,52 @@ fn main() -> Result<(), Error> {
 
 For a sequence processed item by item, pass the element type to `create_iterable::<T>`. For a preview of a single object, pass the complete type to `create_partial::<T>`. [Streaming and partial types](streaming.md) · [Contextual validators](concepts.md)
 
+## Test increasingly complex response types
+
+Start with a scalar to verify that the client unwraps the generated value. Add fields, enum labels, and nested records to exercise the parts of the schema your application needs. Each row names a Python test under `tests/llm/test_core_providers/` and the corresponding Rust test. Rust runs the same assertion in `instructor/tests/support/generation.rs` against loopback fixtures and live endpoints. [Python extraction cases](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_core_providers/test_basic_extraction.py) · [Python enum cases](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_core_providers/test_model_complexity.py)
+
+| Response shape | Python → Rust | Test name in both suites | Expected output |
+| --- | --- | --- | --- |
+| Scalar | `int` → `i32` | `test_int` | The integer `42` |
+| Flat record | `User(BaseModel)` → `struct User` | `test_simple_extraction` | Jason, age 25 |
+| Finite choice | `ShipmentState(str, Enum)` → `enum ShipmentState` | `test_enum_extraction` | Wire label `in_transit`, decoded as `ShipmentState::InTransit` |
+| Collection | `list[User]` → `Vec<User>` | `test_list_extraction` | Alice, Bob, and Charlie with their ages |
+| Nested record | `UserWithAddress` → `struct UserWithAddress` | `test_nested_model_extraction` | John Doe and the street, city, and country in his address |
+| Collection of records with enum and nullable fields | `Manifest.packages: list[Package]` → `Vec<Package>` in a `Manifest` | `test_nested_enum_collection` | Two packages in order, each with a typed state. The first has an unknown carrier. |
+
+The manifest test uses `#[serde(rename_all = "snake_case")]` to keep the JSON labels identical to the Python enum values. Each package holds its own state and optional carrier. This example uses the model declarations from the test suite and parses a response locally.
+
+```rust
+use instructor_ai::{model, parse_response, Error};
+use serde_json::Value;
+
+--8<-- "instructor/tests/support/generation.rs:shipment-models"
+
+fn main() -> Result<(), Error> {
+    let text = r#"{
+        "depot": "North",
+        "packages": [
+            {"tracking_id": "A1", "state": "packed", "carrier": null},
+            {"tracking_id": "B2", "state": "in_transit", "carrier": "Swift"}
+        ]
+    }"#;
+    let manifest: Manifest = parse_response(text, &Value::Null)?;
+    assert_eq!(manifest.depot, "North");
+    assert!(manifest.packages[0].carrier.is_none());
+    let second = &manifest.packages[1];
+    assert_eq!(second.state, ShipmentState::InTransit);
+    assert_eq!(second.carrier.as_deref(), Some("Swift"));
+    Ok(())
+}
+```
+
+Run the offline checks from the workspace root. The first command runs all the cases against mock HTTP servers for six providers, including OpenAI's two generation APIs. The second isolates recovery from a bad enum label. Each mock sends `lost` for the second package, checks that the correction mentions the rejected label, and then sends `in_transit`. [Select a live counterpart](parity.md#opt-in-live-checks)
+
+```sh
+cargo test -p instructor-ai --test providers complexity::
+cargo test -p instructor-ai --test providers complexity::invalid_enum_in_nested_record_causes_a_reask -- --exact
+```
+
 ## Analyze a schema before selecting a mode
 
 `analyze_schema::<T>()` reports structural findings, complexity, and an optional mode recommendation. To get a provider-specific choice, use `select_mode::<T>(provider)`, which prefers strict output, or reuse the report with `report.select_mode(provider, prefer_strict)`. Apply the returned mode to the provider configuration to use it. This local analysis uses heuristics, including a token estimate of 15 per declared field. Check the chosen model's capabilities before relying on its recommendation.

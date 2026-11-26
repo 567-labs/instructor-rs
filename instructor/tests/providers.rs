@@ -1,4 +1,8 @@
 //! End-to-end contract tests against deterministic loopback endpoints.
+#[path = "providers/complexity.rs"]
+mod complexity;
+#[path = "support/generation.rs"]
+mod generation;
 #[path = "providers/parallel.rs"]
 mod parallel;
 use futures_util::{StreamExt, TryStreamExt};
@@ -136,17 +140,24 @@ fn structured_request(p: Provider, mode: Mode, stream: bool, name: &str) -> Valu
 }
 
 fn completion(p: Provider, mode: Mode, args: Value) -> Value {
-    let call = json!({"id":"call_1","type":"function","function":{"name":"Person","arguments":args.to_string()}});
+    named_completion(p, mode, "Person", args)
+}
+
+fn named_completion(p: Provider, mode: Mode, name: &str, args: Value) -> Value {
+    let call = json!({"id":"call_1","type":"function","function":{"name":name,"arguments":args.to_string()}});
     match p {
+        Provider::OpenAI if mode == Mode::ResponsesTools => json!({"status":"completed","output":[
+            {"type":"function_call","name":name,"call_id":"call_1","arguments":args.to_string()}
+        ]}),
         Provider::Anthropic if tool(mode) => json!({"stop_reason":"tool_use","content":[
             {"type":"thinking","thinking":"…","signature":"opaque"},{"type":"text","text":"Calling"},
-            {"type":"tool_use","id":"tool_1","name":"Person","input":args}
+            {"type":"tool_use","id":"tool_1","name":name,"input":args}
         ]}),
         Provider::Anthropic => json!({"stop_reason":"end_turn","content":[
             {"type":"thinking","thinking":"…","signature":"opaque"},{"type":"text","text":args.to_string()}]}),
         Provider::Google => {
             let part = if tool(mode) {
-                json!({"functionCall":{"name":"Person","args":args},"thoughtSignature":"opaque"})
+                json!({"functionCall":{"name":name,"args":args},"thoughtSignature":"opaque"})
             } else {
                 json!({"text":args.to_string()})
             };
@@ -207,6 +218,21 @@ fn events(p: Provider, mode: Mode, name: &str, fragments: &[&str]) -> String {
     let mut stream = String::from(": keepalive\r\n\r\n");
     let mut send = |v: Value| stream.push_str(&frame(&v));
     match p {
+        Provider::OpenAI if mode == Mode::ResponsesTools => {
+            send(
+                json!({"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","name":name}}),
+            );
+            for fragment in fragments {
+                send(
+                    json!({"type":"response.function_call_arguments.delta","output_index":0,"delta":fragment}),
+                );
+            }
+            let final_item =
+                json!({"type":"function_call","name":name,"arguments":fragments.concat()});
+            send(
+                json!({"type":"response.completed","response":{"status":"completed","output":[final_item]}}),
+            );
+        }
         Provider::Google => {
             send(json!({"candidates":[{"content":{"parts":[{"thought":true,"text":"…"}]}}]}));
             if tool(mode) {

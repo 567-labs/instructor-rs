@@ -70,7 +70,7 @@ The Rust baseline at `cb9e730` exposed a blocking OpenAI client for extracting o
 
 ## Reproduce the checks
 
-At Rust implementation commit `c644289`, 167 tests passed, including five doctests. The seven live tests were ignored. Formatting, Clippy with warnings denied, and the Rust API documentation build with warnings denied passed. All 32 Rust snippets from the README and rendered guides compiled in a separate Cargo project using the checkout as a path dependency, with continuation snippets placed in their documented context.
+The Rust workspace with the graded provider contracts passed **179 tests**, including five doctests, with **75 credentialed tests** ignored in the offline run. Formatting, Clippy with warnings denied, and the strict MkDocs build passed. The recorded benchmarks predate the additional provider tests. The Rust library sources used for those measurements are available at `def3761`. [Benchmark checkout](https://github.com/567-labs/instructor-rs/tree/def3761d0fe33db821c4ae2d52d10339ef2617d8)
 
 Run the Rust unit, integration, and documentation tests from the workspace root. On Unix, unsetting `OPENAI_API_KEY` for the test command selects loopback fixtures for the original SDK tests. The local examples exercise schema generation, partial replay, and citation matching. To build the guides, install the repository's `requirements.txt` in a Python environment and run MkDocs from the same directory.
 
@@ -120,23 +120,48 @@ A separate selector covered LLM validation and moderation contracts in two addit
 
 ### Opt-in live checks
 
-The seven tests in `instructor/tests/live.rs` are ignored by default. Each generation test exercises a forced validation retry, one partial stream, and one iterable stream. Each Decisions test performs a classification and checks the typed result against the raw labels and probabilities. Select a single test by name after setting its credential. These calls use the provider's live API and can incur charges. The table lists the default model and the variable that overrides the model ID.
+`instructor/tests/live.rs` has 75 individually selectable live tests. The generation suite has nine core cases for each of seven API routes and six checks of the documented model IDs, for 69 cases. The Decisions suite adds one async and one blocking case for each of three routes. Ordinary Cargo runs ignore the live tests and run a local check of model selection. To run a live test, configure its credential and pass `--ignored`. Each test sends requests that can incur provider charges. [Response types and offline fixtures](types.md#test-increasingly-complex-response-types)
 
-| Test name | Credential | Default model | Override variable |
-| --- | --- | --- | --- |
-| `openai_chat`, `openai_responses` | `OPENAI_API_KEY` | `gpt-6-luna` | `INSTRUCTOR_LIVE_OPENAI_MODEL` |
-| `anthropic_messages` | `ANTHROPIC_API_KEY` | `claude-haiku-5-5` | `INSTRUCTOR_LIVE_ANTHROPIC_MODEL` |
-| `openrouter_chat` | `OPENROUTER_API_KEY` | `google/gemini-3.8-flash` | `INSTRUCTOR_LIVE_OPENROUTER_MODEL` |
-| `openai_decisions` | `OPENAI_API_KEY` | `gpt-6-luna` | `INSTRUCTOR_LIVE_OPENAI_DECISIONS_MODEL` |
-| `openrouter_jev` | `OPENROUTER_API_KEY` | `typesafe/jev-1.13` | `INSTRUCTOR_LIVE_OPENROUTER_JEV_MODEL` |
-| `typesafe_jev` | `TYPESAFE_API_KEY` | `jev-latest` | `INSTRUCTOR_LIVE_TYPESAFE_JEV_MODEL` |
+#### Generation
+
+Each route exercises scalar, flat, enum, list, nested, and nested collection outputs. The three other core cases exercise a validation retry, partial updates, and an iterable stream. The documented model check asks for `42` in a record using tool mode. The OpenAI chat route covers the OpenAI guide model. [Python documented models](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_current_doc_models.py) · [Python core models](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/shared_config.py)
+
+| Rust test module | Credential | Core model | Documented model | Local override |
+| --- | --- | --- | --- | --- |
+| `openai_chat` | `OPENAI_API_KEY` | `gpt-6-luna` | `gpt-6-luna` | `INSTRUCTOR_LIVE_OPENAI_MODEL` |
+| `openai_responses` | `OPENAI_API_KEY` | `gpt-6-luna` | Covered by `openai_chat` | `INSTRUCTOR_LIVE_OPENAI_MODEL` |
+| `anthropic_messages` | `ANTHROPIC_API_KEY` | `claude-haiku-5-5` | `claude-haiku-5-5` | `INSTRUCTOR_LIVE_ANTHROPIC_MODEL` |
+| `openrouter_chat` | `OPENROUTER_API_KEY` | `google/gemini-3.8-flash` | `google/gemini-3.8-flash` | `INSTRUCTOR_LIVE_OPENROUTER_MODEL` |
+| `google_genai` | `GOOGLE_API_KEY` | `GOOGLE_GENAI_MODEL` or `gemini-3.8-flash` | `gemini-3.8-flash` | `INSTRUCTOR_LIVE_GOOGLE_MODEL` |
+| `cohere_chat` | `COHERE_API_KEY` | `command-a-03-2025` | `command-a-03-2025` | `INSTRUCTOR_LIVE_COHERE_MODEL` |
+| `mistral_chat` | `MISTRAL_API_KEY` | `ministral-8b-latest` | `mistral-small-latest` | `INSTRUCTOR_LIVE_MISTRAL_MODEL` |
+
+The local override replaces both model IDs for that provider. Use a model ID in the format shown in the table. `GOOGLE_GENAI_MODEL` also accepts the `google/` prefix used in Python CI. Gemini core cases use native JSON Schema and the OpenAI Responses cases use `ResponsesTools`. The other core cases use `Tools`.
+
+List all live tests, run one exact case, or use a module prefix to run its entire suite.
 
 ```sh
-cargo test -p instructor-ai --test live openai_chat -- --ignored --exact
-cargo test -p instructor-ai --test live openrouter_jev -- --ignored --exact
+cargo test -p instructor-ai --test live -- --ignored --list
+cargo test -p instructor-ai --test live openai_chat::test_nested_enum_collection -- --ignored --exact
+cargo test -p instructor-ai --test live anthropic_messages:: -- --ignored
 ```
 
-The test prepends the provider to the model ID. To run all seven with all credentials, use `cargo test -p instructor-ai --test live -- --ignored`. The comparison environment had no provider credentials, so the live contracts were compiled and remain unverified. [Python streaming tests](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/llm/test_core_providers/test_streaming.py) · [Python live Decisions tests](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/llm/test_decisions/test_live_decisions.py)
+#### Decisions
+
+Each test classifies a refund ticket, checks the decoded choice, probability, and scaled score, and validates the raw distributions. The model variables below match Python. The canonical variable takes precedence over the older Rust alias. [Python Decisions route configuration](https://github.com/567-labs/instructor/blob/c020fd2e00b5aba6bf8f9c3838d8a200c0ec5867/tests/llm/test_decisions/conftest.py) · [Decisions in Rust](decisions.md)
+
+| Async test | Blocking test | Credential | Default model | Model override | Older Rust alias |
+| --- | --- | --- | --- | --- | --- |
+| `openai_decisions` | `openai_decisions_blocking` | `OPENAI_API_KEY` | `gpt-6-luna` | `OPENAI_DECISIONS_MODEL` | `INSTRUCTOR_LIVE_OPENAI_DECISIONS_MODEL` |
+| `openrouter_jev` | `openrouter_jev_blocking` | `OPENROUTER_API_KEY` | `typesafe/jev-1.13` | `OPENROUTER_DECISIONS_MODEL` | `INSTRUCTOR_LIVE_OPENROUTER_JEV_MODEL` |
+| `typesafe_jev` | `typesafe_jev_blocking` | `TYPESAFE_API_KEY` | `jev-latest` | `TYPESAFE_DECISIONS_MODEL` | `INSTRUCTOR_LIVE_TYPESAFE_JEV_MODEL` |
+
+```sh
+cargo test -p instructor-ai --test live openrouter_jev -- --ignored --exact
+cargo test -p instructor-ai --test live typesafe_jev_blocking -- --ignored --exact
+```
+
+With every credential configured, run `cargo test -p instructor-ai --test live -- --ignored` for all 75 checks. The local comparison environment compiled and listed the contracts. Provider execution requires credentials with access to the selected models.
 
 ## Prioritized next steps
 
