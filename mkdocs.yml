@@ -1,8 +1,8 @@
-site_name: Instructor
+site_name: Instructor for Rust
 site_author: Ivan Leo
 site_description: A lightweight library for structured outputs with LLMs.
-repo_name: instructor
-repo_url: https://github.com/instructor-ai/instructor-rs
+repo_name: 567-labs/instructor-rs
+repo_url: https://github.com/567-labs/instructor-rs
 site_url: https://rust.useinstructor.com/
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2024 Ivan Leo
@@ -82,15 +82,14 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      check_paths: true
   - pymdownx.superfences
   - def_list
   - pymdownx.tasklist:
       custom_checkbox: true
 nav:
-  - Introduction:
-      - Welcome To Instructor: "index.md"
-
-  - Concepts:
-      - Models: "concepts.md"
-      - Types: "types.md"
+  - Getting started: index.md
+  - Guides:
+      - Response types: types.md
+      - Validation and retries: concepts.md

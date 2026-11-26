@@ -1,315 +1,53 @@
-# Support for Simple Types
+# Design a response type
 
-We support most basic types out of the box with our `InstructMacro` macro now. Here's a quick rundown of how to use our macro. Note that the struct name and the description you provide is fed in to the OpenAI call - what we show below is just the function parameter that we provide.
+Apply `#[model]` to your output type and each nested type you own. It derives Serde serialization and deserialization, JSON Schema through Schemars, Instructor validation, and a partial representation. Ordinary Rust field access, methods, and pattern matching work on the returned value. Add `#[derive(Debug)]` if you want to print the entire value.
 
-## Importing the Macro
+## Port a Python type annotation
 
-You'll need to use the following imports to use the macro
+| Python output | Rust output | Behavior |
+| --- | --- | --- |
+| `str`, `bool`, `int`, `float` | `String`, `bool`, an integer type, `f64` | The chosen integer type sets the accepted range. |
+| `list[Person]` | `Vec<Person>` | One result with the full list. |
+| `Person \| None` | `Option<Person>` | A nullable result or field. |
+| `dict[str, T]` | `BTreeMap<String, T>` or `HashMap<String, T>` | String keys with typed values. |
+| `BaseModel` or `TypedDict` | `#[model] struct` | Named fields with compile-time access. |
+| `Literal` or string enum | Unit variants of a `#[model] enum` | Each variant represents an allowed value. |
+| Discriminated union | Data-carrying enum with `#[serde(tag = "kind")]` | Match on the variant to access its fields. |
+| `Field(description=...)` | `///` on the field or `#[description("…")]` | Description appears in the schema. |
+| `Field(alias=...)` | `#[serde(rename = "wireName")]` | Rust uses the field name and the provider uses the wire name. |
+| `Partial[Meeting]` | `Partial<Meeting>` | Alias for the generated `MeetingPartial` snapshot type. |
 
-```rust
-use instruct_macros::{InstructMacro};
-use instruct_macros_types::{
-    InstructMacro, InstructMacroResult, Parameter, ParameterInfo, StructInfo,
-};
+Use `Option<T>` on a struct field when the fact may be missing. Serde reads an absent field or JSON `null` as `None`. By default a required field with no value fails deserialization. `#[serde(default)]` opts a field into a default when the key is missing. Values must fit the Rust field type. For example, a string containing digits fails deserialization into `u16`, as does an integer outside the range 0 through 65535.
 
- #[derive(InstructMacro, Debug)]
-struct User {
-    pub name: String,
-    pub age: String
-}
+## Inspect the schema and parse a sample locally
 
-/*
-{
-  "type": "object",
-  "properties": {
-    "age": {
-      "type": "string",
-      "description": ""
-    },
-    "name": {
-      "type": "string",
-      "description": ""
-    }
-  },
-  "required": [
-    "name",
-    "age"
-  ]
-}
-*/
+This example models an in-person or remote venue, a list of attendees, a renamed field, and an optional duration. `response_schema` exposes the provider-neutral request schema. `parse_response` uses the same typed parser and contextual validation as extraction. The example uses `serde_json = "1"` to construct an empty validation context.
+
+```sh
+cargo run -p instructor-ai --example types
 ```
 
-### Adding a Description
-
-We provide a `#[description( Description goes here )]` annoration that you can add to your struct. This will be included in the function call which we will send over to OpenAI/other inference providers.
-
-This is the same for individual fields or the entire struct with multi-line comments being relatively easy to implement.
-
 ```rust
-#[derive(InstructMacro, Debug)]
-#[description("This is a user object")]
-struct User {
-    #[description("This is the name of the user")]
-    pub name: String,
-    #[description(
-        "This is\
-    a multi-line description\
-    which can be used"
-    )]
-    pub age: String,
-}
-
-/*
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "This is the name of the user"
-    },
-    "age": {
-      "type": "string",
-      "description": "This isa multi-line descriptionwhich can be used"
-    }
-  },
-  "required": [
-    "name",
-    "age"
-  ]
-}
-*/
+--8<-- "instructor/examples/types.rs"
 ```
 
-## Advanced Types
+`meetingTitle` appears on the wire and `meeting.title` in Rust. The `kind` tag determines which fields deserialize into `Venue`. Check the target model's schema capabilities before sending a union or open-ended map in a constrained mode.
 
-### Enums
+## Return a scalar or collection directly
 
-Enums are supported in the same way. Just declare it as if you would a normal `Serde` object and it'll work out of the box seamlessly.
-
-```rust
-#[derive(InstructMacro, Debug)]
-#[description("This is an enum representing the status of a person")]
-pub enum Status {
-    Active,
-    Inactive,
-    Pending,
-}
-
-#[derive(InstructMacro, Debug)]
-pub struct User {
-    name: String,
-    status: Status,
-}
-
-/*
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": ""
-    },
-    "status": {
-      "type": "string",
-      "description": "This is an enum representing the status of a person",
-      "enum_values": [
-        "Active",
-        "Inactive",
-        "Pending"
-      ]
-    }
-  },
-  "required": [
-    "name",
-    "status"
-  ]
-}
-*/
-```
-
-If you'll like to provide a custom description for your enum field in your struct, just use the `description` annoration and we'll override the default description of the enum when we generate the function parameter.
+Providers often require an object at the root of a tool schema. Instructor wraps a scalar in a `content` field and an array in a `tasks` field, then unwraps the result for the caller. Inspect the native schema using `T::json_schema()` with the `InstructMacro` trait in scope.
 
 ```rust
-#[derive(InstructMacro, Debug)]
-#[description("This is an enum representing the status of a person")]
-pub enum Status {
-    Active,
-    Inactive,
-    Pending,
+use instructor_ai::{parse_response, response_schema, Error, InstructMacro};
+use serde_json::Value;
+
+fn main() -> Result<(), Error> {
+    let count: u16 = parse_response(r#"{"content": 42}"#, &Value::Null)?;
+    let names: Vec<String> = parse_response(r#"{"tasks": ["Ali", "Bo"]}"#, &Value::Null)?;
+    assert_eq!(count, 42);
+    assert_eq!(names, ["Ali", "Bo"]);
+    assert_eq!(u16::json_schema()["type"], "integer");
+    assert_eq!(response_schema::<u16>()["properties"]["content"]["type"], "integer");
+    Ok(())
 }
-
-#[derive(InstructMacro, Debug)]
-pub struct User {
-    name: String,
-    #[description("This is the person's status")]
-    status: Status,
-}
-
-/*
-{
-  "type": "object",
-  "properties": {
-    "status": {
-      "type": "string",
-      "description": "This is the person's status",
-      "enum_values": [
-        "Active",
-        "Inactive",
-        "Pending"
-      ]
-    },
-    "name": {
-      "type": "string",
-      "description": ""
-    }
-  },
-  "required": [
-    "name",
-    "status"
-  ]
-}
-*/
-```
-
-### Vectors
-
-Sometimes you might want to extract a list of objects (Eg. Users). To do so, you can just use a simple `Vec` object.
-
-```rust
-#[derive(InstructMacro, Debug)]
-#[description("This is a struct with Option types")]
-struct Numbers {
-    #[description("This is a list of numbers")]
-    pub numbers: Vec<i32>,
-}
-
-/*
-{
-  "type": "object",
-  "properties": {
-    "users": {
-      "type": "array",
-      "description": "A list of users",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": ""
-          }
-        }
-      }
-    }
-  },
-  "required": [
-    "users"
-  ]
-}
-*/
-```
-
-### Options
-
-We also support Option types. This is most popular when using a `Maybe` pattern where we have some form of data that we might want to extract.
-
-```rust
-#[derive(InstructMacro, Debug)]
-#[allow(dead_code)]
-#[description("This is a user struct")]
-struct User {
-    #[description("This is the user's name")]
-    pub name: String,
-    #[description("This is the user's age")]
-    pub age: i32,
-}
-
-#[derive(InstructMacro, Debug)]
-#[allow(dead_code)]
-#[description("This is a struct with Option<user> type")]
-struct MaybeUser {
-    #[description("This is an optional user field")]
-    pub user: Option<User>,
-    error_message: Option<String>
-}
-
-/*
-{
-  "type": "object",
-  "properties": {
-    "user": {
-      "type": "object",
-      "description": "This is an optional user field. If the user is not present, the field will be null",
-      "properties": {
-        "age": {
-          "type": "number",
-          "description": ""
-        },
-        "name": {
-          "type": "string",
-          "description": ""
-        }
-      }
-    },
-    "error_message": {
-      "type": "string",
-      "description": ""
-    }
-  },
-  "required": []
-}
-*/
-```
-
-### Nested Structs
-
-We also support Nested Structs out of the box - see example below
-
-```rust
-#[derive(InstructMacro, Debug, Serialize, Deserialize)]
-struct Address {
-    location: String,
-    distance: i32,
-}
-
-#[derive(InstructMacro, Debug, Serialize, Deserialize)]
-struct User {
-    name: String,
-    age: u8,
-    address: Address,
-}
-
-/*
-{
-  "type": "object",
-  "properties": {
-    "address": {
-      "type": "object",
-      "description": "",
-      "properties": {
-        "location": {
-          "type": "string",
-          "description": ""
-        },
-        "distance": {
-          "type": "number",
-          "description": ""
-        }
-      }
-    },
-    "name": {
-      "type": "string",
-      "description": ""
-    },
-    "age": {
-      "type": "number",
-      "description": ""
-    }
-  },
-  "required": [
-    "name",
-    "age",
-    "address"
-  ]
-}
-*/
 ```

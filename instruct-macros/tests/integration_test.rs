@@ -188,7 +188,7 @@ mod tests {
                 "Pending".to_string(),
             ],
             r#type: "Status".to_string(),
-            description: "".to_string(),
+            description: "This is an enum representing the status of a person".to_string(),
             is_optional: false,
             is_list: false,
         };

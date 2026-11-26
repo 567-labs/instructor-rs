@@ -2,13 +2,12 @@ extern crate instruct_macros;
 extern crate instruct_macros_types;
 
 use instruct_macros::InstructMacro;
-use instruct_macros_types::{Parameter, ParameterInfo, StructInfo};
 use instructor_ai::from_openai;
-use openai_api_rs::v1::api::Client;
+mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use serde_json::json;
 
     use openai_api_rs::v1::{
         chat_completion::{self, ChatCompletionRequest},
@@ -20,7 +19,13 @@ mod tests {
 
     #[test]
     fn test_enum() {
-        let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
+        if support::run_loopback_in_child("tests::test_enum") {
+            return;
+        }
+        let (client, _server) = support::client(
+            "Email",
+            &[json!({"chain_of_thought": "Unsolicited offer", "label": "Spam"})],
+        );
         let instructor_client = from_openai(client);
 
         #[derive(InstructMacro, Debug, Serialize, Deserialize, PartialEq)]
@@ -56,7 +61,15 @@ mod tests {
 
     #[test]
     fn test_nested_struct() {
-        let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
+        if support::run_loopback_in_child("tests::test_nested_struct") {
+            return;
+        }
+        let (client, _server) = support::client(
+            "UserDetail",
+            &[
+                json!({"age": 30, "name": "John Doe", "address": {"street": "123 Main St", "city": "Anytown", "country": "USA"}, "security_clearance": "High"}),
+            ],
+        );
         let instructor_client = from_openai(client);
 
         #[derive(InstructMacro, Debug, Serialize, Deserialize, PartialEq)]

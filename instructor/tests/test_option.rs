@@ -2,13 +2,12 @@ extern crate instruct_macros;
 extern crate instruct_macros_types;
 
 use instruct_macros::InstructMacro;
-use instruct_macros_types::{Parameter, ParameterInfo, StructInfo};
 use instructor_ai::from_openai;
-use openai_api_rs::v1::api::Client;
+mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use serde_json::json;
 
     use openai_api_rs::v1::{
         chat_completion::{self, ChatCompletionRequest},
@@ -20,7 +19,13 @@ mod tests {
 
     #[test]
     fn test_simple_option() {
-        let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
+        if support::run_loopback_in_child("tests::test_simple_option") {
+            return;
+        }
+        let (client, _server) = support::client(
+            "MaybeUser",
+            &[json!({"name": null, "error_message": "missing"})],
+        );
         let instructor_client = from_openai(client);
 
         #[derive(InstructMacro, Debug, Serialize, Deserialize)]
@@ -50,7 +55,13 @@ mod tests {
 
     #[test]
     fn test_complex_option() {
-        let client = Client::new(env::var("OPENAI_API_KEY").unwrap().to_string());
+        if support::run_loopback_in_child("tests::test_complex_option") {
+            return;
+        }
+        let (client, _server) = support::client(
+            "MaybeUser",
+            &[json!({"user": null, "error_message": "missing"})],
+        );
         let instructor_client = from_openai(client);
 
         #[derive(InstructMacro, Debug, Serialize, Deserialize)]
