@@ -46,7 +46,7 @@ impl ProviderConfig {
         schema: Option<&Value>,
         stream: bool,
     ) -> Result<WireRequest, Error> {
-        self.validate()?;
+        // Client construction and batch mode changes validate the configuration.
         let mut body = Value::Object(req.options.clone());
         check_options(&body, self.mode)?;
         let instruction = match (self.mode, schema) {
@@ -78,37 +78,29 @@ impl ProviderConfig {
                     "attachments require a user message".into(),
                 ));
             }
-            match self.provider {
-                Provider::Google | Provider::Anthropic
-                    if matches!(role, "system" | "developer") =>
-                {
-                    system.push(msg)
+            let (role, field) = match (self.provider, role) {
+                (Provider::Google | Provider::Anthropic, "system" | "developer") => {
+                    system.push(msg);
+                    continue;
                 }
-                Provider::Google => {
-                    let role = if role == "assistant" { "model" } else { "user" };
-                    let parts =
-                        crate::media::content(self.provider, self.mode, content, attachments)?;
-                    messages.push(json!({"role":role,"parts":parts}));
+                (Provider::Google, "assistant") => ("model", "parts"),
+                (Provider::Google, _) => ("user", "parts"),
+                (provider, "developer") if provider != Provider::OpenAI => ("system", "content"),
+                (_, role) => (role, "content"),
+            };
+            let mut content =
+                crate::media::content(self.provider, self.mode, content, attachments)?;
+            if let Some(ttl) = msg.cache_control {
+                if content.is_string() {
+                    let mut block = json!({"type":"text"});
+                    block["text"] = content;
+                    content = Value::Array(vec![block]);
                 }
-                _ => {
-                    let role = if self.provider != Provider::OpenAI && role == "developer" {
-                        "system"
-                    } else {
-                        role
-                    };
-                    let mut content =
-                        crate::media::content(self.provider, self.mode, content, attachments)?;
-                    if let Some(ttl) = msg.cache_control {
-                        if content.is_string() {
-                            content = json!([{"type":"text","text":content}]);
-                        }
-                        if let Some(last) = content.as_array_mut().and_then(|v| v.last_mut()) {
-                            last["cache_control"] = cache_control(ttl);
-                        }
-                    }
-                    messages.push(json!({"role":role,"content":content}));
+                if let Some(last) = content.as_array_mut().and_then(|v| v.last_mut()) {
+                    last["cache_control"] = cache_control(ttl);
                 }
             }
+            messages.push(Value::from_iter([("role", role.into()), (field, content)]));
         }
         if !req.native.is_empty() {
             if !req.native.iter().all(Value::is_object) {
@@ -216,14 +208,17 @@ impl ProviderConfig {
             Mode::ResponsesTools => {
                 let mut schema = schema.clone();
                 constrain_schema(&mut schema, self.provider)?;
-                let mut tools = body["tools"].as_array().cloned().unwrap_or_default();
+                let mut tools = body["tools"]
+                    .as_array_mut()
+                    .map(std::mem::take)
+                    .unwrap_or_default();
                 if tools.is_empty() {
                     body["tool_choice"] = json!({"type":"function","name":name});
                 }
                 tools.push(json!({"type":"function","name":name,"parameters":schema,"description":description,"strict":true}));
                 body["tools"] = tools.into();
-                body["text"]["format"] =
-                    json!({"type":"json_schema","name":name,"schema":schema,"strict":true});
+                body["text"]["format"] = json!({"type":"json_schema","name":name,"strict":true});
+                body["text"]["format"]["schema"] = schema;
             }
             Mode::Json => match self.provider {
                 Provider::Anthropic => (),
@@ -237,13 +232,15 @@ impl ProviderConfig {
                 match self.provider {
                     Provider::Google => {
                         body["tools"] = json!([{"functionDeclarations":[{
-                            "name":name,"description":description,"parametersJsonSchema":params
+                            "name":name,"description":description
                         }]}]);
+                        body["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"] =
+                            params;
                         body["toolConfig"] = json!({"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":[name]}});
                     }
                     Provider::Anthropic => {
-                        body["tools"] =
-                            json!([{"name":name,"description":description,"input_schema":params}]);
+                        body["tools"] = json!([{"name":name,"description":description}]);
+                        body["tools"][0]["input_schema"] = params;
                         body["tool_choice"] =
                             if requires_auto_choice(&self.model, &body["thinking"]) {
                                 json!({"type":"auto"})
@@ -256,12 +253,12 @@ impl ProviderConfig {
                         if strict {
                             constrain_schema(&mut params, self.provider)?;
                         }
-                        let mut function =
-                            json!({"name":name,"description":description,"parameters":params});
+                        body["tools"] = json!([{"type":"function","function":{"name":name,"description":description}}]);
+                        let function = &mut body["tools"][0]["function"];
+                        function["parameters"] = params;
                         if strict {
                             function["strict"] = json!(true);
                         }
-                        body["tools"] = json!([{"type":"function","function":function}]);
                         body["tool_choice"] = match self.provider {
                             Provider::Mistral => json!("any"),
                             Provider::Cohere => json!("REQUIRED"),
@@ -280,16 +277,18 @@ impl ProviderConfig {
                         config["responseJsonSchema"] = schema;
                     }
                     Provider::Cohere => {
-                        body["response_format"] = json!({"type":"json_object","schema":schema})
+                        body["response_format"] = json!({"type":"json_object"});
+                        body["response_format"]["schema"] = schema;
                     }
                     Provider::Anthropic => {
-                        body["output_config"]["format"] =
-                            json!({"type":"json_schema","schema":schema});
+                        body["output_config"]["format"] = json!({"type":"json_schema"});
+                        body["output_config"]["format"]["schema"] = schema;
                     }
                     Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => {
                         body["response_format"] = json!({"type":"json_schema","json_schema":{
-                            "name":name,"schema":schema,"strict":true
+                            "name":name,"strict":true
                         }});
+                        body["response_format"]["json_schema"]["schema"] = schema;
                     }
                 }
             }

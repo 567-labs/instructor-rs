@@ -1,4 +1,7 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, LazyLock},
+    time::Duration,
+};
 type RetryPolicy = Arc<dyn Fn(&crate::FailedAttempt) -> Option<Duration> + Send + Sync>;
 
 use serde::{Deserialize, Serialize};
@@ -206,7 +209,7 @@ impl Request {
         }
         if !self.context.is_null() {
             for msg in &mut self.messages {
-                msg.content = render(&msg.content, &self.context)
+                render(&mut msg.content, &self.context)
                     .map_err(|e| Error::Configuration(format!("template: {e}")))?;
             }
         }
@@ -232,9 +235,17 @@ impl From<Vec<Message>> for Request {
     }
 }
 
-pub(crate) fn render(template: &str, context: &Value) -> Result<String, minijinja::Error> {
-    let mut env = minijinja::Environment::new();
-    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
-    env.set_keep_trailing_newline(true);
-    env.render_str(template, context)
+pub(crate) fn render(template: &mut String, context: &Value) -> Result<(), minijinja::Error> {
+    // The default MiniJinja syntax uses {{, {% and {# as opening delimiters.
+    if !template.contains('{') {
+        return Ok(());
+    }
+    static ENV: LazyLock<minijinja::Environment<'static>> = LazyLock::new(|| {
+        let mut env = minijinja::Environment::new();
+        env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
+        env.set_keep_trailing_newline(true);
+        env
+    });
+    *template = ENV.render_str(template, context)?;
+    Ok(())
 }

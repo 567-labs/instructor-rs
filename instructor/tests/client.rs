@@ -403,14 +403,28 @@ fn streams_retry_only_before_exposing_an_item() {
         .match_body(Matcher::Regex("below minimum".into()))
         .with_body(sse(r#"{"tasks":[{"value":8},{"value":1}]}"#))
         .create();
-    let req = Request::new("read").context(json!({"min":5}));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let record = |scope| {
+        let events = events.clone();
+        move |attempt, event: Event<'_>| {
+            if matches!(event, Event::LastAttempt(Error::Validation(_))) {
+                events.lock().unwrap().push((scope, attempt));
+            }
+        }
+    };
+    let req = Request::new("read")
+        .context(json!({"min":5}))
+        .on_event(record("request"));
     let mut iter = BlockingClient::new(config(&server))
         .unwrap()
+        .on_event(record("client"))
         .create_iterable::<Amount>(req)
         .unwrap();
     assert_eq!(iter.next().unwrap().unwrap().value, 8);
+    assert!(events.lock().unwrap().is_empty());
     assert!(matches!(iter.next(), Some(Err(Error::Validation(_)))));
     assert!(iter.next().is_none());
+    assert_eq!(*events.lock().unwrap(), [("client", 2), ("request", 2)]);
     first.assert();
     retry.assert();
 }
