@@ -22,7 +22,8 @@ pub trait InstructMacro {
     }
 
     /// Validate completed child objects in an in-progress JSON document.
-    /// The path locates the innermost open container; None means closed.
+    /// The path locates the innermost open container or unfinished object string value.
+    /// None means the value is closed.
     #[doc(hidden)]
     fn prepare_partial(
         _value: &mut Value,

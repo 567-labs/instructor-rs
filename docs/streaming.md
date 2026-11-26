@@ -27,9 +27,31 @@ cargo run -p instructor-ai --example stream_partial -- anthropic/claude-haiku-5-
 
 Python's `client.create_partial(response_model=Meeting, ...)` exposes successive instances with fields filled in. Rust makes the transition to a validated result explicit. A successful stream yields zero or more previews followed by one `Complete`. Chunk boundaries determine preview frequency. A prefix can repeat a value or lack a representable enum variant. Partially received values may change as more tokens arrive.
 
-A closed nested struct can already have validated and normalized fields, including inside a list, map, or option. The root model validates at finalization. Checks for enum variants, flattened fields, and custom deserialization may wait until the enclosing model is complete. A nested validator can run again on a later preview or the final value, so use deterministic checks.
-
 For a scalar, array, or union at the root, pass that type to `create_partial` directly. The client supplies the object envelope required by the provider and unwraps it in the stream. For example, a `Vec<Meeting>` produces snapshots of the accumulating list and one validated list on completion. Use `create_iterable::<Meeting>` to consume each meeting independently.
+
+## When nested validators run
+
+The decoder tracks the closing delimiter of each model, including models inside lists, maps and options. A preview can contain a normalized child while its parent still lacks required fields. If validation of a closed child fails, the stream yields an error and stops. Each preview starts from the accumulated source text. A validator can run again on later previews and on the final result, so keep it deterministic. The root validates at finalization.
+
+For a tagged enum, Rust uses the completed Serde discriminator to select which child models to validate. This works with internal tags (`{"kind":"counted",...}`), adjacent tags (`{"kind":"counted","payload":...}`) and external tags (`{"counted":...}`). Tags can follow the payload, and Serde aliases can identify the variant. If a prefix such as `"counted` could become `"counted_extra"`, the closing quote determines which validator applies. The enum's own validator waits for its enclosing braces to close.
+
+For example, a batch contains a list of entries. Each `counted` entry has a child model whose validator multiplies `n` by a context factor of 3. The three fragments below show when that transformation becomes visible.
+
+| Next fragment | Observed event |
+| --- | --- |
+| `{"items":[{"kind":"counted","child":{"n":2` | `Partial` with `n = Some(2)`. The child is open. |
+| `}` | `Partial` with `n = Some(6)`. The child has closed inside the open entry. |
+| `}]}` | `Complete` with `n = 6`. Final validation starts from the input value 2. |
+
+A field marked `#[serde(flatten)]` shares the enclosing object's braces. With one flattened struct or map, Rust follows its nested fields and excludes the parent's named fields and aliases. The flattened model's own checks run with its parent. Multiple flattened fields, untagged alternatives, and fields using a custom deserializer can require the complete enclosing model to resolve their input.
+
+Python's tracker infers that an item is complete when it sees a subsequent sibling or completes the root. In a replay with `list[Counted | Raw]` at `b01fff4`, the entry remained a dictionary with `n = 2` during previews and became a `Counted` with `n = 6` at root validation. Rust's explicit tag and delimiter tracking make the normalized child available in the second fragment above. [Python tracker](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/instructor/v2/dsl/json_tracker.py) · [Python partial construction](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/instructor/v2/dsl/partial.py)
+
+Replay every split point of the tagged and flattened payloads, including an escaped tag and a tag arriving after the child, with the local tests.
+
+```sh
+cargo test -p instructor-ai --test partial_completeness
+```
 
 ## Replay fragments locally
 
