@@ -488,3 +488,113 @@ fn mistral_file_jobs_and_deletion() {
     assert_eq!(batch.delete(&id).unwrap(), Value::Null);
     delete.assert();
 }
+
+#[test]
+fn reader_matches_string_parser_for_each_provider() {
+    use std::io::{BufReader, Seek, Write};
+
+    for provider in [Provider::OpenAI, Provider::Anthropic, Provider::Mistral] {
+        let batch = client(provider).batch::<Amount>().unwrap();
+        let (ok, bad) = if provider == Provider::Anthropic {
+            (
+                json!({"custom_id":"bill_1","result":{"type":"succeeded","message":{
+                    "content":[{"type":"tool_use","input":{"value":23}}]
+                }}}),
+                json!({"custom_id":"bad","result":{"type":"errored","error":{
+                    "type":"rate_limited","message":"retry later"
+                }}}),
+            )
+        } else {
+            (good(), error())
+        };
+        let lines = format!("\n \t\r\n{ok}\r\n{bad}\n{{incomplete☂\r\n{ok}");
+        let mut file = tempfile::tempfile().unwrap();
+        file.write_all(lines.as_bytes()).unwrap();
+        file.rewind().unwrap();
+        let mut records = batch.parse_reader(BufReader::with_capacity(2, file));
+        for expected in batch.parse(&lines) {
+            let actual = records.next().unwrap().unwrap();
+            assert_eq!(actual.raw, expected.raw);
+            assert_eq!(actual.custom_id, expected.custom_id);
+            let value = |result: Result<Amount, instructor_ai::batch::BatchFailure>| {
+                result.map(|a| a.value).map_err(|e| (e.kind, e.message))
+            };
+            assert_eq!(value(actual.result), value(expected.result));
+        }
+        assert!(records.next().is_none());
+    }
+}
+
+#[test]
+fn blocking_reader_defers_context_and_recovers_after_invalid_bytes() {
+    use std::cell::Cell;
+
+    let batch = BlockingClient::new(config(Provider::Mistral, "https://example.test"))
+        .unwrap()
+        .batch::<Amount>()
+        .unwrap();
+    let count = Cell::new(0);
+    let mut second = good();
+    second["custom_id"] = json!("bill_2");
+    let mut input = b"\xff\r\n".to_vec();
+    input.extend_from_slice(format!("{}\n{second}", good()).as_bytes());
+    let mut records = batch.parse_reader_with_context(input.as_slice(), |id| {
+        count.set(count.get() + 1);
+        if id == "bill_1" {
+            json!({"forbid":23})
+        } else {
+            Value::Null
+        }
+    });
+    assert_eq!(count.get(), 0);
+    let invalid = records.next().unwrap().unwrap();
+    assert_eq!(invalid.raw["raw_line"], "\u{fffd}");
+    assert_eq!(invalid.result.unwrap_err().kind, "json_parse_error");
+    assert_eq!(count.get(), 0);
+    let rejected = records.next().unwrap().unwrap();
+    assert_eq!(rejected.custom_id.as_deref(), Some("bill_1"));
+    assert!(rejected
+        .result
+        .unwrap_err()
+        .message
+        .contains("forbidden amount"));
+    assert_eq!(count.get(), 1);
+    let accepted = records.next().unwrap().unwrap();
+    assert_eq!(accepted.custom_id.as_deref(), Some("bill_2"));
+    assert_eq!(accepted.result.unwrap().value, 23);
+    assert_eq!(count.get(), 2);
+    assert!(records.next().is_none());
+    assert!(batch.parse_reader(&b""[..]).next().is_none());
+}
+
+#[test]
+fn reader_returns_io_error_once_after_complete_rows() {
+    use std::cell::Cell;
+    use std::io::{self, BufReader, Read};
+
+    struct Broken<'a>(&'a Cell<usize>);
+    impl Read for Broken<'_> {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            self.0.set(self.0.get() + 1);
+            Err(io::Error::new(
+                io::ErrorKind::ConnectionReset,
+                "read failed",
+            ))
+        }
+    }
+
+    let batch = client(Provider::OpenAI).batch::<Amount>().unwrap();
+    let reads = Cell::new(0);
+    let first = format!("{}\n{{", good());
+    let input = first.as_bytes().chain(Broken(&reads));
+    let mut records = batch.parse_reader(BufReader::new(input));
+    assert_eq!(reads.get(), 0);
+    assert_eq!(records.next().unwrap().unwrap().result.unwrap().value, 23);
+    assert_eq!(reads.get(), 0);
+    let failure = records.next().unwrap().unwrap_err();
+    assert_eq!(failure.kind(), io::ErrorKind::ConnectionReset);
+    assert_eq!(failure.to_string(), "read failed");
+    assert!(records.next().is_none());
+    assert!(records.next().is_none());
+    assert_eq!(reads.get(), 1);
+}

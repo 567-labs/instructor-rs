@@ -1,4 +1,5 @@
 use super::*;
+use std::io::{self, BufRead};
 
 /// An individual provider or validation failure inside a finished job.
 #[derive(Debug, thiserror::Error)]
@@ -74,29 +75,71 @@ impl<T: ResponseModel> Batch<T> {
         jsonl
             .lines()
             .filter(|line| !line.trim().is_empty())
-            .map(|line| {
-                let raw: Value = match serde_json::from_str(line) {
-                    Ok(raw) => raw,
-                    Err(e) => {
-                        return BatchResult {
-                            custom_id: None,
-                            raw: json!({"raw_line":line}),
-                            result: Err(BatchFailure::new("json_parse_error", e.to_string())),
-                        }
-                    }
-                };
-                let custom_id = raw["custom_id"].as_str().map(str::to_owned);
-                let result = self.payload(&raw).and_then(|body| {
-                    let ctx = custom_id.as_deref().map(&mut context).unwrap_or_default();
-                    self.decode(body, &ctx).map_err(Into::into)
-                });
-                BatchResult {
-                    custom_id,
-                    raw,
-                    result,
-                }
-            })
+            .map(|line| self.parse_record(line, &mut context))
             .collect()
+    }
+
+    /// Read a UTF-8 JSON Lines result file incrementally from any buffered reader.
+    ///
+    /// Each nonblank line yields one record, including parsing, provider, and
+    /// validation failures. A reader error is returned once and ends iteration.
+    /// Reading is synchronous and starts when the iterator is advanced.
+    pub fn parse_reader<'a>(
+        &'a self,
+        reader: impl BufRead + 'a,
+    ) -> impl Iterator<Item = io::Result<BatchResult<T>>> + 'a {
+        self.parse_reader_with_context(reader, |_| Value::Null)
+    }
+
+    /// Read records incrementally, looking up validation context by custom ID.
+    pub fn parse_reader_with_context<'a>(
+        &'a self,
+        reader: impl BufRead + 'a,
+        mut context: impl FnMut(&str) -> Value + 'a,
+    ) -> impl Iterator<Item = io::Result<BatchResult<T>>> + 'a {
+        let mut reader = Some(reader);
+        let mut bytes = Vec::new();
+        std::iter::from_fn(move || loop {
+            bytes.clear();
+            match reader.as_mut()?.read_until(b'\n', &mut bytes) {
+                Ok(0) => {
+                    reader = None;
+                    return None;
+                }
+                Err(e) => {
+                    reader = None;
+                    return Some(Err(e));
+                }
+                Ok(_) => {}
+            }
+            let line = bytes
+                .strip_suffix(b"\r\n")
+                .or_else(|| bytes.strip_suffix(b"\n"))
+                .unwrap_or(&bytes);
+            let record = match std::str::from_utf8(line) {
+                Ok(text) if text.trim().is_empty() => continue,
+                Ok(text) => self.parse_record(text, &mut context),
+                Err(e) => malformed_record(&String::from_utf8_lossy(line), e),
+            };
+            return Some(Ok(record));
+        })
+    }
+
+    fn parse_record(&self, line: &str, context: &mut impl FnMut(&str) -> Value) -> BatchResult<T> {
+        let raw: Value = match serde_json::from_str(line) {
+            Ok(raw) => raw,
+            Err(e) => return malformed_record(line, e),
+        };
+        let custom_id = raw["custom_id"].as_str().map(str::to_owned);
+        let result = self.payload(&raw).and_then(|body| {
+            let ctx = custom_id.as_deref().map(context).unwrap_or_default();
+            self.decode(body, &ctx).map_err(Into::into)
+        });
+        BatchResult {
+            custom_id,
+            raw,
+            result,
+        }
     }
 
     fn payload<'a>(&self, record: &'a Value) -> Result<&'a Value, BatchFailure> {
@@ -160,5 +203,13 @@ impl<T: ResponseModel> Batch<T> {
             }
         }
         Err(Error::Protocol("missing tool input or JSON text".into()))
+    }
+}
+
+fn malformed_record<T>(line: &str, error: impl std::fmt::Display) -> BatchResult<T> {
+    BatchResult {
+        custom_id: None,
+        raw: json!({"raw_line":line}),
+        result: Err(BatchFailure::new("json_parse_error", error.to_string())),
     }
 }
