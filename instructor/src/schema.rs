@@ -32,14 +32,36 @@ pub(crate) fn tool_parameters(schema: &Value) -> Value {
     params
 }
 
-// JSON Schema definitions referenced by "#/$defs/..." must stay at the root
-// when a scalar, union or collection is wrapped for a provider.
+// Wrapping relocates the model from the schema root to a property. Rebase
+// its local JSON Pointers, except for definitions that stay at the root.
 fn wrap(key: &str, mut inner: Value) -> Value {
-    let defs = inner.as_object_mut().and_then(|map| map.remove("$defs"));
-    let mut result = json!({"type": "object", "properties": {(key): inner}, "required": [key]});
-    if let Some(defs) = defs {
-        result["$defs"] = defs;
+    use instruct_macros_types::schemars::{transform::transform_subschemas, Schema};
+
+    fn rebase(schema: &mut Schema, key: &str) {
+        let Some(object) = schema.as_object_mut() else {
+            return;
+        };
+        if object.contains_key("$id") {
+            return; // Local references resolve within this separate resource.
+        }
+        if let Some(Value::String(path)) = object.get_mut("$ref") {
+            if (path == "#" || path.starts_with("#/")) && !path.starts_with("#/$defs/") {
+                *path = format!("#/properties/{key}{}", &path[1..]);
+            }
+        }
+        transform_subschemas(&mut |s: &mut Schema| rebase(s, key), schema);
     }
+
+    let mut result = json!({"type": "object", "properties": {}, "required": [key]});
+    if let Ok(schema) = <&mut Schema>::try_from(&mut inner) {
+        rebase(schema, key);
+        if schema.get("$id").is_none() {
+            if let Some(defs) = schema.remove("$defs") {
+                result["$defs"] = defs;
+            }
+        }
+    }
+    result["properties"][key] = inner;
     result
 }
 
@@ -117,5 +139,27 @@ impl Schema {
             .validate_with_context(context)
             .map_err(Error::Validation)?;
         Ok(typed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::model]
+    enum Expr {
+        Int(i64),
+        Neg(Box<Self>),
+    }
+
+    #[test]
+    fn wrapped_recursive_enum_refers_to_typed_payload() {
+        let schema = response_schema::<Expr>();
+        let expr = &schema["properties"]["content"];
+        assert_eq!(
+            expr["oneOf"][1]["properties"]["Neg"]["$ref"],
+            "#/properties/content"
+        );
+        parse_response::<Expr>(r#"{"content":{"Neg":{"Int":1}}}"#, &Value::Null).unwrap();
     }
 }
