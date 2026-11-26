@@ -1,5 +1,6 @@
 use super::*;
 use crate::BlockingClient;
+use std::io::{self, BufRead};
 use tokio::runtime::Runtime;
 
 /// Synchronous processor sharing its parent client's runtime.
@@ -76,6 +77,21 @@ impl<T: ResponseModel> BlockingBatch<T> {
         ctx: impl FnMut(&str) -> Value,
     ) -> Vec<BatchResult<T>> {
         self.batch.parse_with_context(jsonl, ctx)
+    }
+    /// Read a saved result one record at a time. See [Batch::parse_reader].
+    pub fn parse_reader<'a>(
+        &'a self,
+        reader: impl BufRead + 'a,
+    ) -> impl Iterator<Item = io::Result<BatchResult<T>>> + 'a {
+        self.batch.parse_reader(reader)
+    }
+    /// Look up each record's context. See [Batch::parse_reader_with_context].
+    pub fn parse_reader_with_context<'a>(
+        &'a self,
+        reader: impl BufRead + 'a,
+        context: impl FnMut(&str) -> Value + 'a,
+    ) -> impl Iterator<Item = io::Result<BatchResult<T>>> + 'a {
+        self.batch.parse_reader_with_context(reader, context)
     }
     pub fn download(&self, id: &str, path: impl AsRef<Path>) -> Result<(), Error> {
         self.runtime.block_on(self.batch.download(id, path))
