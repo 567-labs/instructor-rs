@@ -24,13 +24,14 @@ pub fn methods(input: &DeriveInput, types: &TokenStream) -> syn::Result<TokenStr
         })?;
         let prefix = format!("Validation failed for model '{}'", input.ident);
         let model = validators(&input.attrs, quote!(self), &prefix, context)?;
-        Ok::<_, syn::Error>(quote! { #fields #model Ok(()) })
+        Ok::<_, syn::Error>(quote! { #fields #model ::std::result::Result::Ok(()) })
     };
     let plain = body(false)?;
     let contextual = body(true)?;
+    let result = quote!(::std::result::Result<(), ::std::string::String>);
     Ok(quote! {
-        fn validate(&self) -> Result<(), String> { #plain }
-        fn validate_with_context(&mut self, __context: &#types::serde_json::Value) -> Result<(), String> {
+        fn validate(&self) -> #result { #plain }
+        fn validate_with_context(&mut self, __context: &#types::serde_json::Value) -> #result {
             #contextual
         }
     })

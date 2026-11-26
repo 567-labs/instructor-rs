@@ -280,3 +280,16 @@ fn normalizes_completed_nested_objects_under_a_renamed_map() {
     Directory::prepare_partial(&mut object, Some(&[]), &ctx).unwrap();
     assert_eq!(object["group"]["north"][0]["firstName"], "ADA");
 }
+
+#[test]
+fn model_and_parameter_names_can_shadow_prelude_types() {
+    #[model]
+    struct Result<String, Option> {
+        summary: String,
+        selected: Option,
+    }
+
+    let wire = json!({"summary":"ready","selected":true});
+    let result: Result<String, bool> = serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(serde_json::to_value(result.into_partial()).unwrap(), wire);
+}

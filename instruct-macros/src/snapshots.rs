@@ -19,12 +19,16 @@ pub fn method(input: &DeriveInput, types: &TokenStream) -> syn::Result<TokenStre
         }
     };
     Ok(quote! {
-        fn prepare_partial(value: &mut #value_ty, open_path: Option<&[String]>, context: &#value_ty) -> Result<(), String> {
+        fn prepare_partial(
+            value: &mut #value_ty,
+            open_path: ::std::option::Option<&[::std::string::String]>,
+            context: &#value_ty,
+        ) -> ::std::result::Result<(), ::std::string::String> {
             if open_path.is_none() {
                 return #types::snapshots::normalize::<Self>(value, context);
             }
             #walk
-            Ok(())
+            ::std::result::Result::Ok(())
         }
     })
 }
@@ -65,14 +69,14 @@ fn walk_fields(
         } else if matches!(style, ast::Style::Tuple) {
             let key = index.to_string();
             walk.extend(quote! {
-                if let Some(child) = value.get_mut(#index) {
+                if let ::std::option::Option::Some(child) = value.get_mut(#index) {
                     #types::snapshots::child::<#ty>(#key, child, open_path, context)?;
                 }
             });
         } else {
             let aliases = field.attrs.aliases();
             walk.extend(quote! {
-                #(if let Some(child) = value.get_mut(#aliases) {
+                #(if let ::std::option::Option::Some(child) = value.get_mut(#aliases) {
                     #types::snapshots::child::<#ty>(#aliases, child, open_path, context)?;
                 })*
             });
@@ -118,7 +122,7 @@ fn walk_variants(tag: &TagType, variants: &[ast::Variant<'_>], types: &TokenStre
             };
             let action = if let Some(payload) = payload {
                 quote! {
-                    if let Some(value) = value.get_mut(#payload).filter(|v| v.is_array() || v.is_object()) {
+                    if let ::std::option::Option::Some(value) = value.get_mut(#payload).filter(|v| v.is_array() || v.is_object()) {
                         let open_path = #types::snapshots::child_path(#payload, open_path);
                         #walk
                     }
@@ -126,7 +130,7 @@ fn walk_variants(tag: &TagType, variants: &[ast::Variant<'_>], types: &TokenStre
             } else {
                 walk.clone()
             };
-            arms.extend(quote!(Some(#alias) => { #action }));
+            arms.extend(quote!(::std::option::Option::Some(#alias) => { #action }));
         }
     }
     if arms.is_empty() {
