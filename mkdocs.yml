@@ -96,4 +96,5 @@ nav:
       - Validation and retries: concepts.md
       - Streaming: streaming.md
       - Decisions: decisions.md
+      - Parallel tools: parallel.md
       - Media input: media.md

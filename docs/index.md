@@ -68,6 +68,7 @@ Both clients expose the following methods. The async client returns a future tha
 | Show a preview of one object | `create_partial::<T>(request)` | Stream or iterator of `Result<PartialEvent<T>, Error>` |
 | Process completed records as they arrive | `create_iterable::<T>(request)` | Stream or iterator of `Result<T, Error>` |
 | Apply a check after deserialization | `create_validated(request, check)` | `T` |
+| Receive several named tool calls | `create_parallel::<T>(request)` | `Vec<T>` |
 
 For choices, probabilities, and scores, use the dedicated Decisions client. [Decisions with OpenAI and Jev](decisions.md)
 

@@ -1,6 +1,7 @@
 //! Native HTTP protocols for the supported Instructor providers.
 
 mod indexed;
+mod parallel;
 mod reask;
 mod request;
 mod response;

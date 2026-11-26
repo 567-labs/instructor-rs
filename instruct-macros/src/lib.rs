@@ -2,6 +2,7 @@
 
 mod decisions;
 mod helpers;
+mod parallel;
 mod partial;
 mod snapshots;
 mod validation;
@@ -51,6 +52,14 @@ pub fn model(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(PartialModel)]
 pub fn partial_model(input: TokenStream) -> TokenStream {
     partial::derive(parse_macro_input!(input as DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Register each single-field enum variant as a separate response tool.
+#[proc_macro_derive(ParallelTools)]
+pub fn parallel_tools(input: TokenStream) -> TokenStream {
+    parallel::derive(parse_macro_input!(input as DeriveInput))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
