@@ -147,7 +147,7 @@ fn instruct(input: &DeriveInput) -> syn::Result<Tokens> {
     Ok(quote! {
         impl #impl_generics #types::InstructMacro for #name #ty_generics #where_clause {
             fn get_info() -> #types::InstructMacroResult { #info }
-            fn model_name() -> String { stringify!(#name).to_string() }
+            fn model_name() -> ::std::string::String { stringify!(#name).to_string() }
             #schema
             #methods
         }

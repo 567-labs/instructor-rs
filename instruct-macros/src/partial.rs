@@ -114,7 +114,7 @@ pub fn derive(mut input: DeriveInput) -> syn::Result<TokenStream> {
         }
         impl #impl_generics #types::PartialModel for #name #type_generics #predicates {
             type Partial = #snapshot #type_generics;
-            type Field = Option<Self::Partial>;
+            type Field = ::std::option::Option<Self::Partial>;
             fn into_partial(self) -> Self::Partial { #conversion }
         }
     })
