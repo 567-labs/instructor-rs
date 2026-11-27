@@ -111,8 +111,14 @@ async fn validator_supports_anthropic_and_temperature_omission() {
         .create_async()
         .await;
     let client = Client::new(config(&server, Provider::Anthropic)).unwrap();
-    let rule = TextRule::new("Starts with A").temperature(None);
+    let rule = TextRule::new("Starts with A");
     assert_eq!(client.validate_text(rule, "Ada").await.unwrap(), "Ada");
+    for key in ["temperature", "top_p", "top_k"] {
+        let req = Request::new("Ada").option(key, 1);
+        assert!(
+            matches!(client.create_raw(req).await, Err(Error::Configuration(reason)) if reason.contains(key))
+        );
+    }
     assert!(matches!(
         client
             .validate_text(TextRule::new("A").temperature(Some(f64::NAN)), "Ada")

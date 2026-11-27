@@ -22,7 +22,7 @@ pub struct Validator {
 pub struct TextRule {
     statement: String,
     allow_override: bool,
-    temperature: Option<f64>,
+    temperature: Option<Option<f64>>,
 }
 
 impl TextRule {
@@ -30,7 +30,7 @@ impl TextRule {
         Self {
             statement: statement.into(),
             allow_override: false,
-            temperature: Some(0.0),
+            temperature: None,
         }
     }
 
@@ -40,9 +40,10 @@ impl TextRule {
         self
     }
 
-    /// Defaults to Some(0.0). Pass None to use the model's default sampling.
+    /// Defaults to None for Anthropic and Some(0.0) elsewhere.
+    /// Pass None to use the model's default sampling.
     pub fn temperature(mut self, temperature: Option<f64>) -> Self {
-        self.temperature = temperature;
+        self.temperature = Some(temperature);
         self
     }
 
@@ -57,7 +58,8 @@ impl TextRule {
             Message::system(INSTRUCTIONS),
             Message::user(payload.to_string()),
         ]);
-        if let Some(temperature) = self.temperature {
+        let default_temperature = (provider != Provider::Anthropic).then_some(0.0);
+        if let Some(temperature) = self.temperature.unwrap_or(default_temperature) {
             if !temperature.is_finite() {
                 return Err(Error::Configuration("Expected a finite temperature".into()));
             }

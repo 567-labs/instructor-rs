@@ -111,7 +111,9 @@ Native messages go to the provider as supplied. Typed messages added to `request
 
 ## Anthropic
 
-Messages sent with `Message::system` become Anthropic's separate system prompt. Set `max_tokens` for the generation limit. For a Claude model that supports adaptive thinking, the `thinking` option in tool mode lets the model reason before calling the extraction function. The client selects automatic tool choice for thinking. Add `serde_json = "1"` to an external project's dependencies to construct options using `json!`.
+Claude uses the Messages API version `2026-10-21` for generation, streaming, and batches. Set `max_tokens` for the generation limit. When porting a request, remove `temperature`, `top_p`, and `top_k`. For native histories, place documents in user turns and keep text citations in assistant turns. [Anthropic migration guide](https://platform.claude.com/docs/en/api/migration-2026-10-21)
+
+Messages sent with `Message::system` become Anthropic's separate system prompt. For a Claude model that supports adaptive thinking, the `thinking` option in tool mode lets the model reason before calling the extraction function. The client selects automatic tool choice for thinking. Add `serde_json = "1"` to an external project's dependencies to construct options using `json!`.
 
 ```rust
 use instructor_ai::{BlockingClient, Error, Request};

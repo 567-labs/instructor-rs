@@ -73,7 +73,7 @@ async fn main() -> Result<(), Error> {
 
 ## Check text with a model
 
-`validate_text` sends a candidate and rule to the configured generation model. A passing check returns the original text. When overrides are enabled, a rejected candidate can produce the model's suggested replacement. Returning the replacement ends the check. If the rule fails without a permitted replacement, the call returns `Error::Validation`. A rule can be a string, or a `TextRule` with options. Its default temperature is `Some(0.0)`. Use `.temperature(None)` to let the model use its default.
+`validate_text` sends a candidate and rule to the configured generation model. A passing check returns the original text. When overrides are enabled, a rejected candidate can produce the model's suggested replacement. Returning the replacement ends the check. If the rule fails without a permitted replacement, the call returns `Error::Validation`. A rule can be a string, or a `TextRule` with options. Claude uses the model’s default sampling. For other providers, `TextRule` sets the temperature to `0.0`. Use `.temperature(None)` to select the model’s default.
 
 `moderate_text` calls OpenAI's moderation endpoint with `omni-moderation-latest`. Flagged text returns a validation error describing the categories. The following example performs two requests on success.
 
