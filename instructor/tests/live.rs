@@ -93,7 +93,7 @@ macro_rules! cases {
 }
 
 macro_rules! provider_suite {
-    ($name:ident, $provider:literal, $model:literal, $mode:expr $(, $documented:ident)?) => {
+    ($name:ident, $provider:literal, $model:literal $(=> $mode:expr)? $(, $documented:ident)?) => {
         mod $name {
             use super::*;
 
@@ -103,7 +103,7 @@ macro_rules! provider_suite {
 
             fn core()->Result<Generation,instructor_ai::Error>{
                 let (_,route)=routes();
-                Generation::new(generation_config(&route)?.with_chat_completions().with_mode($mode))
+                Generation::new(generation_config(&route)?$(.with_mode($mode))?)
             }
 
             cases!(
@@ -122,7 +122,7 @@ macro_rules! provider_suite {
                 #[ignore = "live documented model, see docs/parity.md for credentials"]
                 async fn $documented()->TestResult {
                     let (route,_)=routes();
-                    Generation::new(generation_config(&route)?.with_chat_completions().with_mode(Mode::Tools))?
+                    Generation::new(generation_config(&route)?)?
                         .test_current_documented_model().await?;
                     Ok(())
                 }
@@ -132,51 +132,44 @@ macro_rules! provider_suite {
 }
 
 provider_suite!(
-    openai_chat,
+    openai_structured,
     "openai",
     "gpt-6-luna",
-    Mode::Tools,
     test_current_documented_model
 );
 provider_suite!(
     openai_responses,
     "openai",
-    "gpt-6-luna",
-    Mode::ResponsesTools
+    "gpt-6-luna" => Mode::ResponsesTools
 );
 provider_suite!(
     anthropic_messages,
     "anthropic",
     "claude-haiku-5-5",
-    Mode::Tools,
     test_current_documented_model
 );
 provider_suite!(
-    openrouter_chat,
+    openrouter_responses,
     "openrouter",
     "google/gemini-3.8-flash",
-    Mode::Tools,
     test_current_documented_model
 );
 provider_suite!(
-    google_genai,
+    google_interactions,
     "google",
     "gemini-3.8-flash",
-    Mode::JsonSchema,
     test_current_documented_model
 );
 provider_suite!(
     cohere_chat,
     "cohere",
     "command-a-03-2025",
-    Mode::Tools,
     test_current_documented_model
 );
 provider_suite!(
-    mistral_chat,
+    mistral_responses,
     "mistral",
     "mistral-small-latest",
-    Mode::Tools,
     test_current_documented_model
 );
 

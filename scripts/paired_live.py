@@ -18,12 +18,12 @@ PROVIDERS = (
     "typesafe",
 )
 GENERATION = {
-    "openai": ("openai_chat", "openai_responses"),
+    "openai": ("openai_structured", "openai_responses"),
     "anthropic": ("anthropic_messages",),
-    "openrouter": ("openrouter_chat",),
-    "google": ("google_genai",),
+    "openrouter": ("openrouter_responses",),
+    "google": ("google_interactions",),
     "cohere": ("cohere_chat",),
-    "mistral": ("mistral_chat",),
+    "mistral": ("mistral_responses",),
 }
 DECISIONS = {
     "openai": "openai_decisions",
