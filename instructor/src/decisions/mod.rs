@@ -160,6 +160,16 @@ impl Route {
     }
 }
 
+/// How OpenAI chooses a reusable prefix of a decision's shared input.
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptCacheMode {
+    /// Let the service place a breakpoint at the end of the shared input.
+    Implicit,
+    /// Use only breakpoints marked in native input text and image parts.
+    Explicit,
+}
+
 /// Context drives instruction templates and model validation. Jev receives
 /// it as state. OpenAI uses its JSON text unless native input is supplied.
 #[derive(Debug, Clone)]
@@ -167,6 +177,7 @@ pub struct DecisionRequest {
     context: Value,
     input: Option<Value>,
     strict: bool,
+    openai_options: serde_json::Map<String, Value>,
 }
 
 impl DecisionRequest {
@@ -175,20 +186,43 @@ impl DecisionRequest {
             context,
             input: None,
             strict: true,
+            openai_options: Default::default(),
         }
     }
 
     /// OpenAI text or a JSON array of native input items.
     pub fn input(input: impl Into<Value>) -> Self {
         Self {
-            context: serde_json::json!({}),
             input: Some(input.into()),
-            strict: true,
+            ..Self::context(serde_json::json!({}))
         }
     }
 
     pub fn with_context(mut self, context: Value) -> Self {
         self.context = context;
+        self
+    }
+
+    /// Partition OpenAI prompt cache reuse by key (up to 64 characters).
+    pub fn prompt_cache_key(mut self, key: impl Into<String>) -> Self {
+        self.openai_options
+            .insert("prompt_cache_key".into(), Value::String(key.into()));
+        self
+    }
+
+    /// Select how OpenAI writes prompt cache entries. The default is implicit.
+    pub fn prompt_cache_mode(mut self, mode: PromptCacheMode) -> Self {
+        self.openai_options.insert(
+            "prompt_cache_options".into(),
+            serde_json::json!({"mode":mode}),
+        );
+        self
+    }
+
+    /// Supply an opaque end-user identifier for OpenAI (up to 128 characters).
+    pub fn safety_identifier(mut self, id: impl Into<String>) -> Self {
+        self.openai_options
+            .insert("safety_identifier".into(), Value::String(id.into()));
         self
     }
 

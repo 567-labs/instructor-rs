@@ -32,7 +32,7 @@ struct Ticket {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let route = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "openrouter/typesafe/jev-1.13".into());
+        .unwrap_or_else(|| "openrouter/typesafe/jev-1.14".into());
     let client = BlockingDecisionsClient::from_provider(&route)?;
     let context = json!({"item": {"kind": "ticket", "body": "My invoice shows two charges. Please refund one."}});
     let (ticket, raw) = client.create_with_completion::<Ticket>(context)?;

@@ -7,7 +7,7 @@ use quote::{quote, quote_spanned};
 use std::collections::HashSet;
 use syn::{
     ext::IdentExt, parse_macro_input, spanned::Spanned, Attribute, Data, DeriveInput, Error, Expr,
-    ExprArray, Fields, LitStr, Path,
+    ExprArray, Fields, LitBool, LitStr, Path,
 };
 
 pub(crate) fn choices(input: TokenStream) -> TokenStream {
@@ -34,6 +34,12 @@ fn annotation<'a>(attrs: &'a [Attribute], name: &str) -> syn::Result<Option<&'a 
     Ok(first)
 }
 
+#[derive(Clone, Eq, PartialEq, Hash)]
+enum Label {
+    Text(String),
+    Boolean(bool),
+}
+
 fn expand_choices(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let lib = library();
     let api = quote!(::#lib::decisions);
@@ -55,6 +61,7 @@ fn expand_choices(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let mut seen = HashSet::new();
     let mut options = Vec::new();
     let mut matches = Vec::new();
+    let mut bool_matches = Vec::new();
     for variant in &data.variants {
         let ident = &variant.ident;
         if !matches!(variant.fields, Fields::Unit) {
@@ -66,7 +73,12 @@ fn expand_choices(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         if let Some(attr) = annotation(&variant.attrs, "choice")? {
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("value") && value.is_none() {
-                    value = Some(meta.value()?.parse::<LitStr>()?.value());
+                    let input = meta.value()?;
+                    value = Some(if input.peek(LitBool) {
+                        Label::Boolean(input.parse::<LitBool>()?.value)
+                    } else {
+                        Label::Text(input.parse::<LitStr>()?.value())
+                    });
                 } else if meta.path.is_ident("description") && description.is_none() {
                     let expr = meta.value()?.parse::<Expr>()?;
                     description = Some(quote!(.description(#expr)));
@@ -78,11 +90,11 @@ fn expand_choices(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
                 Ok(())
             })?;
         }
-        let value = value.unwrap_or_else(|| ident.unraw().to_string().to_lowercase());
-        if value.is_empty() || !seen.insert(value.clone()) {
+        let value = value.unwrap_or_else(|| Label::Text(ident.unraw().to_string().to_lowercase()));
+        if matches!(&value, Label::Text(s) if s.is_empty()) || !seen.insert(value.clone()) {
             return Err(Error::new_spanned(
                 ident,
-                "choice values must be unique nonempty strings",
+                "choice values must be unique booleans or nonempty strings",
             ));
         }
         let doc = docs(&variant.attrs)?;
@@ -90,8 +102,18 @@ fn expand_choices(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             description = Some(quote!(.description(#doc)));
         }
         let examples = examples.into_iter().flatten();
-        options.push(quote!(#api::Choice::new(#value) #description #(.example(#examples))*));
-        matches.push(quote!(#value => ::std::option::Option::Some(Self::#ident)));
+        let variant = quote!(::std::option::Option::Some(Self::#ident));
+        let choice = match value {
+            Label::Text(value) => {
+                matches.push(quote!(#value => #variant));
+                quote!(#api::Choice::new(#value))
+            }
+            Label::Boolean(value) => {
+                bool_matches.push(quote!(::std::option::Option::Some(#value) => #variant));
+                quote!(#api::Choice::boolean(#value))
+            }
+        };
+        options.push(quote!(#choice #description #(.example(#examples))*));
     }
     let (impl_params, params, bounds) = input.generics.split_for_impl();
     Ok(quote! {
@@ -106,6 +128,12 @@ fn expand_choices(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
                 match label {
                     #(#matches,)*
                     _ => ::std::option::Option::None,
+                }
+            }
+            fn from_choice_value(value: &#api::Value) -> ::std::option::Option<Self> {
+                match value.as_bool() {
+                    #(#bool_matches,)*
+                    _ => <Self as #api::Choices>::from_choice(value.as_str()?),
                 }
             }
         }
