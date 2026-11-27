@@ -118,7 +118,7 @@ class ReplayTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "model"):
             replay.decision_response("openrouter", body)
-        body["model"] = "typesafe/jev-1.13"
+        body["model"] = "typesafe/jev-1.14"
         with self.assertRaisesRegex(ValueError, "questions"):
             replay.decision_response("openrouter", body)
 

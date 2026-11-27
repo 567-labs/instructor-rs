@@ -237,7 +237,7 @@ const OPENAI_DECISIONS: DecisionRoute = DecisionRoute {
 
 const OPENROUTER_JEV: DecisionRoute = DecisionRoute {
     provider: "openrouter",
-    default_model: "typesafe/jev-1.13",
+    default_model: "typesafe/jev-1.14",
     variable: "OPENROUTER_DECISIONS_MODEL",
     legacy_variable: "INSTRUCTOR_LIVE_OPENROUTER_JEV_MODEL",
 };
