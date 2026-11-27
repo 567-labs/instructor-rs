@@ -35,14 +35,7 @@ For a project beside this checkout, add `instructor-ai` to the dependencies in `
 instructor-ai = { path = "../instructor-rs/instructor" }
 ```
 
-The default feature `legacy-openai` provides the original `from_openai` and `InstructorClient` exports. If your application uses `Client` or `BlockingClient`, you can omit the legacy SDK and its separate HTTP and TLS libraries.
-
-```toml
-[dependencies]
-instructor-ai = { path = "../instructor-rs/instructor", default-features = false }
-```
-
-This configuration supports all six generation providers over HTTPS, both streaming APIs, Decisions, batches, validation, caching and the model derives. Cargo combines features across dependencies. If another crate enables `legacy-openai`, Cargo includes the SDK in that build.
+The default build includes all six generation providers over HTTPS, both streaming APIs, Decisions, batches, validation, caching and the model derives.
 
 Use `Client` inside a Tokio runtime. To run the following example, add `tokio = { version = "1", features = ["macros", "rt"] }` to the same dependencies.
 
@@ -83,7 +76,14 @@ For choices, probabilities, and scores, use the dedicated Decisions client. [Dec
 
 ## Moving from the original Rust client
 
-The original entry point is `from_openai(openai_api_rs::v1::api::Client)`, with `chat_completion::<T>(request, attempts)` and `#[derive(InstructMacro)]`. For the provider-neutral API, move the model name into `BlockingClient::from_provider`, pass a prompt or `Request` to `create`, and use `#[model]` on your data types. A legacy limit of three total attempts corresponds to `Request::new(prompt).max_retries(2)`. [Response types](types.md) · [Validation and retries](concepts.md) · [Python comparison](parity.md)
+If you import `from_openai` or `InstructorClient`, enable the `legacy-openai` feature on your existing dependency when upgrading. This includes the `openai-api-rs` SDK and its HTTP and TLS dependencies.
+
+```toml
+[dependencies]
+instructor-ai = { path = "../instructor-rs/instructor", features = ["legacy-openai"] }
+```
+
+To migrate, put the model name in `BlockingClient::from_provider`, replace `chat_completion::<T>(request, attempts)` with `create::<T>(prompt)`, and use `#[model]` on your data types. For a limit of three total attempts, pass `Request::new(prompt).max_retries(2)` to `create`. Remove the feature after you migrate the calls. [Response types](types.md) · [Validation and retries](concepts.md)
 
 ## Inspect the dependency graph
 
@@ -92,8 +92,8 @@ For a Linux x86-64 consumer with `instructor-ai` as its only dependency, Cargo 1
 | Configuration | Packages | Build dependencies affected |
 | --- | ---: | --- |
 | Baseline at `e820e17` | 160 | Includes both the legacy SDK and the provider-neutral HTTP client. |
-| Defaults | 158 | The library omits `futures-macro`. Tokio macros are requested for examples and tests through dev-dependencies. |
-| `default-features = false` | 152 | Also omits `openai-api-rs`, `minreq`, `rustls` 0.21, `rustls-webpki` 0.101, `sct` and `webpki-roots` 0.25. Provider requests use Reqwest with Rustls 0.23. |
+| Defaults | 152 | Provider requests use Reqwest with Rustls 0.23. |
+| `features = ["legacy-openai"]` | 158 | Adds `openai-api-rs`, `minreq`, `rustls` 0.21, `rustls-webpki` 0.101, `sct` and `webpki-roots` 0.25. |
 
 To reproduce the counts from a fresh workspace checkout with cached dependencies, use the recorded lockfile. Run the same command at the baseline to compare. The target platform, lockfile and other dependencies in your application affect the counts.
 
@@ -104,6 +104,5 @@ count_packages() {
     --prefix none --format '{p}' "$@" | awk '{print $1, $2}' | sort -u | wc -l
 }
 count_packages
-count_packages --no-default-features
-cargo test --locked --offline -p instructor-ai --no-default-features
+count_packages --features legacy-openai
 ```
