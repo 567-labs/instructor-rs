@@ -78,6 +78,7 @@ pub enum DecisionError {
     Http {
         status: reqwest::StatusCode,
         body: Vec<u8>,
+        request_id: Option<String>,
     },
     #[error("invalid decision response JSON: {0}")]
     Json(#[from] serde_json::Error),
@@ -85,6 +86,24 @@ pub enum DecisionError {
     Answer(String),
     #[error("decision model validation failed: {0}")]
     Validation(String),
+}
+
+impl DecisionError {
+    /// Inspect the status, request ID and provider code of an HTTP failure.
+    pub fn http_details(&self) -> Option<crate::HttpErrorDetails> {
+        match self {
+            Self::Http {
+                status,
+                body,
+                request_id,
+            } => Some(crate::HttpErrorDetails::from_body(
+                status.as_u16(),
+                request_id.as_deref(),
+                body,
+            )),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

@@ -1,7 +1,8 @@
 use super::*;
+use crate::providers::send;
 use reqwest::{
     multipart::{Form, Part},
-    Method, RequestBuilder, Response,
+    Method, RequestBuilder,
 };
 use std::time::Duration;
 
@@ -22,17 +23,6 @@ fn segment(id: &str) -> Result<&str, Error> {
         return Err(Error::Configuration("invalid batch or file ID".into()));
     }
     Ok(id)
-}
-
-async fn send(request: RequestBuilder) -> Result<Response, Error> {
-    let response = request.send().await?;
-    if !response.status().is_success() {
-        return Err(Error::Http {
-            status: response.status().as_u16(),
-            body: response.text().await?,
-        });
-    }
-    Ok(response)
 }
 
 async fn json_response(request: RequestBuilder) -> Result<Value, Error> {

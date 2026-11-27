@@ -124,20 +124,11 @@ impl Client {
             return Err(Error::Configuration("moderate_text requires OpenAI".into()));
         }
         self.config.validate()?;
-        let response = self
+        let request = self
             .config
             .authenticated(&self.http, reqwest::Method::POST, "/moderations")?
-            .json(&json!({"model":"omni-moderation-latest","input":candidate}))
-            .send()
-            .await?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(Error::Http {
-                status: status.as_u16(),
-                body: response.text().await?,
-            });
-        }
-        let bytes = response.bytes().await?;
+            .json(&json!({"model":"omni-moderation-latest","input":candidate}));
+        let bytes = crate::providers::send(request).await?.bytes().await?;
         let raw: Value =
             serde_json::from_slice(&bytes).map_err(|e| Error::Protocol(e.to_string()))?;
         if !raw["error"].is_null() {

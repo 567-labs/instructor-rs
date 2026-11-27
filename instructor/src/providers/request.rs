@@ -14,21 +14,28 @@ pub(crate) struct WireRequest {
 
 impl WireRequest {
     pub(crate) async fn send(&self, client: &reqwest::Client) -> Result<reqwest::Response, Error> {
-        let response = client
-            .post(&self.url)
-            .headers(self.headers.clone())
-            .json(&self.body)
-            .send()
-            .await?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(Error::Http {
-                status: status.as_u16(),
-                body: response.text().await?,
-            });
-        }
-        Ok(response)
+        send(
+            client
+                .post(&self.url)
+                .headers(self.headers.clone())
+                .json(&self.body),
+        )
+        .await
     }
+}
+
+pub(crate) async fn send(request: reqwest::RequestBuilder) -> Result<reqwest::Response, Error> {
+    let response = request.send().await?;
+    if let Some((status, request_id)) =
+        crate::error::http_failure(response.status(), response.headers())
+    {
+        return Err(Error::Http {
+            status: status.as_u16(),
+            body: response.text().await?,
+            request_id,
+        });
+    }
+    Ok(response)
 }
 
 impl ProviderConfig {

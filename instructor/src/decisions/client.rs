@@ -1,4 +1,5 @@
 use super::{DecisionError, DecisionModel, DecisionRequest, PreparedDecision, Route, Value};
+use crate::error::http_failure;
 use reqwest::{blocking, StatusCode};
 use std::{sync::Arc, time::Duration};
 use tokio::runtime::Runtime;
@@ -176,8 +177,8 @@ impl DecisionsClient {
             builder = builder.timeout(timeout);
         }
         let response = builder.send().await?;
-        let status = response.status();
-        finish(prepared, status, &response.bytes().await?)
+        let failure = http_failure(response.status(), response.headers());
+        finish(prepared, failure, &response.bytes().await?)
     }
 }
 
@@ -228,20 +229,21 @@ impl BlockingDecisionsClient {
             builder = builder.timeout(timeout);
         }
         let response = builder.send()?;
-        let status = response.status();
-        finish(prepared, status, &response.bytes()?)
+        let failure = http_failure(response.status(), response.headers());
+        finish(prepared, failure, &response.bytes()?)
     }
 }
 
 fn finish<T: DecisionModel>(
     prepared: PreparedDecision<T>,
-    status: StatusCode,
+    failure: Option<(StatusCode, Option<String>)>,
     bytes: &[u8],
 ) -> Result<(T, Value), DecisionError> {
-    if !status.is_success() {
+    if let Some((status, request_id)) = failure {
         return Err(DecisionError::Http {
             status,
             body: bytes.to_vec(),
+            request_id,
         });
     }
     let raw = serde_json::from_slice(bytes).map_err(DecisionError::Json)?;

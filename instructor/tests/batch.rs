@@ -358,13 +358,15 @@ async fn second_file_failure_leaves_existing_file_and_download_is_recoverable() 
     let bad = server
         .mock("GET", "/v1/files/err/content")
         .with_status(502)
+        .with_header("x-request-id", "req_file")
         .with_body("bad upstream")
         .create_async()
         .await;
-    assert!(matches!(
-        batch.download("job", &dest).await,
-        Err(Error::Http { status: 502, .. })
-    ));
+    let err = batch.download("job", &dest).await.unwrap_err();
+    let details = err.http_details().unwrap();
+    assert_eq!(details.status, 502);
+    assert_eq!(details.request_id.as_deref(), Some("req_file"));
+    assert_eq!(details.code, None);
     assert_eq!(std::fs::read_to_string(&dest).unwrap(), "original");
     bad.assert_async().await;
     bad.remove_async().await;

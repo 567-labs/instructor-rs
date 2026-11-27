@@ -104,6 +104,25 @@ Both clients expose the checks. To use one inside `create_validated`, pass it th
 
 When corrections stop, `Error::Retry` includes a `StopReason`, the optional cumulative token count, and ordered `FailedAttempt` values. Each rejected completion includes the attempt number, native response, and local error. A token count of `None` indicates unavailable usage. The last successful raw completion is available via `create_with_completion`.
 
+## Diagnose a failed HTTP request
+
+For an incident report, call `error.http_details()` to recover the status, provider request ID and machine-readable code. This works for generation, opening a stream, moderation, batch operations and `DecisionError`. On `Error::Retry` it examines the final attempt. To inspect an earlier failure, call `attempt.error.http_details()` on that entry in `attempts`.
+
+```rust
+use instructor_ai::Error;
+
+fn report(error: &Error) {
+    if let Some(details) = error.http_details() {
+        eprintln!("HTTP {} request={} code={}",
+            details.status,
+            details.request_id.as_deref().unwrap_or("unavailable"),
+            details.code.as_deref().unwrap_or("unavailable"));
+    }
+}
+```
+
+OpenAI supplies `x-request-id`, and Anthropic supplies `request-id`. A top-level `request_id` in JSON serves as a fallback. The accessor reads `error.code`, then a top-level `code`, then `error.type` when the code field is absent. Numeric codes, such as OpenRouter's `429`, become decimal strings. Missing details are `None`. A plain-text failure can still carry a request ID in its headers. For the response body, match `Error::Http { status, body, .. }` or `DecisionError::Http { status, body, .. }`. Add `..` to existing patterns that list only status and body. [Python Responses error contract](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/v2/test_responses_sdk_contract.py#L174)
+
 For accounting on success, call `create_with_metadata::<T>`. Its `Completion<T>` exposes `value`, `raw`, `attempts`, and `total_tokens`. The total covers the attempts of the current operation and is available when all attempts report usage. A cache hit has zero attempts and `Some(0)` tokens, while the raw response includes the original provider metadata.
 
 ## Account for tokens across retries
