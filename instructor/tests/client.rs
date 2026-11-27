@@ -370,9 +370,37 @@ fn raw_requests_carry_native_attachment_blocks() {
         (
             Provider::OpenRouter,
             Mode::Tools,
-            audio,
+            audio.clone(),
             "/chat/completions",
             json!({"type":"input_audio","input_audio":{"format":"mp3","data":"YWJj"}}),
+        ),
+        (
+            Provider::OpenRouter,
+            Mode::JsonSchema,
+            audio,
+            "/responses",
+            json!({"type":"input_audio","input_audio":{"format":"mp3","data":"YWJj"}}),
+        ),
+        (
+            Provider::Mistral,
+            Mode::JsonSchema,
+            pdf.clone(),
+            "/responses",
+            json!({"type":"input_file","file_url":"https://example.org/item.pdf"}),
+        ),
+        (
+            Provider::Google,
+            Mode::JsonSchema,
+            pdf.clone(),
+            "/interactions",
+            json!({"type":"document","uri":"https://example.org/item.pdf","mime_type":"application/pdf"}),
+        ),
+        (
+            Provider::Cohere,
+            Mode::Tools,
+            Media::url("image/png", "http://example.org/item.png"),
+            "/chat",
+            json!({"type":"image_url","image_url":{"url":"http://example.org/item.png"}}),
         ),
         (
             Provider::Anthropic,
@@ -403,25 +431,27 @@ fn raw_requests_carry_native_attachment_blocks() {
             json!({"type":"image","mime_type":"image/png","data":"YWJj"}),
         ),
     ] {
-        let body = match (provider, mode) {
-            (Provider::Google, _) => {
-                json!({"input":[{"type":"user_input","content":[{"type":"text","text":"read"},expected]}]})
-            }
-            (_, Mode::ResponsesTools) => {
-                json!({"input":[{"content":[{"type":"input_text","text":"read"},expected]}]})
-            }
-            _ => json!({"messages":[{"content":[{"type":"text","text":"read"},expected]}]}),
+        let (key, text_type) = match path {
+            "/interactions" => ("input", "text"),
+            "/responses" => ("input", "input_text"),
+            _ => ("messages", "text"),
         };
+        let blocks = json!([{"type":text_type,"text":"read"},expected]);
         let mut server = Server::new();
         let mock = server
             .mock("POST", path)
-            .match_body(Matcher::PartialJson(body))
+            .match_request(move |req| {
+                let body: Value = serde_json::from_slice(req.body().unwrap()).unwrap();
+                body[key][0]["content"] == blocks
+            })
             .with_body(r#"{"custom":"field"}"#)
             .create();
-        let config = ProviderConfig::new(provider, "test", "mock")
-            .with_chat_completions()
+        let mut config = ProviderConfig::new(provider, "test", "mock")
             .with_mode(mode)
             .with_base_url(server.url());
+        if path == "/chat/completions" {
+            config = config.with_chat_completions();
+        }
         let client = BlockingClient::new(config).unwrap();
         let raw = client
             .create_raw(vec![Message::user("read").attach(file)])
@@ -445,6 +475,23 @@ fn malformed_or_unsupported_media_fails_before_io() {
             client.create_raw(vec![Message::user("x").attach(file)]),
             Err(Error::Configuration(_))
         ));
+    }
+}
+
+#[test]
+fn gemini_media_and_mistral_file_urls_require_https() {
+    let mut server = Server::new();
+    for (provider, path, mime) in [
+        (Provider::Google, "/interactions", "image/png"),
+        (Provider::Mistral, "/responses", "application/pdf"),
+    ] {
+        let endpoint = server.mock("POST", path).expect(0).with_body("{}").create();
+        let config = ProviderConfig::new(provider, "test", "mock").with_base_url(server.url());
+        let client = BlockingClient::new(config).unwrap();
+        let file = Media::url(mime, "http://example.org/attachment");
+        let result = client.create_raw(vec![Message::user("read").attach(file)]);
+        assert!(matches!(result, Err(Error::Configuration(msg)) if msg.contains("HTTPS")));
+        endpoint.assert();
     }
 }
 

@@ -68,6 +68,13 @@ impl Media {
                         "expected an HTTP(S) media URL without user credentials".into(),
                     ));
                 }
+                let https_required = provider == Provider::Google
+                    || (provider == Provider::Mistral && kind == "document");
+                if https_required && parsed.scheme() != "https" {
+                    return Err(Error::Configuration(format!(
+                        "{provider} requires an HTTPS {kind} URL"
+                    )));
+                }
             }
             Source::Base64(data) if data.is_empty() => {
                 return Err(Error::Configuration("empty attachment".into()))

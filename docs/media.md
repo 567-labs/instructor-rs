@@ -18,18 +18,20 @@ To send a link, construct `Media::url("image/png", url)`. Instructor forwards th
 
 ## Accepted inputs
 
-The table describes the content blocks Rust can build. Model capabilities, size limits, and accepted URI sources depend on the provider. In the table, **both** means bytes and HTTP(S) URL. An unsupported combination returns a configuration error.
+The table describes the content blocks Rust can build. Model capabilities and size limits depend on the provider. **Both** means bytes and HTTP(S) URLs. The client checks the attachment type and URL scheme before sending the request.
 
 | API | Image | PDF | Audio |
 | --- | --- | --- | --- |
 | OpenAI Responses | Both | Both | Unsupported |
 | Anthropic Messages | Both | Both | Unsupported |
 | OpenRouter Responses | Both | Both | Bytes |
-| Gemini | Both | Both | Both |
+| Gemini Interactions | Bytes or HTTPS | Bytes or HTTPS | Bytes or HTTPS |
 | Cohere | Both | Unsupported | Unsupported |
-| Mistral Responses | Both | Both | Unsupported |
+| Mistral Responses | Both | Bytes or HTTPS | Unsupported |
 
-For an OpenAI model that accepts audio through Chat Completions, select `.with_chat_completions()` on the provider config and attach audio bytes. For PDFs on Mistral, use Responses and supply bytes or an HTTPS URL.
+For an OpenAI model that accepts audio through Chat Completions, select `.with_chat_completions()` on the provider config and attach audio bytes. On OpenRouter Responses, attach WAV or MP3 bytes with `Media::bytes`. Instructor sends a base64 `input_audio` block with the corresponding `format`. [OpenRouter audio](https://openrouter.ai/docs/guides/overview/multimodal/audio)
+
+Mistral Responses accepts PDFs as `input_file` blocks with inline bytes or an HTTPS `file_url`. Gemini Interactions accepts a public or signed HTTPS `uri` for external files up to 15 MB each. [Mistral file inputs](https://docs.mistral.ai/inference/conversations/responses) · [Gemini external URLs](https://aistudio.google.com/docs/file-input-methods#external-urls)
 
 Supported image MIME types are `image/jpeg`, `image/png`, `image/webp`, and `image/gif`. Use `application/pdf` for documents, and `audio/wav` or `audio/mpeg` for audio. The caller supplies a MIME type matching the data. Gemini sends content blocks with `type` and `mime_type`, using `data` for inline bytes or `uri` for a URL. Use a URI its API accepts.
 
