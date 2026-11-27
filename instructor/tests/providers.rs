@@ -94,7 +94,7 @@ fn mock(server: &mut Server, p: Provider, mode: Mode, stream: bool) -> Mock {
                 }
             })
             .match_header("x-api-key", "fake-key")
-            .match_header("anthropic-version", "2023-06-01")
+            .match_header("anthropic-version", "2026-10-21")
             .match_header("authorization", Matcher::Missing),
         _ => mock.match_header("authorization", "Bearer fake-key"),
     }

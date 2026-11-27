@@ -22,7 +22,7 @@ fn check(value: &mut u32, ctx: &Value) -> Result<(), String> {
 fn config(provider: Provider, base: &str) -> ProviderConfig {
     let model = match provider {
         Provider::OpenAI => "gpt-6-luna",
-        Provider::Anthropic => "claude-haiku-5-5",
+        Provider::Anthropic => "claude-opus-5",
         _ => "test",
     };
     ProviderConfig::new(provider, model, "test-key").with_base_url(format!("{base}/v1"))
@@ -397,7 +397,7 @@ async fn anthropic_inline_requests_and_result_variants() {
     let input = batch.prepare([item()]).unwrap();
     let submit = server
         .mock("POST", "/v1/messages/batches")
-        .match_header("anthropic-version", "2023-06-01")
+        .match_header("anthropic-version", "2026-10-21")
         .match_header("x-api-key", "test-key")
         .match_body(Matcher::Json(json!({"requests":lines(&input)})))
         .with_body(r#"{"id":"job"}"#)

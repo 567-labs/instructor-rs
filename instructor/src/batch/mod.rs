@@ -182,10 +182,10 @@ impl<T: ResponseModel> Batch<T> {
             }
             opts.entry("reasoning_effort").or_insert(json!("none"));
         }
-        opts.entry("temperature").or_insert(json!(0.1));
-        if opts["temperature"].is_null()
-            || (self.provider() == Provider::Anthropic && config.model() == "claude-haiku-5-5")
-        {
+        if self.provider() != Provider::Anthropic {
+            opts.entry("temperature").or_insert(json!(0.1));
+        }
+        if opts.get("temperature") == Some(&Value::Null) {
             opts.remove("temperature");
         }
         let batch_schema = config.mode() == Mode::JsonSchema

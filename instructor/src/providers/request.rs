@@ -3,6 +3,8 @@ use crate::{CacheTtl, Error, Message, Request};
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT};
 use serde_json::{json, Value};
 
+const ANTHROPIC_VERSION: &str = "2026-10-21";
+
 /// Own the prepared payload so retries preserve the caller's original request.
 pub(crate) struct WireRequest {
     url: String,
@@ -236,7 +238,10 @@ impl ProviderConfig {
         );
         let (name, value) = match self.provider {
             Provider::Anthropic => {
-                h.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
+                h.insert(
+                    "anthropic-version",
+                    HeaderValue::from_static(ANTHROPIC_VERSION),
+                );
                 ("x-api-key", self.api_key.clone())
             }
             Provider::Google => ("x-goog-api-key", self.api_key.clone()),
@@ -387,6 +392,15 @@ fn system_blocks(system: &[&Message]) -> Value {
 }
 
 fn check_options(options: &Value, provider: Provider, mode: Mode) -> Result<(), Error> {
+    if provider == Provider::Anthropic {
+        for param in ["temperature", "top_p", "top_k"] {
+            if options.get(param).is_some() {
+                return Err(Error::Configuration(format!(
+                    "Remove {param} for Anthropic Messages API {ANTHROPIC_VERSION}"
+                )));
+            }
+        }
+    }
     if options.get("tool_choice").is_some()
         && mode != Mode::ResponsesTools
         && (provider, mode) != (Provider::Anthropic, Mode::Tools)
