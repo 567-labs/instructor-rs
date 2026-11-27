@@ -88,7 +88,7 @@ impl ProviderConfig {
             options.remove("strict");
         }
         let mut body = Value::Object(options);
-        check_options(&body, self.mode)?;
+        check_options(&body, self.provider, self.mode)?;
         let instruction = match (self.mode, schema) {
             (Mode::Json | Mode::MarkdownJson, Some(s)) =>
                 Some(format!("Return a single JSON object matching this JSON Schema. Respond with JSON only.\n{s}")),
@@ -179,7 +179,16 @@ impl ProviderConfig {
                 if body.get("max_tokens").is_none() {
                     body["max_tokens"] = json!(1024);
                 }
-                if !system.is_empty() {
+                if schema.is_some()
+                    && self.mode == Mode::Tools
+                    && body.get("tool_choice").is_none()
+                    && requires_auto_choice(&self.model, &body["thinking"])
+                {
+                    body["tool_choice"] = json!({"type":"auto"});
+                    let hint = Message::system("Return only the tool call and no additional text.");
+                    system.push(&hint);
+                    body["system"] = system_blocks(&system);
+                } else if !system.is_empty() {
                     body["system"] = system_prompt(&system);
                 }
             }
@@ -257,7 +266,7 @@ impl ProviderConfig {
                     .as_array_mut()
                     .map(std::mem::take)
                     .unwrap_or_default();
-                if tools.is_empty() {
+                if tools.is_empty() && body.get("tool_choice").is_none() {
                     body["tool_choice"] = json!({"type":"function","name":name});
                 }
                 tools.push(json!({"type":"function","name":name,"parameters":schema,"description":description,"strict":true}));
@@ -286,12 +295,10 @@ impl ProviderConfig {
                     Provider::Anthropic => {
                         body["tools"] = json!([{"name":name,"description":description}]);
                         body["tools"][0]["input_schema"] = params;
-                        body["tool_choice"] =
-                            if requires_auto_choice(&self.model, &body["thinking"]) {
-                                json!({"type":"auto"})
-                            } else {
-                                json!({"type":"tool","name":name,"disable_parallel_tool_use":true})
-                            };
+                        if body.get("tool_choice").is_none() {
+                            body["tool_choice"] =
+                                json!({"type":"tool","name":name,"disable_parallel_tool_use":true});
+                        }
                     }
                     _ => {
                         let strict = strict.unwrap_or(self.mode == Mode::ToolsStrict);
@@ -363,6 +370,10 @@ fn system_prompt(system: &[&Message]) -> Value {
             .collect::<Vec<_>>()
             .join("\n\n"));
     }
+    system_blocks(system)
+}
+
+fn system_blocks(system: &[&Message]) -> Value {
     system
         .iter()
         .map(|msg| {
@@ -375,7 +386,15 @@ fn system_prompt(system: &[&Message]) -> Value {
         .collect()
 }
 
-fn check_options(options: &Value, mode: Mode) -> Result<(), Error> {
+fn check_options(options: &Value, provider: Provider, mode: Mode) -> Result<(), Error> {
+    if options.get("tool_choice").is_some()
+        && mode != Mode::ResponsesTools
+        && (provider, mode) != (Provider::Anthropic, Mode::Tools)
+    {
+        return Err(Error::Configuration(
+            "Reserved request option: tool_choice".into(),
+        ));
+    }
     if let Some(tools) = options.get("tools") {
         if mode != Mode::ResponsesTools
             || !tools.as_array().is_some_and(|tools| {
@@ -400,7 +419,6 @@ fn check_options(options: &Value, mode: Mode) -> Result<(), Error> {
         "systemInstruction",
         "system_instruction",
         "input",
-        "tool_choice",
         "toolConfig",
         "tool_config",
         "response_format",
@@ -476,6 +494,8 @@ fn requires_auto_choice(model: &str, thinking: &Value) -> bool {
             "claude-sonnet-5-5",
             "claude-fable-5-1",
             "claude-mythos-5-1",
+            "claude-fable-5-2",
+            "claude-mythos-5-2",
         ]
         .iter()
         .any(|m| {

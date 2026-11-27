@@ -220,7 +220,9 @@ impl<T: ResponseModel> Batch<T> {
                     if schema.get("additionalProperties").is_none() {
                         schema["additionalProperties"] = false.into();
                     }
-                    if body["tool_choice"]["type"] == "tool" {
+                    if !req.options.contains_key("tool_choice")
+                        && body["tool_choice"]["type"] == "tool"
+                    {
                         body["tool_choice"] = json!({"type":"tool","name":"extract_data"});
                     }
                 }

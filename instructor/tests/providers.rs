@@ -754,7 +754,11 @@ async fn anthropic_thinking_tools_use_auto_and_keep_native_options() {
     for (model, thinking, expected) in [
         ("claude-opus-5.5", None, "auto"),
         ("claude-fable-5-1-20261001", None, "auto"),
+        ("claude-fable-5-2", None, "auto"),
+        ("claude-mythos-5-2", None, "auto"),
+        ("claude-haiku-5-5", None, "tool"),
         ("claude-opus-5-50", None, "tool"),
+        ("model", Some("enabled"), "auto"),
         ("model", Some("adaptive"), "auto"),
         ("model", Some("disabled"), "tool"),
     ] {
@@ -765,6 +769,17 @@ async fn anthropic_thinking_tools_use_auto_and_keep_native_options() {
         ])
         .option("max_tokens", 4000);
         let mut body = json!({"model":model,"max_tokens":4000,"tool_choice":{"type":expected},"system":"A\n\nB","messages":[{"role":"user","content":"Q"}]});
+        if expected == "auto" {
+            body["system"] = json!([
+                {"type":"text","text":"A"},
+                {"type":"text","text":"B"},
+                {"type":"text","text":"Return only the tool call and no additional text."}
+            ]);
+        }
+        if thinking == Some("adaptive") {
+            req.messages[0] = Message::system("A").cache();
+            body["system"][0]["cache_control"] = json!({"type":"ephemeral"});
+        }
         if let Some(mode) = thinking {
             req = req.option("thinking", json!({"type":mode}));
             body["thinking"] = json!({"type":mode});
@@ -916,7 +931,10 @@ async fn responses_can_return_text_with_builtins_and_ignore_commentary() {
     let client = Client::new(config(&server, Provider::OpenAI, Mode::ResponsesTools)).unwrap();
     let m=mock(&mut server,Provider::OpenAI,Mode::ResponsesTools,false).match_body(Matcher::PartialJson(json!({
         "tools":[{"type":"web_search"},{"type":"function","name":"Person"}]
-    }))).with_body(json!({"status":"completed","output":[
+    }))).match_request(|r| {
+        let body:Value = serde_json::from_slice(r.body().unwrap()).unwrap();
+        body.get("tool_choice").is_none()
+    }).with_body(json!({"status":"completed","output":[
         {"type":"message","phase":"commentary","content":[{"type":"output_text","text":"Searching…"}]},
         {"type":"web_search_call","status":"completed"},
         {"type":"message","phase":"final_answer","content":[{"type":"output_text","text":person().to_string()}]}
@@ -1113,5 +1131,65 @@ async fn native_items_and_typed_messages_compose_in_order() {
             client.create_raw(Request::native_messages(history)).await,
             Err(Error::Configuration(_))
         ));
+    }
+}
+
+#[tokio::test]
+async fn explicit_tool_choices_reach_initial_and_retry_requests() {
+    let mut server = Server::new_async().await;
+    for (provider, mode, choice, builtins) in [
+        (Provider::OpenAI, Mode::ResponsesTools, json!("none"), false),
+        (
+            Provider::OpenAI,
+            Mode::ResponsesTools,
+            json!({"type":"web_search"}),
+            true,
+        ),
+        (
+            Provider::Anthropic,
+            Mode::Tools,
+            json!({"type":"auto","disable_parallel_tool_use":true}),
+            false,
+        ),
+    ] {
+        let client = Client::new(config(&server, provider, mode))
+            .unwrap()
+            .with_cache(1);
+        let mut req = Request::new("Renée")
+            .max_retries(1)
+            .option("tool_choice", choice.clone());
+        if builtins {
+            req = req.option("tools", json!([{"type":"web_search"}]));
+        }
+        if provider == Provider::Anthropic {
+            req = req.option("thinking", json!({"type":"adaptive"}));
+        }
+        let mut endpoints = Vec::new();
+        for answer in [json!({"age":"bad"}), person()] {
+            let raw = match provider {
+                Provider::OpenAI => json!({"status":"completed","output":[{
+                    "type":"message","content":[{"type":"output_text","text":answer.to_string()}]
+                }]}),
+                _ => completion(provider, mode, answer),
+            };
+            let choice = choice.clone();
+            endpoints.push(
+                mock(&mut server, provider, mode, false)
+                    .match_request(move |r| {
+                        let body: Value = serde_json::from_slice(r.body().unwrap()).unwrap();
+                        body["tool_choice"] == choice && body.get("system").is_none()
+                    })
+                    .with_body(raw.to_string())
+                    .create_async()
+                    .await,
+            );
+        }
+        for _ in 0..2 {
+            assert_eq!(client.create::<Person>(req.clone()).await.unwrap().age, 41);
+        }
+        for m in endpoints {
+            m.assert_async().await;
+            m.remove_async().await;
+        }
     }
 }

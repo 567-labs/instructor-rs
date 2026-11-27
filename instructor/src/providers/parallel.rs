@@ -18,14 +18,17 @@ impl ProviderConfig {
                 "parallel calls require a tool mode".into(),
             ));
         }
+        let mut schemas = schemas.peekable();
         let strict = self.schema_strictness(req)?;
-        let mut wire = self.request_with_strictness(req, None, false, strict)?;
+        let mut wire = self.request_with_strictness(req, schemas.peek().copied(), false, strict)?;
         let google = self.provider == Provider::Google;
         let mut declarations = Vec::new();
         let mut names = Vec::new();
         // Reuse the exact schema lowering used for single-model tools.
-        for schema in schemas {
-            self.set_output(&mut wire.body, schema, strict)?;
+        for (i, schema) in schemas.enumerate() {
+            if i > 0 {
+                self.set_output(&mut wire.body, schema, strict)?;
+            }
             let declared = &mut wire.body["tools"][0];
             if google {
                 declarations.push(declared["functionDeclarations"][0].take());
@@ -44,8 +47,8 @@ impl ProviderConfig {
             wire.body["tools"] = declarations.into();
         }
         match self.provider {
-            Provider::Anthropic if wire.body["tool_choice"]["type"] != "auto" => {
-                wire.body["tool_choice"] = json!({"type": "any"});
+            Provider::Anthropic if !req.options.contains_key("tool_choice") => {
+                wire.body["tool_choice"] = json!({"type": "auto"});
             }
             Provider::OpenAI | Provider::OpenRouter => {
                 wire.body["tool_choice"] = json!("required");
