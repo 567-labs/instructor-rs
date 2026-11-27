@@ -18,13 +18,14 @@ impl ProviderConfig {
                 "parallel calls require a tool mode".into(),
             ));
         }
-        let mut wire = self.request(req, None, false)?;
+        let strict = self.schema_strictness(req)?;
+        let mut wire = self.request_with_strictness(req, None, false, strict)?;
         let google = self.provider == Provider::Google;
         let mut declarations = Vec::new();
         let mut names = Vec::new();
         // Reuse the exact schema lowering used for single-model tools.
         for schema in schemas {
-            self.set_output(&mut wire.body, schema)?;
+            self.set_output(&mut wire.body, schema, strict)?;
             let declared = &mut wire.body["tools"][0];
             if google {
                 declarations.push(declared["functionDeclarations"][0].take());

@@ -186,6 +186,12 @@ impl Request {
         self
     }
 
+    /// Override wire schema strictness for OpenAI Chat or OpenRouter tool and
+    /// JSON Schema requests. Rust deserialization and validators still apply.
+    pub fn strict(self, strict: bool) -> Self {
+        self.option("strict", strict)
+    }
+
     /// Observe this request. Attempt numbers start at one, or zero for a cache hit.
     pub fn on_event(mut self, hook: impl Fn(u64, Event<'_>) + Send + Sync + 'static) -> Self {
         self.hooks.push(Arc::new(Callback::Event(Box::new(hook))));

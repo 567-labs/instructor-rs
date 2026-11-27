@@ -188,19 +188,16 @@ impl<T: ResponseModel> Batch<T> {
         {
             opts.remove("temperature");
         }
-        let loose = !self.strict
-            && config.mode() == Mode::JsonSchema
+        let batch_schema = config.mode() == Mode::JsonSchema
             && matches!(self.provider(), Provider::OpenAI | Provider::Mistral);
-        let schema = if loose {
-            None
-        } else {
-            Some(&self.schema.value)
-        };
-        let mut body = config.request(&req, schema, false)?.body;
-        if loose {
-            body["response_format"] = json!({"type":"json_schema","json_schema":{
-                "name":self.schema.value["title"],"schema":self.schema.value,"strict":false
-            }});
+        let strict = config
+            .schema_strictness(&req)?
+            .or(batch_schema.then_some(self.strict));
+        let mut body = config
+            .request_with_strictness(&req, Some(&self.schema.value), false, strict)?
+            .body;
+        if batch_schema && strict == Some(false) {
+            body["response_format"]["json_schema"]["strict"] = false.into();
         }
         let fields = body.as_object_mut().expect("request body is an object");
         fields.remove("stream");

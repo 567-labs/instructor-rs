@@ -62,6 +62,12 @@ Use `ProviderConfig::new(Provider::Anthropic, model, api_key)` for an explicitly
 
 To reuse an existing transport and connection pool, pass a Reqwest client to `Client::with_http_client(config, http.clone())?`. Use `BlockingClient::from_client(client)?` to wrap a configured client for callers outside an async runtime.
 
+### Set strictness for one Chat request
+
+For OpenAI Chat and OpenRouter, `Request::new(prompt).strict(true)` closes objects and requires every named property in the transmitted schema, including nested properties. An optional field can take `null`. Use `.strict(false)` to send the model’s original required fields and allow omitted optional properties or open-ended maps. Serde and local validators check the answer in either case. [Python wire tests](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/v2/test_public_strict_schemas.py)
+
+`Tools` defaults to permissive, and `ToolsStrict` and `JsonSchema` default to strict. Either client accepts an override for one typed call, including streams and the individual functions in a parallel call. An OpenAI batch item can override the batch setting. The equivalent `.option("strict", value)` accepts a boolean. Other providers, modes and raw calls return `Error::Configuration` for a request-level override. [Batch defaults](batch.md)
+
 ## OpenAI
 
 The `Tools` default uses Chat Completions. Choose `ToolsStrict` for strict function arguments or `JsonSchema` for schema-constrained text. Native strict schemas require closed objects and a value for every property, with nullable fields represented using `null`.

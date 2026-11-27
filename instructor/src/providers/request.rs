@@ -46,8 +46,48 @@ impl ProviderConfig {
         schema: Option<&Value>,
         stream: bool,
     ) -> Result<WireRequest, Error> {
+        let strict = self.schema_strictness(req)?;
+        if schema.is_none() && strict.is_some() {
+            return Err(Error::Configuration(
+                "strict requires a response schema".into(),
+            ));
+        }
+        self.request_with_strictness(req, schema, stream, strict)
+    }
+
+    pub(crate) fn schema_strictness(&self, req: &Request) -> Result<Option<bool>, Error> {
+        let Some(value) = req.options.get("strict") else {
+            return Ok(None);
+        };
+        if !matches!(self.provider, Provider::OpenAI | Provider::OpenRouter)
+            || !matches!(
+                self.mode,
+                Mode::Tools | Mode::ToolsStrict | Mode::JsonSchema
+            )
+        {
+            return Err(Error::Configuration(
+                "strict requires OpenAI Chat or OpenRouter tool or JSON Schema mode".into(),
+            ));
+        }
+        value
+            .as_bool()
+            .map(Some)
+            .ok_or_else(|| Error::Configuration("strict must be a boolean".into()))
+    }
+
+    pub(crate) fn request_with_strictness(
+        &self,
+        req: &Request,
+        schema: Option<&Value>,
+        stream: bool,
+        strict: Option<bool>,
+    ) -> Result<WireRequest, Error> {
         // Client construction and batch mode changes validate the configuration.
-        let mut body = Value::Object(req.options.clone());
+        let mut options = req.options.clone();
+        if strict.is_some() {
+            options.remove("strict");
+        }
+        let mut body = Value::Object(options);
         check_options(&body, self.mode)?;
         let instruction = match (self.mode, schema) {
             (Mode::Json | Mode::MarkdownJson, Some(s)) =>
@@ -145,7 +185,7 @@ impl ProviderConfig {
             }
         }
         if let Some(schema) = schema {
-            self.set_output(&mut body, schema)?;
+            self.set_output(&mut body, schema, strict)?;
         }
         Ok(WireRequest {
             url: self.endpoint(stream),
@@ -200,7 +240,12 @@ impl ProviderConfig {
         Ok(h)
     }
 
-    pub(super) fn set_output(&self, body: &mut Value, schema: &Value) -> Result<(), Error> {
+    pub(super) fn set_output(
+        &self,
+        body: &mut Value,
+        schema: &Value,
+        strict: Option<bool>,
+    ) -> Result<(), Error> {
         let name = tool_name(schema);
         let description = crate::schema::tool_description(schema);
         match self.mode {
@@ -249,7 +294,7 @@ impl ProviderConfig {
                             };
                     }
                     _ => {
-                        let strict = self.mode == Mode::ToolsStrict;
+                        let strict = strict.unwrap_or(self.mode == Mode::ToolsStrict);
                         if strict {
                             constrain_schema(&mut params, self.provider)?;
                         }
@@ -269,7 +314,10 @@ impl ProviderConfig {
             }
             Mode::JsonSchema => {
                 let mut schema = schema.clone();
-                constrain_schema(&mut schema, self.provider)?;
+                let strict = strict.unwrap_or(true);
+                if strict {
+                    constrain_schema(&mut schema, self.provider)?;
+                }
                 match self.provider {
                     Provider::Google => {
                         let config = &mut body["generationConfig"];
@@ -285,10 +333,13 @@ impl ProviderConfig {
                         body["output_config"]["format"]["schema"] = schema;
                     }
                     Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => {
-                        body["response_format"] = json!({"type":"json_schema","json_schema":{
-                            "name":name,"strict":true
-                        }});
-                        body["response_format"]["json_schema"]["schema"] = schema;
+                        body["response_format"] =
+                            json!({"type":"json_schema","json_schema":{"name":name}});
+                        let definition = &mut body["response_format"]["json_schema"];
+                        definition["schema"] = schema;
+                        if strict {
+                            definition["strict"] = true.into();
+                        }
                     }
                 }
             }
