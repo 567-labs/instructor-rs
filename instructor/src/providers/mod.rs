@@ -52,20 +52,26 @@ impl Provider {
 
     pub fn default_mode(self) -> Mode {
         match self {
-            Self::Google => Mode::JsonSchema,
+            Self::OpenAI | Self::OpenRouter | Self::Mistral | Self::Google => Mode::JsonSchema,
             _ => Mode::Tools,
         }
     }
 
     pub(crate) fn validate_mode(self, mode: Mode) -> Result<(), Error> {
-        if mode == Mode::ToolsStrict && !matches!(self, Provider::OpenAI | Provider::OpenRouter) {
+        if mode == Mode::ToolsStrict
+            && !matches!(
+                self,
+                Provider::OpenAI | Provider::OpenRouter | Provider::Mistral
+            )
+        {
             return Err(Error::Configuration(
-                "ToolsStrict requires OpenAI or OpenRouter".into(),
+                "ToolsStrict requires OpenAI, OpenRouter or Mistral Responses".into(),
             ));
         }
-        if mode == Mode::ResponsesTools && self != Provider::OpenAI {
+        if mode == Mode::ResponsesTools && !matches!(self, Provider::OpenAI | Provider::OpenRouter)
+        {
             return Err(Error::Configuration(
-                "ResponsesTools requires OpenAI".into(),
+                "ResponsesTools requires OpenAI or OpenRouter".into(),
             ));
         }
         Ok(())
@@ -132,6 +138,7 @@ pub struct ProviderConfig {
     api_key: String,
     base_url: String,
     mode: Mode,
+    responses: bool,
 }
 
 impl fmt::Debug for ProviderConfig {
@@ -151,7 +158,11 @@ impl ProviderConfig {
             self.model(),
             &self.base_url,
             &self.api_key,
-            format!("{:?}", self.mode),
+            if self.uses_responses() && self.mode != Mode::ResponsesTools {
+                format!("responses/{:?}", self.mode)
+            } else {
+                format!("{:?}", self.mode)
+            },
         )
     }
 
@@ -163,6 +174,10 @@ impl ProviderConfig {
             api_key: api_key.into(),
             base_url: provider.default_base_url().to_owned(),
             mode: provider.default_mode(),
+            responses: matches!(
+                provider,
+                Provider::OpenAI | Provider::OpenRouter | Provider::Mistral
+            ),
         }
     }
 
@@ -198,6 +213,18 @@ impl ProviderConfig {
     pub fn with_mode(mut self, mode: Mode) -> Self {
         self.mode = mode;
         self
+    }
+
+    /// Select Chat Completions for an OpenAI, OpenRouter or Mistral gateway that requires it.
+    /// The output mode is independent of the endpoint. [Mode::ResponsesTools]
+    /// always selects Responses.
+    pub fn with_chat_completions(mut self) -> Self {
+        self.responses = false;
+        self
+    }
+
+    pub(crate) fn uses_responses(&self) -> bool {
+        self.responses || self.mode == Mode::ResponsesTools
     }
 
     pub fn provider(&self) -> Provider {
@@ -257,6 +284,14 @@ impl ProviderConfig {
             )));
         }
         self.provider.validate_mode(self.mode)?;
+        if self.mode == Mode::ToolsStrict
+            && self.provider == Provider::Mistral
+            && !self.uses_responses()
+        {
+            return Err(Error::Configuration(
+                "ToolsStrict requires Responses on Mistral".into(),
+            ));
+        }
         let url = reqwest::Url::parse(&self.base_url)
             .map_err(|_| Error::Configuration("Invalid base URL".into()))?;
         if !matches!(url.scheme(), "http" | "https")
@@ -332,6 +367,10 @@ mod tests {
         ] {
             assert!(config.clone().with_base_url(endpoint).validate().is_err());
         }
-        assert!(config.with_mode(Mode::ToolsStrict).validate().is_err());
+        assert!(config
+            .with_chat_completions()
+            .with_mode(Mode::ToolsStrict)
+            .validate()
+            .is_err());
     }
 }

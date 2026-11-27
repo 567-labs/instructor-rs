@@ -166,10 +166,7 @@ fn errors_propagate_and_failed_teacher_records_are_skipped() {
 }
 
 fn envelope() -> String {
-    json!({"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":[
-        {"type":"function","function":{"name":"ResultLabel","arguments":"{\"name\":\"student\"}"}}
-    ]}}]})
-    .to_string()
+    json!({"status":"completed", "output":[{"type":"message","content":[{"type":"output_text","text":r#"{"name":"student"}"#}]}]}).to_string()
 }
 
 #[tokio::test]
@@ -189,11 +186,11 @@ async fn dispatch_matches_teacher_messages_and_uses_configured_student() {
         )
         .unwrap();
     let calls = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::PartialJson(json!({
             "model": "student-model",
-            "messages":[record["messages"][0],record["messages"][1]],
-            "tools":[{"function":{"name":"ResultLabel"}}],
+            "input":[record["messages"][0],record["messages"][1]],
+            "text":{"format":{"name":"ResultLabel"}},
         })))
         .with_body(envelope())
         .create_async()
@@ -212,7 +209,7 @@ async fn dispatch_matches_teacher_messages_and_uses_configured_student() {
 fn blocking_dispatch() {
     let mut server = Server::new();
     let call = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_body(envelope())
         .create();
     let config = ProviderConfig::new(Provider::OpenAI, "test", "mock").with_base_url(server.url());

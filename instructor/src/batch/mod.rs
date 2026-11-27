@@ -38,6 +38,9 @@ use crate::{
 use serde_json::{json, Value};
 use std::{collections::HashSet, io::Write, marker::PhantomData, path::Path, sync::Arc};
 
+const RESPONSES: &str = "/v1/responses";
+const CHAT_COMPLETIONS: &str = "/v1/chat/completions";
+
 /// Provider-specific options for job creation.
 #[derive(Debug, Clone, Default)]
 pub struct BatchOptions {
@@ -91,7 +94,7 @@ pub struct Batch<T> {
 }
 
 impl Client {
-    /// OpenAI and Mistral use native JSON schemas. Anthropic uses a named tool.
+    /// Use Responses on OpenAI, Chat Completions on Mistral, and a named tool on Anthropic.
     pub fn batch<T: ResponseModel>(&self) -> Result<Batch<T>, Error> {
         let mode = if self.config.provider() == Provider::Anthropic {
             Mode::Tools
@@ -113,6 +116,9 @@ impl Client {
         }
         let mut client = self.clone();
         client.config = client.config.with_mode(mode);
+        if self.config.provider() == Provider::Mistral {
+            client.config = client.config.with_chat_completions();
+        }
         client.config.validate()?;
         Ok(Batch {
             client,
@@ -154,10 +160,10 @@ impl<T: ResponseModel> Batch<T> {
     }
 
     fn endpoint(&self) -> &'static str {
-        if self.client.config.mode() == Mode::ResponsesTools {
-            "/v1/responses"
+        if self.client.config.uses_responses() {
+            RESPONSES
         } else {
-            "/v1/chat/completions"
+            CHAT_COMPLETIONS
         }
     }
 
@@ -175,14 +181,14 @@ impl<T: ResponseModel> Batch<T> {
         }
         if self.provider() == Provider::OpenAI
             && config.model() == "gpt-6-luna"
-            && config.mode() != Mode::ResponsesTools
+            && !config.uses_responses()
         {
             if let Some(limit) = opts.remove("max_tokens") {
                 opts.entry("max_completion_tokens").or_insert(limit);
             }
             opts.entry("reasoning_effort").or_insert(json!("none"));
         }
-        if self.provider() != Provider::Anthropic {
+        if self.provider() != Provider::Anthropic && !config.uses_responses() {
             opts.entry("temperature").or_insert(json!(0.1));
         }
         if opts.get("temperature") == Some(&Value::Null) {
@@ -196,7 +202,7 @@ impl<T: ResponseModel> Batch<T> {
         let mut body = config
             .request_with_strictness(&req, Some(&self.schema.value), false, strict)?
             .body;
-        if batch_schema && strict == Some(false) {
+        if batch_schema && strict == Some(false) && !config.uses_responses() {
             body["response_format"]["json_schema"]["strict"] = false.into();
         }
         let fields = body.as_object_mut().expect("request body is an object");

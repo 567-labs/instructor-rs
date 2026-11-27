@@ -13,7 +13,13 @@ impl Provider {
         check_error(raw)?;
         let name = tool_name(schema);
         match self {
-            Provider::OpenAI if mode == Mode::ResponsesTools => responses_output(raw, name),
+            Provider::OpenAI | Provider::OpenRouter | Provider::Mistral
+                if mode == Mode::ResponsesTools
+                    || raw.get("output").is_some()
+                    || raw.get("output_text").is_some() =>
+            {
+                responses_output(raw, name)
+            }
             Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => {
                 let choice = candidate(raw, "choices")?;
                 check_finish(&choice["finish_reason"])?;

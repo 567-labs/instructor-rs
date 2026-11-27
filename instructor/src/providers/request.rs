@@ -68,14 +68,12 @@ impl ProviderConfig {
         let Some(value) = req.options.get("strict") else {
             return Ok(None);
         };
-        if !matches!(self.provider, Provider::OpenAI | Provider::OpenRouter)
-            || !matches!(
-                self.mode,
-                Mode::Tools | Mode::ToolsStrict | Mode::JsonSchema
-            )
+        if !(self.uses_responses()
+            || matches!(self.provider, Provider::OpenAI | Provider::OpenRouter))
+            || !(self.mode.is_tool() || self.mode == Mode::JsonSchema)
         {
             return Err(Error::Configuration(
-                "strict requires OpenAI Chat or OpenRouter tool or JSON Schema mode".into(),
+                "strict requires a supported tool or JSON Schema mode".into(),
             ));
         }
         value
@@ -104,7 +102,7 @@ impl ProviderConfig {
             options.remove("strict");
         }
         let mut body = Value::Object(options);
-        check_options(&body, self.provider, self.mode)?;
+        check_options(&body, self)?;
         let instruction = match (self.mode, schema) {
             (Mode::Json | Mode::MarkdownJson, Some(s)) =>
                 Some(format!("Return a single JSON object matching this JSON Schema. Respond with JSON only.\n{s}")),
@@ -117,6 +115,11 @@ impl ProviderConfig {
             let role = msg.role.as_str();
             let content = msg.content.as_str();
             let attachments = msg.attachments.as_slice();
+            if msg.cache_control.is_some() && self.uses_responses() {
+                return Err(Error::Configuration(
+                    "For Responses, set cache options on the request or a native input item. Message::cache requires Anthropic Messages or OpenRouter Chat.".into(),
+                ));
+            }
             if msg.cache_control.is_some()
                 && !matches!(self.provider, Provider::Anthropic | Provider::OpenRouter)
             {
@@ -141,11 +144,14 @@ impl ProviderConfig {
                 }
                 (Provider::Google, "assistant") => ("model", "parts"),
                 (Provider::Google, _) => ("user", "parts"),
-                (provider, "developer") if provider != Provider::OpenAI => ("system", "content"),
+                (provider, "developer")
+                    if !self.uses_responses() && provider != Provider::OpenAI =>
+                {
+                    ("system", "content")
+                }
                 (_, role) => (role, "content"),
             };
-            let mut content =
-                crate::media::content(self.provider, self.mode, content, attachments)?;
+            let mut content = crate::media::content(self, content, attachments)?;
             if let Some(ttl) = msg.cache_control {
                 if content.is_string() {
                     let mut block = json!({"type":"text"});
@@ -180,12 +186,9 @@ impl ProviderConfig {
                 body["systemInstruction"] = json!({"parts":[{"text":system_prompt(&system)}]});
             }
         } else {
-            if self.mode == Mode::ResponsesTools {
+            if self.uses_responses() {
                 body["input"] = messages.into();
-                if let Some(max_tokens) = body.as_object_mut().and_then(|b| b.remove("max_tokens"))
-                {
-                    body["max_output_tokens"] = max_tokens;
-                }
+                self.responses_options(&mut body)?;
             } else {
                 body["messages"] = messages.into();
             }
@@ -219,10 +222,89 @@ impl ProviderConfig {
         })
     }
 
+    fn responses_options(&self, body: &mut Value) -> Result<(), Error> {
+        if self.provider != Provider::OpenAI
+            && (body["store"] == true
+                || !body["previous_response_id"].is_null()
+                || !body["conversation"].is_null())
+        {
+            return Err(Error::Configuration(format!(
+                "{} Responses is stateless. Send previous output in input.",
+                self.provider
+            )));
+        }
+        let options = body.as_object_mut().expect("request options object");
+        options.entry("store").or_insert(false.into());
+        for key in ["max_completion_tokens", "max_tokens"] {
+            if let Some(limit) = options.remove(key) {
+                options.entry("max_output_tokens").or_insert(limit);
+            }
+        }
+        if let Some(effort) = options.remove("reasoning_effort") {
+            let reasoning = options.entry("reasoning").or_insert_with(|| json!({}));
+            reasoning
+                .as_object_mut()
+                .ok_or_else(|| Error::Configuration("expected an object for reasoning".into()))?
+                .entry("effort")
+                .or_insert(effort);
+        }
+        Ok(())
+    }
+
+    pub(super) fn set_responses_output(
+        &self,
+        mode: Mode,
+        body: &mut Value,
+        schema: &Value,
+        strict: Option<bool>,
+    ) -> Result<(), Error> {
+        if mode == Mode::MarkdownJson {
+            return Ok(());
+        }
+        if mode == Mode::Json {
+            body["text"]["format"] = json!({"type":"json_object"});
+            return Ok(());
+        }
+        let strict = strict.unwrap_or(mode != Mode::Tools);
+        let name = tool_name(schema);
+        let mut params = schema.clone();
+        if strict {
+            constrain_schema(&mut params, self.provider)?;
+        }
+        if mode.is_tool() {
+            if body["tools"].as_array().is_none_or(Vec::is_empty)
+                && body.get("tool_choice").is_none()
+            {
+                body["tool_choice"] = json!({"type":"function","name":name});
+                if body.get("parallel_tool_calls").is_none() {
+                    body["parallel_tool_calls"] = false.into();
+                }
+            }
+            if body.get("tools").is_none() {
+                body["tools"] = json!([]);
+            }
+            let mut function = json!({"type":"function","name":name,"strict":strict,"description":crate::schema::tool_description(schema)});
+            function["parameters"] = if mode == Mode::ResponsesTools {
+                params.clone()
+            } else {
+                params.take()
+            };
+            body["tools"]
+                .as_array_mut()
+                .expect("checked tools")
+                .push(function);
+        }
+        if matches!(mode, Mode::JsonSchema | Mode::ResponsesTools) {
+            body["text"]["format"] = json!({"type":"json_schema","name":name,"strict":strict});
+            body["text"]["format"]["schema"] = params;
+        }
+        Ok(())
+    }
+
     fn endpoint(&self, stream: bool) -> String {
         let base = self.base_url.trim_end_matches('/');
         match self.provider {
-            Provider::OpenAI if self.mode == Mode::ResponsesTools => format!("{base}/responses"),
+            _ if self.uses_responses() => format!("{base}/responses"),
             Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => {
                 format!("{base}/chat/completions")
             }
@@ -274,25 +356,14 @@ impl ProviderConfig {
         schema: &Value,
         strict: Option<bool>,
     ) -> Result<(), Error> {
+        if self.uses_responses() {
+            return self.set_responses_output(self.mode, body, schema, strict);
+        }
         let name = tool_name(schema);
         let description = crate::schema::tool_description(schema);
         match self.mode {
             Mode::MarkdownJson => (),
-            Mode::ResponsesTools => {
-                let mut schema = schema.clone();
-                constrain_schema(&mut schema, self.provider)?;
-                let mut tools = body["tools"]
-                    .as_array_mut()
-                    .map(std::mem::take)
-                    .unwrap_or_default();
-                if tools.is_empty() && body.get("tool_choice").is_none() {
-                    body["tool_choice"] = json!({"type":"function","name":name});
-                }
-                tools.push(json!({"type":"function","name":name,"parameters":schema,"description":description,"strict":true}));
-                body["tools"] = tools.into();
-                body["text"]["format"] = json!({"type":"json_schema","name":name,"strict":true});
-                body["text"]["format"]["schema"] = schema;
-            }
+            Mode::ResponsesTools => unreachable!("handled by Responses"),
             Mode::Json => match self.provider {
                 Provider::Anthropic => (),
                 Provider::Google => {
@@ -405,7 +476,8 @@ fn system_blocks(system: &[&Message]) -> Value {
         .collect()
 }
 
-fn check_options(options: &Value, provider: Provider, mode: Mode) -> Result<(), Error> {
+fn check_options(options: &Value, config: &ProviderConfig) -> Result<(), Error> {
+    let (provider, mode) = (config.provider, config.mode);
     if provider == Provider::Anthropic {
         for param in ["temperature", "top_p", "top_k"] {
             if options.get(param).is_some() {
@@ -416,7 +488,7 @@ fn check_options(options: &Value, provider: Provider, mode: Mode) -> Result<(), 
         }
     }
     if options.get("tool_choice").is_some()
-        && mode != Mode::ResponsesTools
+        && !config.uses_responses()
         && (provider, mode) != (Provider::Anthropic, Mode::Tools)
     {
         return Err(Error::Configuration(
@@ -424,7 +496,12 @@ fn check_options(options: &Value, provider: Provider, mode: Mode) -> Result<(), 
         ));
     }
     if let Some(tools) = options.get("tools") {
-        if mode != Mode::ResponsesTools
+        if provider == Provider::Mistral {
+            return Err(Error::Configuration(
+                "Mistral supports function tools generated from your Rust types".into(),
+            ));
+        }
+        if !config.uses_responses()
             || !tools.as_array().is_some_and(|tools| {
                 tools.iter().all(|tool| {
                     tool["type"]
@@ -434,7 +511,7 @@ fn check_options(options: &Value, provider: Provider, mode: Mode) -> Result<(), 
             })
         {
             return Err(Error::Configuration(
-                "Use the tools option for built-in tools in ResponsesTools mode".into(),
+                "Use the tools option for built-in tools on the Responses API".into(),
             ));
         }
     }

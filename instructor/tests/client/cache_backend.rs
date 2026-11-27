@@ -48,7 +48,7 @@ fn shared_backend_uses_disk_identity_and_record_across_client_styles() {
     let mut server = Server::new();
     let raw = response(r#"{"value":3}"#, Some(17));
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .expect(2)
         .with_body(raw.to_string())
         .create();
@@ -111,7 +111,7 @@ fn shared_backend_uses_disk_identity_and_record_across_client_styles() {
 fn backend_separates_namespace_credential_and_context_and_clears_one_scope() {
     let mut server = Server::new();
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .expect(5)
         .with_body(response(r#"{"value":3}"#, None).to_string())
         .create();
@@ -152,7 +152,7 @@ fn backend_bypasses_zero_ttl_and_replaces_expired_and_rejected_records() {
     let mocks: Vec<_> = (1..=4)
         .map(|i| {
             server
-                .mock("POST", "/chat/completions")
+                .mock("POST", "/responses")
                 .with_body(response(&json!({"value":i}).to_string(), None).to_string())
                 .create()
         })
@@ -205,7 +205,7 @@ impl ResponseCache for Unavailable {
 async fn backend_operations_leave_executor_and_report_storage_errors() {
     let mut server = Server::new_async().await;
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_body(response(r#"{"value":4}"#, None).to_string())
         .create_async()
         .await;

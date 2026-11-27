@@ -75,9 +75,10 @@ impl<T: ResponseModel> Batch<T> {
         Ok(format!("{}/{}", self.root(), segment(id)?))
     }
 
-    fn validate_lines(&self, jsonl: &str) -> Result<Vec<Value>, Error> {
+    fn validate_lines(&self, jsonl: &str) -> Result<(&'static str, Vec<Value>), Error> {
         let mut seen = HashSet::new();
         let mut records = Vec::new();
+        let mut endpoint = self.endpoint();
         for (index, line) in jsonl.lines().enumerate() {
             if line.trim().is_empty() {
                 continue;
@@ -95,12 +96,24 @@ impl<T: ResponseModel> Batch<T> {
                     "invalid request body for {id}"
                 )));
             }
-            if self.provider() == Provider::OpenAI
-                && (value["method"] != "POST" || value["url"] != self.endpoint())
-            {
-                return Err(Error::Configuration(format!(
-                    "wrong batch endpoint for {id}"
-                )));
+            if self.provider() == Provider::OpenAI {
+                // A saved request file identifies its endpoint independently of
+                // today's preparation default. All rows must agree.
+                let url = match value["url"].as_str() {
+                    Some(RESPONSES) => RESPONSES,
+                    Some(CHAT_COMPLETIONS) => CHAT_COMPLETIONS,
+                    _ => {
+                        return Err(Error::Configuration(format!(
+                            "unknown batch endpoint for {id}"
+                        )))
+                    }
+                };
+                if value["method"] != "POST" || (seen.len() > 1 && url != endpoint) {
+                    return Err(Error::Configuration(format!(
+                        "expected POST {endpoint} for {id}"
+                    )));
+                }
+                endpoint = url;
             }
             // Only Anthropic embeds the parsed records directly in its POST.
             if anthropic {
@@ -110,7 +123,7 @@ impl<T: ResponseModel> Batch<T> {
         if seen.is_empty() {
             return Err(Error::Configuration("empty batch payload".into()));
         }
-        Ok(records)
+        Ok((endpoint, records))
     }
 
     /// Submit a prepared JSONL payload. Returns the provider's job ID.
@@ -124,7 +137,7 @@ impl<T: ResponseModel> Batch<T> {
         jsonl: &str,
         options: BatchOptions,
     ) -> Result<String, Error> {
-        let requests = self.validate_lines(jsonl)?;
+        let (endpoint, requests) = self.validate_lines(jsonl)?;
         if options.completion_window.is_some() && self.provider() != Provider::OpenAI {
             return Err(Error::Configuration(
                 "completion_window requires OpenAI".into(),
@@ -156,10 +169,10 @@ impl<T: ResponseModel> Batch<T> {
             let uploaded = json_response(self.api(Method::POST, "/files")?.multipart(form)).await?;
             let id = text(&uploaded, "id")?;
             if self.provider() == Provider::Mistral {
-                json!({"input_files":[id],"model":self.client.config.model(),"endpoint":self.endpoint(),
+                json!({"input_files":[id],"model":self.client.config.model(),"endpoint":endpoint,
                     "metadata":options.metadata.unwrap_or_else(||json!({}))})
             } else {
-                json!({"input_file_id":id,"endpoint":self.endpoint(),
+                json!({"input_file_id":id,"endpoint":endpoint,
                     "completion_window":options.completion_window.as_deref().unwrap_or("24h"),
                     "metadata":options.metadata.unwrap_or_else(||json!({"description":"Instructor batch job"}))})
             }

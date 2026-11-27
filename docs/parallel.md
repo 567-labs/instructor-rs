@@ -26,4 +26,4 @@ Python uses `Iterable[Forecast | Search]` as the response model. The Rust equiva
 
 Parallel requests use the configured validators, request context, retries, token budget, hooks, and cache. A rejected set can trigger a correction of the whole response. Use `.await?` with the async client. The native parallel API returns a complete vector. Streaming a collection uses a single array schema. [Streaming](streaming.md)
 
-Select a model and route supporting parallel function calling. The default tool mode works for OpenAI, Anthropic, and OpenRouter. To select tools on Gemini, set `.with_mode(Mode::Tools)` on its configuration. [Provider configuration](providers.md)
+Select a model and route supporting parallel function calling. On OpenAI, OpenRouter, Mistral, and Anthropic, call `create_parallel` with the default configuration. To select tools on Gemini, set `.with_mode(Mode::Tools)` on its configuration. [Provider configuration](providers.md)

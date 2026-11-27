@@ -1,6 +1,6 @@
 //! Media is explicitly supplied by the caller. URL sources are forwarded to
 //! the model provider. The client never opens local paths or fetches URLs.
-use crate::{Error, Mode, Provider};
+use crate::{Error, Provider, ProviderConfig};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -40,7 +40,9 @@ impl Media {
         }
     }
 
-    fn block(&self, provider: Provider, mode: Mode) -> Result<Value, Error> {
+    fn block(&self, config: &ProviderConfig) -> Result<Value, Error> {
+        let provider = config.provider();
+        let mode = config.mode();
         let unsupported = || {
             Error::Configuration(format!(
                 "unsupported {} attachment or source for {provider} in {mode:?}",
@@ -87,16 +89,22 @@ impl Media {
                 };
                 Ok(json!({"type":kind,"source":value}))
             }
-            Provider::OpenAI if mode == Mode::ResponsesTools => match (kind, source) {
-                ("image", _) => {
-                    Ok(json!({"type":"input_image","image_url":self.url_or_data_uri()}))
+            _ if config.uses_responses()
+                && !(provider == Provider::OpenRouter && kind == "audio") =>
+            {
+                match (kind, source) {
+                    ("image", _) => {
+                        Ok(json!({"type":"input_image","image_url":self.url_or_data_uri()}))
+                    }
+                    ("document", Source::Url(url)) => {
+                        Ok(json!({"type":"input_file","file_url":url}))
+                    }
+                    ("document", Source::Base64(_)) => Ok(
+                        json!({"type":"input_file","filename":"document.pdf","file_data":self.url_or_data_uri()}),
+                    ),
+                    _ => Err(unsupported()),
                 }
-                ("document", Source::Url(url)) => Ok(json!({"type":"input_file","file_url":url})),
-                ("document", Source::Base64(_)) => Ok(
-                    json!({"type":"input_file","filename":"document.pdf","file_data":self.url_or_data_uri()}),
-                ),
-                _ => Err(unsupported()),
-            },
+            }
             Provider::OpenAI | Provider::OpenRouter => match (kind, source) {
                 ("image", _) => {
                     Ok(json!({"type":"image_url","image_url":{"url":self.url_or_data_uri()}}))
@@ -129,11 +137,11 @@ impl Media {
 }
 
 pub(crate) fn content(
-    provider: Provider,
-    mode: Mode,
+    config: &ProviderConfig,
     text: &str,
     attachments: &[Media],
 ) -> Result<Value, Error> {
+    let provider = config.provider();
     if attachments.is_empty() && provider != Provider::Google {
         return Ok(json!(text));
     }
@@ -141,14 +149,14 @@ pub(crate) fn content(
     if !text.is_empty() || attachments.is_empty() {
         parts.push(match provider {
             Provider::Google => json!({"text":text}),
-            Provider::OpenAI if mode == Mode::ResponsesTools => {
+            _ if config.uses_responses() => {
                 json!({"type":"input_text","text":text})
             }
             _ => json!({"type":"text","text":text}),
         });
     }
     for media in attachments {
-        parts.push(media.block(provider, mode)?);
+        parts.push(media.block(config)?);
     }
     Ok(parts.into())
 }

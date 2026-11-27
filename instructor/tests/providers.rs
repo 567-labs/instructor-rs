@@ -5,6 +5,8 @@ mod complexity;
 mod generation;
 #[path = "providers/parallel.rs"]
 mod parallel;
+#[path = "providers/responses.rs"]
+mod responses;
 #[path = "providers/strictness.rs"]
 mod strictness;
 #[path = "providers/usage.rs"]
@@ -43,6 +45,7 @@ fn model_id(p: Provider) -> &'static str {
 
 fn config(server: &Server, p: Provider, mode: Mode) -> ProviderConfig {
     ProviderConfig::new(p, model_id(p), "fake-key")
+        .with_chat_completions()
         .with_base_url(format!("{}/base/", server.url()))
         .with_mode(mode)
 }
@@ -969,8 +972,9 @@ async fn responses_uses_input_and_named_tool_with_aligned_text_format() {
         parse_completion::<Person>(provider, Mode::ResponsesTools, &envelope, &Value::Null)
     };
     assert_eq!(reparse(Provider::OpenAI).unwrap(), p);
+    assert_eq!(reparse(Provider::OpenRouter).unwrap(), p);
     assert!(matches!(
-        reparse(Provider::OpenRouter),
+        reparse(Provider::Anthropic),
         Err(Error::Configuration(_))
     ));
     endpoint.assert_async().await;

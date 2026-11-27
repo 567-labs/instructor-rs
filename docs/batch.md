@@ -4,9 +4,9 @@ Use `client.batch::<T>()` to prepare requests sharing a response type and submit
 
 | Provider | Default batch mode | Status for retrieval |
 | --- | --- | --- |
-| OpenAI | `JsonSchema` | `completed`, plus available files from `cancelled` or `expired` jobs |
+| OpenAI | Responses with `JsonSchema` | `completed`, plus available files from `cancelled` or `expired` jobs |
 | Anthropic | `Tools` | `ended` |
-| Mistral | `JsonSchema` | `SUCCESS` |
+| Mistral | Chat Completions with `JsonSchema` | `SUCCESS` |
 
 ## Prepare, submit, and retrieve
 
@@ -26,6 +26,12 @@ For Claude, use `anthropic/claude-haiku-5-5` with `ANTHROPIC_API_KEY` for each c
 ```
 
 `batch.prepare` accepts prompts or `BatchItem` values. You can construct an item with a `Request` to include provider options per record. The generated IDs start at `request-0`. Use `.id(...)` to carry identifiers from your dataset. Preparation checks IDs before submission. To save input atomically for a later submission, use `batch.prepare_file(requests, path)?` and read it with `std::fs::read_to_string`. For OpenAI or Mistral JSON Schema mode, `batch.strict(false)` permits open-ended maps.
+
+## Work with OpenAI batch files
+
+New OpenAI requests use `/v1/responses` with the prompt in `input` and the schema in `text.format`. Set `Request::new(prompt).option("max_output_tokens", 2000)` to override the default limit of 1,000 tokens. Set `.strict(false)` on an individual request to allow a flexible schema for that record.
+
+To submit a saved Chat Completions JSONL file, pass its contents directly to `batch.submit`. Each row's `url` determines the job endpoint, and all rows in a file must agree. The batch parser reads saved results from both APIs. To prepare new Chat Completions files, pass a configuration built with `ProviderConfig::from_env(model)?.with_chat_completions()` to `Client::new` or `BlockingClient::new`. [OpenAI Batch guide](https://developers.openai.com/api/docs/guides/batch/)
 
 ## Recover individual successes and failures
 

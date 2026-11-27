@@ -6,7 +6,16 @@ use super::*;
 fn routes() -> impl Iterator<Item = (Provider, Mode)> {
     PROVIDERS
         .into_iter()
-        .map(|p| (p, p.default_mode()))
+        .map(|p| {
+            (
+                p,
+                if p == Provider::Google {
+                    Mode::JsonSchema
+                } else {
+                    Mode::Tools
+                },
+            )
+        })
         .chain([(Provider::OpenAI, Mode::ResponsesTools)])
 }
 

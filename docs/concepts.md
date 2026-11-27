@@ -73,7 +73,7 @@ async fn main() -> Result<(), Error> {
 
 ## Check text with a model
 
-`validate_text` sends a candidate and rule to the configured generation model. A passing check returns the original text. When overrides are enabled, a rejected candidate can produce the model's suggested replacement. Returning the replacement ends the check. If the rule fails without a permitted replacement, the call returns `Error::Validation`. A rule can be a string, or a `TextRule` with options. Claude uses the model’s default sampling. For other providers, `TextRule` sets the temperature to `0.0`. Use `.temperature(None)` to select the model’s default.
+`validate_text` sends a candidate and rule to the configured generation model. A passing check returns the original text. When overrides are enabled, a rejected candidate can produce the model's suggested replacement. Returning the replacement ends the check. If the rule fails without a permitted replacement, the call returns `Error::Validation`. A rule can be a string, or a `TextRule` with options. By default, validation uses the model’s sampling settings. If your model supports a temperature, specify it with `.temperature(Some(0.2))`.
 
 `moderate_text` calls OpenAI's moderation endpoint with `omni-moderation-latest`. Flagged text returns a validation error describing the categories. The following example performs two requests on success.
 
@@ -153,8 +153,7 @@ Each `Option<u64>` tracks one counter. `Some(0)` represents a known zero. `None`
 
 | Provider | How to interpret the counts |
 | --- | --- |
-| OpenAI Chat, OpenRouter, Mistral | Prompt and completion counts map to input and output. Prompt details can supply `cache_read_tokens` and `cache_write_tokens`. Completion details can supply `reasoning_tokens`. |
-| OpenAI Responses | Input and output fields map directly, including cache and reasoning details. |
+| OpenAI, OpenRouter, Mistral | Responses reports input and output counts directly. Token details can supply `cache_read_tokens`, `cache_write_tokens`, and `reasoning_tokens`. For Chat Completions, prompt and completion counts map to input and output. |
 | Anthropic | Input includes uncached input plus reported cache reads and creation. For 60 uncached, 10 read, 30 created and 50 output, total usage is 150. The 5-minute and 1-hour portions of creation are available as `cache_write_5m_tokens` and `cache_write_1h_tokens`. Output includes thinking. |
 | Gemini | Input includes cached content. Output includes candidate and thought tokens. |
 | Cohere | Input and output come from `usage.tokens`. The raw response carries billed units separately. |
@@ -171,7 +170,7 @@ To manage registrations on a mutable client, save the handle returned by `add_ho
 use instructor_ai::{BlockingClient, Error, Event, Request};
 
 fn main() -> Result<(), Error> {
-    let client = BlockingClient::from_provider("openrouter/google/gemini-3.8-flash")?
+    let client = BlockingClient::from_provider("openrouter/openai/gpt-6.2-sol")?
         .with_cache(16)
         .on_event(|attempt, event| match event {
             Event::Usage { total_tokens } => eprintln!("Attempt {attempt}, tokens {total_tokens}"),
