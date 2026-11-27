@@ -10,7 +10,7 @@
 //! }
 //!
 //! # async fn example() -> Result<(), instructor_ai::Error> {
-//! let client = from_provider("openai/gpt-4.1-mini")?;
+//! let client = from_provider("openai/gpt-6-luna")?;
 //! let person: Person = client.create("Ada is 36").await?;
 //! assert_eq!(person.age, 36);
 //! # Ok(())

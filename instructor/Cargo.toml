@@ -13,7 +13,7 @@ license = "MIT OR Apache-2.0"
 changelog = "CHANGELOG.md"
 
 [features]
-default = ["legacy-openai"]
+default = []
 legacy-openai = ["dep:openai-api-rs"]
 
 [dependencies]
