@@ -114,7 +114,7 @@ impl Generation {
             (_, Mode::ResponsesTools) => req.option("max_output_tokens", 2048),
             (Provider::OpenAI, _) => req.option("max_completion_tokens", 2048),
             (Provider::Google, _) => {
-                req.option("generationConfig", json!({"maxOutputTokens":2048}))
+                req.option("generation_config", json!({"max_output_tokens":2048}))
             }
             _ => req.option("max_tokens", 2048),
         };

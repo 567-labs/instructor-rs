@@ -19,8 +19,8 @@ fn native_usage(p: Provider, mode: Mode, n: u64) -> Value {
             "output_tokens_details": {"reasoning_tokens": 15*n}
         }),
         Provider::Google => json!({
-            "promptTokenCount": 100*n, "candidatesTokenCount": 35*n,
-            "thoughtsTokenCount": 15*n, "cachedContentTokenCount": 10*n, "totalTokenCount": 150*n
+            "total_input_tokens": 90*n, "total_tool_use_tokens": 10*n, "total_output_tokens": 35*n,
+            "total_thought_tokens": 15*n, "total_cached_tokens": 10*n, "total_tokens": 150*n
         }),
         Provider::Cohere => json!({
             "tokens": {"input_tokens": 100*n, "output_tokens": 50*n},
@@ -67,19 +67,14 @@ async fn seven_routes_accumulate_reasks_and_keep_original_raw_usage() {
         .into_iter()
         .chain([(Provider::OpenAI, Mode::ResponsesTools)])
     {
-        let key = if p == Provider::Google {
-            "usageMetadata"
-        } else {
-            "usage"
-        };
         let mut invalid = completion(p, mode, json!({}));
-        invalid[key] = native_usage(p, mode, 1);
+        invalid["usage"] = native_usage(p, mode, 1);
         let first = mock(&mut server, p, mode, false)
             .with_body(invalid.to_string())
             .create_async()
             .await;
         let mut valid = completion(p, mode, person());
-        valid[key] = native_usage(p, mode, 2);
+        valid["usage"] = native_usage(p, mode, 2);
         let second = mock(&mut server, p, mode, false)
             .with_body(valid.to_string())
             .create_async()

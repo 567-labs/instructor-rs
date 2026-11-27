@@ -9,7 +9,7 @@ Choose the service that runs your model and set its API key in your application'
 | OpenAI | `openai/gpt-6-luna` | `OPENAI_API_KEY` | `JsonSchema` | `/v1/responses` |
 | Anthropic | `anthropic/claude-haiku-5-5` | `ANTHROPIC_API_KEY` | `Tools` | `/v1/messages` |
 | OpenRouter | `openrouter/openai/gpt-6.2-sol` | `OPENROUTER_API_KEY` | `JsonSchema` | `/api/v1/responses` |
-| Google Gemini | `google/gemini-3.8-flash` | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `JsonSchema` | `/v1beta/models/{model}:generateContent` |
+| Google Gemini | `google/gemini-4-hydrogen` | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `JsonSchema` | `/v1/interactions` |
 | Cohere | `cohere/command-a-plus-05-2026` | `COHERE_API_KEY` | `Tools` | `/v2/chat` |
 | Mistral | `mistral/mistral-large-4` | `MISTRAL_API_KEY` | `JsonSchema` | `/v1/responses` |
 
@@ -21,7 +21,7 @@ cargo run -p instructor-ai --example stream_partial -- anthropic/claude-haiku-5-
 cargo run -p instructor-ai --example stream_iterable -- openrouter/openai/gpt-6.2-sol
 ```
 
-The `gemini/` prefix is an alias for `google/`. Both use the Gemini Developer API, with `GOOGLE_API_KEY` taking precedence. Gemini streams via `:streamGenerateContent?alt=sse`. The other APIs select streaming through a field in the request body.
+The `gemini/` prefix is an alias for `google/`. Both use the Gemini Developer API, with `GOOGLE_API_KEY` taking precedence. The client sets `stream` in the request body for incremental results.
 
 ## Choose an output mode
 
@@ -146,9 +146,20 @@ fn main() -> Result<(), Error> {
 
 For Jev via OpenRouter, use the Decisions client with a decision model. [Jev on OpenRouter](decisions.md)
 
-## Gemini, Cohere, and Mistral
+## Gemini
 
-- **Gemini** sends text incrementally in `JsonSchema` mode. Its tool mode returns function arguments as an object, so previews can arrive together. Pass generation settings under `generationConfig`, for example `.option("generationConfig", serde_json::json!({"maxOutputTokens": 2048}))`.
+The Gemini Developer API uses `POST /v1/interactions` for every output mode. Google recommends Interactions for new applications and made the stable `v1` version the SDK default in November 2026. The default `JsonSchema` mode supplies a JSON Schema in `response_format`. Set `Mode::Tools` for function calls, including parallel extraction. [API versions](https://aistudio.google.com/api-reference/api-versions) · [Interaction reference](https://aistudio.google.com/api-reference/interactions-api) · [Gemini 4 Hydrogen](https://aistudio.google.com/docs/models/gemini-4-hydrogen)
+
+Use `.option("generation_config", serde_json::json!({"thinking_level":"low"}))` to configure thinking on Hydrogen. To migrate a `generationConfig.maxOutputTokens` setting, supply `generation_config.max_output_tokens`, which caps both thinking and answer tokens. For native history, pass interaction steps to `Request::native_messages`. Typed messages build these steps for you. Requests default to `store: false` and replay the model's signed steps with validation feedback on retries. Saved `generateContent` completions remain readable through `parse_completion`. [Migration guide](https://aistudio.google.com/docs/migrate-to-interactions) · [Stateless function calling](https://aistudio.google.com/docs/function-calling#stateless-function-calling)
+
+Run the partial example to see fields arrive from text deltas. In tool mode the client reads argument deltas from the selected function call. The final value requires both the end of the selected step and a successful interaction status. A `requires_continuation` status produces `Error::Incomplete`. [Streaming events](https://aistudio.google.com/docs/streaming)
+
+```sh
+cargo run -p instructor-ai --example stream_partial -- google/gemini-4-hydrogen
+```
+
+## Cohere and Mistral
+
 - **Cohere** uses the v2 Chat API and a native required tool call in `Tools` mode. Select a model that supports `tool_choice`. [Cohere models](https://docs.cohere.com/v2/docs/models)
 - **Mistral** uses stateless Responses for generation and streaming. Use a vision-capable model for images or PDFs. Its batch service accepts Chat Completions requests, which Instructor prepares when you call `batch`. [Mistral Responses](https://docs.mistral.ai/inference/conversations/responses) · [Mistral batch service](https://docs.mistral.ai/api/endpoint/batch)
 

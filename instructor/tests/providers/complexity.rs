@@ -22,10 +22,8 @@ fn routes() -> impl Iterator<Item = (Provider, Mode)> {
 fn params(body: &Value, provider: Provider, mode: Mode) -> &Value {
     match (provider, mode) {
         (_, Mode::ResponsesTools) => &body["tools"][0]["parameters"],
-        (Provider::Google, Mode::JsonSchema) => &body["generationConfig"]["responseJsonSchema"],
-        (Provider::Google, Mode::Tools) => {
-            &body["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"]
-        }
+        (Provider::Google, Mode::JsonSchema) => &body["response_format"]["schema"],
+        (Provider::Google, Mode::Tools) => &body["tools"][0]["parameters"],
         (Provider::Anthropic, _) => &body["tools"][0]["input_schema"],
         _ => &body["tools"][0]["function"]["parameters"],
     }

@@ -155,7 +155,7 @@ Each `Option<u64>` tracks one counter. `Some(0)` represents a known zero. `None`
 | --- | --- |
 | OpenAI, OpenRouter, Mistral | Responses reports input and output counts directly. Token details can supply `cache_read_tokens`, `cache_write_tokens`, and `reasoning_tokens`. For Chat Completions, prompt and completion counts map to input and output. |
 | Anthropic | Input includes uncached input plus reported cache reads and creation. For 60 uncached, 10 read, 30 created and 50 output, total usage is 150. The 5-minute and 1-hour portions of creation are available as `cache_write_5m_tokens` and `cache_write_1h_tokens`. Output includes thinking. |
-| Gemini | Input includes cached content. Output includes candidate and thought tokens. |
+| Gemini | Input includes prompt and tool-use tokens, with cached tokens counted within the prompt. Output includes answer and thought tokens. [Gemini token counts](https://aistudio.google.com/docs/tokens) |
 | Cohere | Input and output come from `usage.tokens`. The raw response carries billed units separately. |
 
 Cache and reasoning counts describe portions of the inclusive counts. Use `total_tokens` to avoid counting those portions twice. Run `cargo test --offline -p instructor-ai --test providers usage::` for loopback examples covering all six providers and both OpenAI routes. [Python usage](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/usage.md) · [Python accounting tests](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/tests/test_usage_accounting_contracts.py)

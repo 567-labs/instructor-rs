@@ -137,19 +137,19 @@ impl ProviderConfig {
                     "attachments require a user message".into(),
                 ));
             }
-            let (role, field) = match (self.provider, role) {
+            let (field, role) = match (self.provider, role) {
                 (Provider::Google | Provider::Anthropic, "system" | "developer") => {
                     system.push(msg);
                     continue;
                 }
-                (Provider::Google, "assistant") => ("model", "parts"),
-                (Provider::Google, _) => ("user", "parts"),
+                (Provider::Google, "assistant") => ("type", "model_output"),
+                (Provider::Google, _) => ("type", "user_input"),
                 (provider, "developer")
                     if !self.uses_responses() && provider != Provider::OpenAI =>
                 {
-                    ("system", "content")
+                    ("role", "system")
                 }
-                (_, role) => (role, "content"),
+                (_, role) => ("role", role),
             };
             let mut content = crate::media::content(self, content, attachments)?;
             if let Some(ttl) = msg.cache_control {
@@ -162,7 +162,10 @@ impl ProviderConfig {
                     last["cache_control"] = cache_control(ttl);
                 }
             }
-            messages.push(Value::from_iter([("role", role.into()), (field, content)]));
+            messages.push(Value::from_iter([
+                (field, role.into()),
+                ("content", content),
+            ]));
         }
         if !req.native.is_empty() {
             if !req.native.iter().all(Value::is_object) {
@@ -180,10 +183,19 @@ impl ProviderConfig {
         } else if req.messages.is_empty() || messages.is_empty() {
             return Err(Error::Configuration("Expected at least one message".into()));
         }
+        body["stream"] = stream.into();
         if self.provider == Provider::Google {
-            body["contents"] = messages.into();
+            body["model"] = self
+                .model
+                .strip_prefix("models/")
+                .unwrap_or(&self.model)
+                .into();
+            body["input"] = messages.into();
+            if body.get("store").is_none() {
+                body["store"] = false.into();
+            }
             if !system.is_empty() {
-                body["systemInstruction"] = json!({"parts":[{"text":system_prompt(&system)}]});
+                body["system_instruction"] = system_prompt(&system);
             }
         } else {
             if self.uses_responses() {
@@ -193,7 +205,6 @@ impl ProviderConfig {
                 body["messages"] = messages.into();
             }
             body["model"] = json!(self.model);
-            body["stream"] = json!(stream);
             if self.provider == Provider::Anthropic {
                 if body.get("max_tokens").is_none() {
                     body["max_tokens"] = json!(1024);
@@ -216,7 +227,7 @@ impl ProviderConfig {
             self.set_output(&mut body, schema, strict)?;
         }
         Ok(WireRequest {
-            url: self.endpoint(stream),
+            url: self.endpoint(),
             headers: self.headers(stream)?,
             body,
         })
@@ -301,7 +312,7 @@ impl ProviderConfig {
         Ok(())
     }
 
-    fn endpoint(&self, stream: bool) -> String {
+    fn endpoint(&self) -> String {
         let base = self.base_url.trim_end_matches('/');
         match self.provider {
             _ if self.uses_responses() => format!("{base}/responses"),
@@ -310,15 +321,7 @@ impl ProviderConfig {
             }
             Provider::Anthropic => format!("{base}/messages"),
             Provider::Cohere => format!("{base}/chat"),
-            Provider::Google => {
-                let model = self.model.strip_prefix("models/").unwrap_or(&self.model);
-                let method = if stream {
-                    "streamGenerateContent?alt=sse"
-                } else {
-                    "generateContent"
-                };
-                format!("{base}/models/{model}:{method}")
-            }
+            Provider::Google => format!("{base}/interactions"),
         }
     }
 
@@ -367,7 +370,7 @@ impl ProviderConfig {
             Mode::Json => match self.provider {
                 Provider::Anthropic => (),
                 Provider::Google => {
-                    body["generationConfig"]["responseMimeType"] = json!("application/json")
+                    body["response_format"] = json!({"type":"text","mime_type":"application/json"})
                 }
                 _ => body["response_format"] = json!({"type":"json_object"}),
             },
@@ -375,12 +378,10 @@ impl ProviderConfig {
                 let mut params = crate::schema::tool_parameters(schema);
                 match self.provider {
                     Provider::Google => {
-                        body["tools"] = json!([{"functionDeclarations":[{
-                            "name":name,"description":description
-                        }]}]);
-                        body["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"] =
-                            params;
-                        body["toolConfig"] = json!({"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":[name]}});
+                        body["tools"] =
+                            json!([{"type":"function","name":name,"description":description}]);
+                        body["tools"][0]["parameters"] = params;
+                        body["generation_config"]["tool_choice"] = json!("any");
                     }
                     Provider::Anthropic => {
                         body["tools"] = json!([{"name":name,"description":description}]);
@@ -417,9 +418,9 @@ impl ProviderConfig {
                 }
                 match self.provider {
                     Provider::Google => {
-                        let config = &mut body["generationConfig"];
-                        config["responseMimeType"] = json!("application/json");
-                        config["responseJsonSchema"] = schema;
+                        body["response_format"] =
+                            json!({"type":"text","mime_type":"application/json"});
+                        body["response_format"]["schema"] = schema;
                     }
                     Provider::Cohere => {
                         body["response_format"] = json!({"type":"json_object"});
@@ -530,7 +531,7 @@ fn check_options(options: &Value, config: &ProviderConfig) -> Result<(), Error> 
         "output_format",
         "functions",
         "function_call",
-        "generation_config",
+        "generationConfig",
     ] {
         if options.get(key).is_some() {
             return Err(Error::Configuration(format!(
@@ -539,18 +540,7 @@ fn check_options(options: &Value, config: &ProviderConfig) -> Result<(), Error> 
         }
     }
     for (root, keys) in [
-        (
-            "generationConfig",
-            &[
-                "responseMimeType",
-                "responseJsonSchema",
-                "responseSchema",
-                "response_mime_type",
-                "response_json_schema",
-                "response_schema",
-                "_responseJsonSchema",
-            ][..],
-        ),
+        ("generation_config", &["tool_choice"][..]),
         ("output_config", &["format"][..]),
         ("text", &["format"][..]),
     ] {
@@ -567,17 +557,11 @@ fn check_options(options: &Value, config: &ProviderConfig) -> Result<(), Error> 
             }
         }
     }
-    for pointer in [
-        "/n",
-        "/generationConfig/candidateCount",
-        "/generationConfig/candidate_count",
-    ] {
-        if let Some(n) = options.pointer(pointer) {
-            if n.as_u64() != Some(1) {
-                return Err(Error::Configuration(
-                    "Expected a single completion candidate".into(),
-                ));
-            }
+    if let Some(n) = options.get("n") {
+        if n.as_u64() != Some(1) {
+            return Err(Error::Configuration(
+                "Expected a single completion candidate".into(),
+            ));
         }
     }
     Ok(())

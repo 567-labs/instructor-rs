@@ -128,7 +128,7 @@ impl Request {
     }
 
     /// Start with provider-native history. Each object is copied verbatim into
-    /// messages, Gemini contents, or OpenAI Responses input, without template
+    /// messages, Gemini interaction steps, or OpenAI Responses input, without template
     /// rendering. Items added to the typed messages vector follow this history.
     /// Use a typed system message for Anthropic or Gemini system instructions.
     pub fn native_messages(items: Vec<Value>) -> Self {

@@ -55,7 +55,7 @@ impl TokenUsage {
 
     /// Normalize the usage in a single native response envelope.
     pub fn from_response(provider: Provider, raw: &Value) -> Self {
-        let key = if provider == Provider::Google {
+        let key = if provider == Provider::Google && raw.get("usageMetadata").is_some() {
             "usageMetadata"
         } else {
             "usage"
@@ -108,6 +108,23 @@ impl TokenUsage {
                     cache_write_5m_tokens: five_minutes,
                     cache_write_1h_tokens: one_hour,
                     reasoning_tokens: usage["output_tokens_details"]["thinking_tokens"].as_u64(),
+                    ..Self::default()
+                }
+            }
+            Provider::Google if key == "usage" => {
+                let thoughts = &usage["total_thought_tokens"];
+                Self {
+                    input_tokens: sum(
+                        usage["total_input_tokens"].as_u64(),
+                        optional_component(&usage["total_tool_use_tokens"]),
+                    ),
+                    output_tokens: sum(
+                        usage["total_output_tokens"].as_u64(),
+                        optional_component(thoughts),
+                    ),
+                    total_tokens: usage["total_tokens"].as_u64(),
+                    cache_read_tokens: usage["total_cached_tokens"].as_u64(),
+                    reasoning_tokens: thoughts.as_u64(),
                     ..Self::default()
                 }
             }

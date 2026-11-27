@@ -65,8 +65,7 @@ fn tool(mode: Mode) -> bool {
 
 fn mock(server: &mut Server, p: Provider, mode: Mode, stream: bool) -> Mock {
     let path = match p {
-        Provider::Google if stream => "/base/models/model:streamGenerateContent?alt=sse",
-        Provider::Google => "/base/models/model:generateContent",
+        Provider::Google => "/base/interactions",
         Provider::Anthropic => "/base/messages",
         Provider::Cohere => "/base/chat",
         Provider::OpenAI if mode == Mode::ResponsesTools => "/base/responses",
@@ -114,16 +113,16 @@ fn structured_request(p: Provider, mode: Mode, stream: bool, name: &str) -> Valu
     ]});
     match p {
         Provider::Google => {
-            body = json!({"contents":[{"role":"model","parts":[{"text":"Ready"}]},{"role":"user","parts":[{"text":"Renée is 41"}]}],
-                "systemInstruction":{"parts":[{"text":"Extract"}]}});
+            body = json!({"model":"model","stream":stream,"store":false,"input":[
+                {"type":"model_output","content":[{"type":"text","text":"Ready"}]},
+                {"type":"user_input","content":[{"type":"text","text":"Renée is 41"}]}
+            ],"system_instruction":"Extract"});
             if tool(mode) {
-                body["tools"] =
-                    json!([{"functionDeclarations":[{"name":name,"parametersJsonSchema":shape}]}]);
-                body["toolConfig"] =
-                    json!({"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":[name]}});
+                body["tools"] = json!([{"type":"function","name":name,"parameters":shape}]);
+                body["generation_config"] = json!({"tool_choice":"any"});
             } else {
-                body["generationConfig"] =
-                    json!({"responseMimeType":"application/json","responseJsonSchema":shape});
+                body["response_format"] =
+                    json!({"type":"text","mime_type":"application/json","schema":shape});
             }
         }
         Provider::Anthropic => {
@@ -171,12 +170,18 @@ fn named_completion(p: Provider, mode: Mode, name: &str, args: Value) -> Value {
         Provider::Anthropic => json!({"stop_reason":"end_turn","content":[
             {"type":"thinking","thinking":"…","signature":"opaque"},{"type":"text","text":args.to_string()}]}),
         Provider::Google => {
-            let part = if tool(mode) {
-                json!({"functionCall":{"name":name,"args":args},"thoughtSignature":"opaque"})
+            let (status, step) = if tool(mode) {
+                (
+                    "requires_action",
+                    json!({"type":"function_call","id":"fc_1","name":name,"arguments":args}),
+                )
             } else {
-                json!({"text":args.to_string()})
+                (
+                    "completed",
+                    json!({"type":"model_output","content":[{"type":"text","text":args.to_string()}]}),
+                )
             };
-            json!({"candidates":[{"content":{"role":"model","parts":[{"thought":true,"text":"thinking"},part]},"finishReason":"STOP"}]})
+            json!({"status":status,"steps":[{"type":"thought","signature":"opaque"},step]})
         }
         Provider::Cohere if tool(mode) => {
             json!({"finish_reason":"TOOL_CALL","message":{"tool_plan":"…","tool_calls":[call]}})
@@ -253,20 +258,30 @@ fn events(p: Provider, mode: Mode, name: &str, fragments: &[&str]) -> String {
             );
         }
         Provider::Google => {
-            send(json!({"candidates":[{"content":{"parts":[{"thought":true,"text":"…"}]}}]}));
-            if tool(mode) {
-                let args: Value = serde_json::from_str(&fragments.concat()).unwrap();
-                send(
-                    json!({"candidates":[{"content":{"parts":[{"functionCall":{"name":name,"args":args}}]}}]}),
-                );
-            } else {
-                for s in fragments {
-                    send(json!({"candidates":[{"content":{"parts":[{"text":s}]}}]}));
-                }
-            }
+            send(json!({"event_type":"step.start","index":0,"step":{"type":"thought"}}));
             send(
-                json!({"candidates":[{"finishReason":"STOP"}],"usageMetadata":{"totalTokenCount":10}}),
+                json!({"event_type":"step.delta","index":0,"delta":{"type":"thought_summary","content":{"type":"text","text":"ignore"}}}),
             );
+            send(json!({"event_type":"step.stop","index":0}));
+            let (status, step) = if tool(mode) {
+                (
+                    "requires_action",
+                    json!({"type":"function_call","name":name,"arguments":{}}),
+                )
+            } else {
+                ("completed", json!({"type":"model_output"}))
+            };
+            send(json!({"event_type":"step.start","index":1,"step":step}));
+            for fragment in fragments {
+                let delta = if tool(mode) {
+                    json!({"type":"arguments_delta","arguments":fragment})
+                } else {
+                    json!({"type":"text","text":fragment})
+                };
+                send(json!({"event_type":"step.delta","index":1,"delta":delta}));
+            }
+            send(json!({"event_type":"step.stop","index":1}));
+            send(json!({"event_type":"interaction.completed","interaction":{"status":status}}));
         }
         Provider::Anthropic => {
             send(json!({"type":"message_start","message":{"role":"assistant","content":[]}}));
@@ -433,9 +448,7 @@ async fn fragmented_native_streams_yield_typed_partials_then_complete() {
             let stream = client.create_partial::<Person>(request()).await;
             endpoint.assert_async().await;
             let items: Vec<_> = stream.unwrap().try_collect().await.unwrap();
-            if p != Provider::Google || !tool(mode) {
-                assert!(items.iter().any(|item|matches!(item,PartialEvent::Partial(part) if part.name.as_deref()==Some("Renée") && part.age.is_none())), "{p} {mode:?}");
-            }
+            assert!(items.iter().any(|item|matches!(item,PartialEvent::Partial(part) if part.name.as_deref()==Some("Renée") && part.age.is_none())), "{p} {mode:?}");
             assert!(
                 matches!(items.last(),Some(PartialEvent::Complete(model)) if model.name=="Renée" && model.age==41)
             );
@@ -523,9 +536,9 @@ async fn native_tool_retries_replay_correlated_messages_and_preserve_signatures(
                 json!([{"type":"reasoning.encrypted","data":"opaque"}]);
         }
         let request_body = match p {
-            Provider::Google => json!({"contents":[
-                {"role":"user"},invalid["candidates"][0]["content"],
-                {"role":"user","parts":[{"functionResponse":{"name":"Person","response":{}}}]}]}),
+            Provider::Google => json!({"input":[
+                {"type":"user_input"},invalid["steps"][0],invalid["steps"][1],
+                {"type":"function_result","name":"Person","call_id":"fc_1","is_error":true,"result":[{"type":"text"}]}]}),
             Provider::Anthropic => json!({"messages":[
                 {"role":"user"},{"role":"assistant","content":invalid["content"]},
                 {"role":"user","content":[{"type":"tool_result","tool_use_id":"tool_1","is_error":true}]}]}),
@@ -567,7 +580,6 @@ async fn all_provider_token_budgets_count_native_usage_for_failed_attempts() {
     for p in PROVIDERS {
         let mut invalid = completion(p, p.default_mode(), json!({}));
         match p {
-            Provider::Google => invalid["usageMetadata"] = json!({"totalTokenCount":100}),
             Provider::Anthropic => {
                 invalid["usage"] = json!({"input_tokens":60,"output_tokens":10,"cache_creation_input_tokens":25,"cache_read_input_tokens":5})
             }
@@ -598,7 +610,7 @@ async fn all_providers_flag_truncation_even_for_parseable_json() {
     for p in PROVIDERS {
         let mut raw = completion(p, p.default_mode(), person());
         match p {
-            Provider::Google => raw["candidates"][0]["finishReason"] = json!("MAX_TOKENS"),
+            Provider::Google => raw["status"] = json!("incomplete"),
             Provider::Anthropic => raw["stop_reason"] = json!("max_tokens"),
             Provider::Cohere => raw["finish_reason"] = json!("MAX_TOKENS"),
             _ => raw["choices"][0]["finish_reason"] = json!("length"),
@@ -623,8 +635,8 @@ async fn errors_after_provisional_output_are_terminal_and_skip_complete() {
         let json = r#"{"name":"Renée","age":"#;
         let (content, stop) = match p {
             Provider::Google => (
-                json!({"candidates":[{"content":{"parts":[{"text":json}]}}]}),
-                json!({"candidates":[{"finishReason":"MAX_TOKENS"}]}),
+                json!({"event_type":"step.delta","index":0,"delta":{"type":"text","text":json}}),
+                json!({"event_type":"interaction.completed","interaction":{"status":"incomplete"}}),
             ),
             Provider::Cohere => (
                 json!({"type":"content-delta","delta":{"message":{"content":{"text":json}}}}),
@@ -639,8 +651,13 @@ async fn errors_after_provisional_output_are_terminal_and_skip_complete() {
                 json!({"choices":[{"delta":{},"finish_reason":"length"}]}),
             ),
         };
+        let start = if p == Provider::Google {
+            frame(&json!({"event_type":"step.start","index":0,"step":{"type":"model_output"}}))
+        } else {
+            String::new()
+        };
         let endpoint = mock(&mut server, p, Mode::JsonSchema, true)
-            .with_body(frame(&content) + &frame(&stop))
+            .with_body(start + &frame(&content) + &frame(&stop))
             .create_async()
             .await;
         let client = Client::new(config(&server, p, Mode::JsonSchema)).unwrap();
@@ -1115,10 +1132,10 @@ async fn native_history_is_preserved_before_retries_and_after_schema_instruction
                 ],
             ),
             (Provider::Google, _) => (
-                "contents",
+                "input",
                 vec![
-                    json!({"role":"model","parts":[{"functionCall":{"name":"Lookup","args":{}},"thoughtSignature":"opaque"}]}),
-                    json!({"role":"user","parts":[{"functionResponse":{"name":"Lookup","response":{"value":"{{literal}}"}}}]}),
+                    json!({"type":"function_call","id":"fc_1","name":"Lookup","arguments":{},"signature":"opaque"}),
+                    json!({"type":"function_result","call_id":"fc_1","name":"Lookup","result":[{"type":"text","text":"{{literal}}"}]}),
                 ],
             ),
             _ => (
@@ -1246,5 +1263,61 @@ async fn explicit_tool_choices_reach_initial_and_retry_requests() {
             m.assert_async().await;
             m.remove_async().await;
         }
+    }
+}
+
+#[test]
+fn saved_gemini_generate_content_still_decodes_and_accounts_for_usage() {
+    let p = Provider::Google;
+    assert_eq!(
+        p.default_base_url(),
+        "https://generativelanguage.googleapis.com/v1"
+    );
+    let raw = json!({"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":person().to_string()}]}}],
+        "usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":5,"thoughtsTokenCount":2}});
+    let value = parse_completion::<Person>(p, Mode::JsonSchema, &raw, &Value::Null).unwrap();
+    assert_eq!(value.age, 41);
+    let usage = instructor_ai::TokenUsage::from_response(p, &raw);
+    assert_eq!(usage.output_tokens, Some(7));
+    assert_eq!(usage.total_tokens, Some(11));
+}
+
+#[tokio::test]
+async fn gemini_stream_requires_the_selected_step_and_interaction_to_finish() {
+    let mut server = Server::new_async().await;
+    let client = Client::new(config(&server, Provider::Google, Mode::Tools)).unwrap();
+    let prefix = frame(
+        &json!({"event_type":"step.start","index":1,"step":{"type":"function_call","name":"Person","arguments":{}}}),
+    ) + &frame(
+        &json!({"event_type":"step.delta","index":1,"delta":{"type":"arguments_delta","arguments":r#"{"name":"Renée","age":"#}}),
+    ) + &frame(
+        &json!({"event_type":"step.delta","index":1,"delta":{"type":"arguments_delta","arguments":"41}"}}),
+    );
+    let complete = frame(
+        &json!({"event_type":"interaction.completed","interaction":{"status":"requires_action"}}),
+    );
+    let stop = frame(&json!({"event_type":"step.stop","index":1}));
+    for suffix in [
+        stop.clone(),
+        frame(&json!({"event_type":"step.stop","index":0})) + &complete,
+        stop + &frame(
+            &json!({"event_type":"interaction.completed","interaction":{"status":"requires_continuation"}}),
+        ),
+    ] {
+        let endpoint = mock(&mut server, Provider::Google, Mode::Tools, true)
+            .with_body(format!("{prefix}{suffix}"))
+            .create_async()
+            .await;
+        let mut stream = client.create_partial::<Person>(request()).await.unwrap();
+        assert!(matches!(
+            stream.next().await,
+            Some(Ok(PartialEvent::Partial(_)))
+        ));
+        assert!(matches!(
+            stream.next().await,
+            Some(Err(Error::Incomplete(_)))
+        ));
+        assert!(stream.next().await.is_none());
+        endpoint.assert_async().await;
     }
 }

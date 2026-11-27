@@ -399,12 +399,14 @@ fn raw_requests_carry_native_attachment_blocks() {
             Provider::Google,
             Mode::Json,
             image,
-            "/models/test:generateContent",
-            json!({"inlineData":{"mimeType":"image/png","data":"YWJj"}}),
+            "/interactions",
+            json!({"type":"image","mime_type":"image/png","data":"YWJj"}),
         ),
     ] {
         let body = match (provider, mode) {
-            (Provider::Google, _) => json!({"contents":[{"parts":[{"text":"read"},expected]}]}),
+            (Provider::Google, _) => {
+                json!({"input":[{"type":"user_input","content":[{"type":"text","text":"read"},expected]}]})
+            }
             (_, Mode::ResponsesTools) => {
                 json!({"input":[{"content":[{"type":"input_text","text":"read"},expected]}]})
             }

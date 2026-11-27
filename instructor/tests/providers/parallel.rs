@@ -32,13 +32,13 @@ fn response(provider: Provider, calls: &[(&str, Value)]) -> Value {
         let id=format!("call_{i}");
         match provider {
             Provider::Anthropic=>json!({"type":"tool_use","id":id,"name":name,"input":args}),
-            Provider::Google=>json!({"functionCall":{"name":name,"args":args}}),
+            Provider::Google=>json!({"type":"function_call","id":id,"name":name,"arguments":args}),
             _=>json!({"id":id, "type":"function","function":{"name":name,"arguments":args.to_string()}}),
         }
     }).collect();
     match provider {
         Provider::Google => {
-            json!({"candidates":[{"finishReason":"STOP","content":{"parts":calls}}]})
+            json!({"status":"requires_action","steps":calls})
         }
         Provider::Anthropic => json!({"stop_reason":"tool_use","content":calls}),
         Provider::Cohere => json!({"finish_reason":"TOOL_CALL","message":{"tool_calls":calls}}),
@@ -52,10 +52,9 @@ fn declarations(provider: Provider) -> Value {
     let fields = [("Measurement", first), ("Color", second)];
     match provider {
         Provider::Google => {
-            let declarations =
-                fields.map(|(name, params)| json!({"name":name,"parametersJsonSchema":params}));
-            json!({"tools":[{"functionDeclarations":declarations}],
-                "toolConfig":{"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":["Measurement","Color"]}}})
+            let tools = fields
+                .map(|(name, params)| json!({"type":"function","name":name,"parameters":params}));
+            json!({"tools":tools,"generation_config":{"tool_choice":"any"}})
         }
         Provider::Anthropic => {
             let tools = fields.map(|(name, params)| json!({"name":name,"input_schema":params}));

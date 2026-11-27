@@ -44,7 +44,7 @@ impl Provider {
             Self::OpenAI => "https://api.openai.com/v1",
             Self::OpenRouter => "https://openrouter.ai/api/v1",
             Self::Anthropic => "https://api.anthropic.com/v1",
-            Self::Google => "https://generativelanguage.googleapis.com/v1beta",
+            Self::Google => "https://generativelanguage.googleapis.com/v1",
             Self::Cohere => "https://api.cohere.com/v2",
             Self::Mistral => "https://api.mistral.ai/v1",
         }
