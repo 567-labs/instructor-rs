@@ -1,5 +1,5 @@
 use super::response::entries;
-use super::{Mode, Provider, ProviderConfig, WireRequest};
+use super::{Provider, ProviderConfig, WireRequest};
 use serde_json::{json, Value};
 
 impl ProviderConfig {
@@ -12,20 +12,9 @@ impl ProviderConfig {
                     google(history, &raw["candidates"][0]["content"], feedback);
                 }
             }
-            Provider::OpenAI if self.mode == Mode::ResponsesTools => {
+            _ if self.uses_responses() => {
                 if let Some(input) = wire.body["input"].as_array_mut() {
-                    // Include the previous result without depending on server-side
-                    // response storage or a replayable encrypted reasoning item.
-                    let mut text = feedback.to_owned();
-                    for item in entries(&raw["output"]) {
-                        if item["type"] == "function_call" {
-                            text.push_str(&format!(
-                                "\nPrevious call to {}: {}",
-                                item["name"], item["arguments"]
-                            ));
-                        }
-                    }
-                    input.push(user_feedback(&text));
+                    responses(input, &raw["output"], feedback);
                 }
             }
             provider => {
@@ -43,6 +32,25 @@ impl ProviderConfig {
 
 fn user_feedback(text: &str) -> Value {
     json!({"role":"user","content":text})
+}
+
+// Replay response items in order so encrypted reasoning and message phases
+// survive stateless retries. Every client function call needs a matching output.
+fn responses(input: &mut Vec<Value>, output: &Value, feedback: &str) {
+    let mut results = Vec::new();
+    for item in entries(output).filter(|i| i["type"] == "function_call") {
+        let Some(id) = item["call_id"].as_str().filter(|s| !s.is_empty()) else {
+            input.push(user_feedback(feedback));
+            return;
+        };
+        results.push(json!({"type":"function_call_output","call_id":id,"output":feedback}));
+    }
+    input.extend(entries(output).cloned());
+    if results.is_empty() {
+        input.push(user_feedback(feedback));
+    } else {
+        input.extend(results);
+    }
 }
 
 fn chat(history: &mut Vec<Value>, message: &Value, feedback: &str) {

@@ -34,7 +34,7 @@ fn config(server: &Server) -> ProviderConfig {
 fn response(text: &str, tokens: Option<u64>) -> Value {
     json!({
         "id": "raw-id",
-        "choices":[{"finish_reason":"stop","message":{"role":"assistant","content":text}}],
+        "status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":text}]}],
         "usage":{"total_tokens":tokens}
     })
 }
@@ -43,15 +43,15 @@ fn response(text: &str, tokens: Option<u64>) -> Value {
 fn reask_accumulates_usage_and_preserves_request_and_raw_response() {
     let mut server = Server::new();
     let first = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::PartialJson(
-            json!({"messages":[{"role":"user","content":"minimum 4"}],"temperature":0}),
+            json!({"input":[{"role":"user","content":"minimum 4"}],"temperature":0}),
         ))
         .with_body(response(r#"{"value":3}"#, Some(10)).to_string())
         .create();
     let raw = response(r#"{"value":8}"#, Some(5));
     let second = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::Regex("below minimum".into()))
         .with_body(raw.to_string())
         .create();
@@ -113,7 +113,7 @@ fn exact_attempt_counts_and_failed_history() {
         let mut server = Server::new();
         let expected = (retries + 1) as usize;
         let mock = server
-            .mock("POST", "/chat/completions")
+            .mock("POST", "/responses")
             .expect(expected)
             .with_body(response("broken", Some(3)).to_string())
             .create();
@@ -144,11 +144,11 @@ fn token_budget_uses_cumulative_usage_and_fails_closed() {
     ] {
         let mut server = Server::new();
         let first = server
-            .mock("POST", "/chat/completions")
+            .mock("POST", "/responses")
             .with_body(response("broken", Some(6)).to_string())
             .create();
         let second = server
-            .mock("POST", "/chat/completions")
+            .mock("POST", "/responses")
             .with_body(response("broken", last_tokens).to_string())
             .create();
         let result = BlockingClient::new(config(&server))
@@ -198,12 +198,12 @@ fn invalid_budget_and_undefined_templates_are_rejected_before_io() {
 async fn async_validator_runs_inside_the_retry_loop() {
     let mut server = Server::new_async().await;
     let first = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_body(response(r#"{"value":3}"#, None).to_string())
         .create_async()
         .await;
     let second = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::Regex("must be even".into()))
         .with_body(response(r#"{"value":8}"#, None).to_string())
         .create_async()
@@ -229,19 +229,19 @@ async fn async_validator_runs_inside_the_retry_loop() {
 async fn concurrent_calls_keep_templates_validation_and_retry_history_local() {
     let mut server = Server::new_async().await;
     let low = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::Regex("min=1".into()))
         .with_body(response(r#"{"value":2}"#, Some(7)).to_string())
         .create_async()
         .await;
     let high = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::Regex("min=9".into()))
         .with_body(response(r#"{"value":2}"#, Some(1)).to_string())
         .create_async()
         .await;
     let retry = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::Regex("min=9.*below minimum".into()))
         .with_body(response(r#"{"value":10}"#, Some(2)).to_string())
         .create_async()
@@ -275,7 +275,7 @@ async fn request_namespaces_partition_identical_prompts_on_a_shared_cache() {
     let b = default.clone().cache_namespace("team-b");
     for (req, value) in [(&default, 1), (&a, 2), (&b, 3)] {
         let mock = server
-            .mock("POST", "/chat/completions")
+            .mock("POST", "/responses")
             .with_body(response(&json!({"value":value}).to_string(), None).to_string())
             .create_async()
             .await;
@@ -311,7 +311,7 @@ fn cached_raw_completion_is_revalidated_and_bounded() {
     let mut server = Server::new();
     let raw = response(r#"{"value":7}"#, Some(2));
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .expect(5)
         .with_body(raw.to_string())
         .create();
@@ -417,6 +417,7 @@ fn raw_requests_carry_native_attachment_blocks() {
             .with_body(r#"{"custom":"field"}"#)
             .create();
         let config = ProviderConfig::new(provider, "test", "mock")
+            .with_chat_completions()
             .with_mode(mode)
             .with_base_url(server.url());
         let client = BlockingClient::new(config).unwrap();
@@ -446,19 +447,20 @@ fn malformed_or_unsupported_media_fails_before_io() {
 }
 
 fn sse(text: &str) -> String {
-    let event = json!({"choices":[{"index":0,"delta":{"content":text},"finish_reason":"stop"}]});
-    format!("data: {event}\n\ndata: [DONE]\n\n")
+    let event = json!({"type":"response.output_text.delta","delta":text});
+    let end = json!({"type":"response.completed","response":response(text,None)});
+    format!("data: {event}\n\ndata: {end}\n\n")
 }
 
 #[test]
 fn streams_retry_only_before_exposing_an_item() {
     let mut server = Server::new();
     let first = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_body(sse(r#"{"tasks":[{"value":1}]}"#))
         .create();
     let retry = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::Regex("below minimum".into()))
         .with_body(sse(r#"{"tasks":[{"value":8},{"value":1}]}"#))
         .create();
@@ -494,7 +496,7 @@ fn disk_cache_persists_only_with_matching_identity_and_namespace() {
     let mut server = Server::new();
     let response = response(r#"{"value":9}"#, None);
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .expect(4)
         .with_body(response.to_string())
         .create();
@@ -528,7 +530,7 @@ fn disk_cache_recovers_from_corrupt_records_and_expiration() {
     let dir = tempfile::tempdir().unwrap();
     let mut server = Server::new();
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .expect(4)
         .with_body(response(r#"{"value":1}"#, None).to_string())
         .create();
@@ -574,7 +576,7 @@ fn disk_cache_recovers_from_corrupt_records_and_expiration() {
 fn elapsed_limit_and_policy_predicate_stop_before_reasking() {
     let mut server = Server::new();
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .expect(2)
         .with_body(response("invalid", None).to_string())
         .create();
@@ -609,14 +611,14 @@ fn elapsed_limit_and_policy_predicate_stop_before_reasking() {
 fn custom_policy_can_retry_transient_http_errors_without_changing_the_prompt() {
     let mut server = Server::new();
     let first = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_status(429)
         .with_body(r#"{"request_id":"req_limited","code":"rate_limit_exceeded"}"#)
         .create();
     let second = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_body(Matcher::PartialJson(
-            json!({"messages":[{"role":"user","content":"query"}]}),
+            json!({"input":[{"role":"user","content":"query"}]}),
         ))
         .with_body(response(r#"{"value":4}"#, Some(3)).to_string())
         .create();
@@ -639,11 +641,11 @@ fn custom_policy_can_retry_transient_http_errors_without_changing_the_prompt() {
 fn terminal_api_failure_after_reask_preserves_history_and_emits_last_attempt() {
     let mut server = Server::new();
     let first = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_body(response("invalid", Some(9)).to_string())
         .create();
     let second = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_status(403)
         .with_header("x-request-id", "req_denied")
         .with_body(r#"{"error":{"code":"permission_denied"},"request_id":"fallback"}"#)
@@ -684,11 +686,11 @@ fn terminal_api_failure_after_reask_preserves_history_and_emits_last_attempt() {
 fn metadata_separates_cumulative_usage_from_provider_envelope_and_cached_usage() {
     let mut server = Server::new();
     let invalid = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_body(response("invalid", Some(9)).to_string())
         .create();
     let valid = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .with_body(response(r#"{"value":9}"#, Some(4)).to_string())
         .create();
     let client = BlockingClient::new(config(&server)).unwrap().with_cache(1);
@@ -709,7 +711,7 @@ async fn removing_client_hooks_preserves_concurrent_clones_and_request_hooks() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     let mut server = Server::new_async().await;
     let mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
         .match_header("x-tenant", "my-app")
         .expect(2)
         .with_body(response(r#"{"value":5}"#, Some(2)).to_string())

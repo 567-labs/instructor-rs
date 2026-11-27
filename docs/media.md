@@ -22,13 +22,14 @@ The table describes the content blocks Rust can build. Model capabilities, size 
 
 | API | Image | PDF | Audio |
 | --- | --- | --- | --- |
-| OpenAI Chat Completions | Both | Bytes | Bytes |
 | OpenAI Responses | Both | Both | Unsupported |
 | Anthropic Messages | Both | Both | Unsupported |
-| OpenRouter Chat Completions | Both | Both | Bytes |
+| OpenRouter Responses | Both | Both | Bytes |
 | Gemini | Both | Both | Both |
 | Cohere | Both | Unsupported | Unsupported |
-| Mistral | Both | Unsupported | Unsupported |
+| Mistral Responses | Both | Both | Unsupported |
+
+For an OpenAI model that accepts audio through Chat Completions, select `.with_chat_completions()` on the provider config and attach audio bytes. For PDFs on Mistral, use Responses and supply bytes or an HTTPS URL.
 
 Supported image MIME types are `image/jpeg`, `image/png`, `image/webp`, and `image/gif`. Use `application/pdf` for documents, and `audio/wav` or `audio/mpeg` for audio. The caller supplies a MIME type matching the data. Gemini sends URL sources as `fileData`, so use a URI its API accepts.
 

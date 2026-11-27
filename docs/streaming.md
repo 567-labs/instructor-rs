@@ -74,7 +74,7 @@ To replay with the original validation context, pass it as the second argument t
 Python's `client.create_iterable(response_model=Assignment, ...)` corresponds to `create_iterable::<Assignment>(request)`. Each yielded `Ok(assignment)` has passed validation, including any contextual validator. The parser can emit the first record while the model is still writing the next one. Run the blocking example with `OPENROUTER_API_KEY` set.
 
 ```sh
-cargo run -p instructor-ai --example stream_iterable -- openrouter/google/gemini-3.8-flash
+cargo run -p instructor-ai --example stream_iterable -- openrouter/openai/gpt-6.2-sol
 ```
 
 ```rust
@@ -90,4 +90,6 @@ On `BlockingClient`, consume either streaming method with a `for` loop. On `Clie
 - Drop the iterator or stream to release its upstream response early. A loop that takes ownership of the iterator drops it on exit. For a stream stored in a variable, use `drop(updates)` or let it leave scope.
 - Native modes can yield fields incrementally. In `MarkdownJson` mode, the single-model decoder waits for the end to select the last complete JSON candidate. For collections it prefers fenced values, emitting each when its enclosing object or array closes, and uses bare candidates at the end when no fence appears.
 
-The decoder accepts JSON split within strings, escapes, and nested values. A collection can be a bare array or a `{"tasks": [...]}` envelope. For tool-mode iterable streams on OpenAI Chat, OpenRouter, and Mistral, the client tracks interleaved argument fragments by call index. For a typed enum of distinct named tools, use `create_parallel`. [Parallel tools](parallel.md) · [Providers](providers.md) · [Response types](types.md) · [Python comparison](parity.md)
+On OpenAI, OpenRouter, and Mistral, `create_partial` reads text or function arguments as they arrive through the Responses API. A successful `response.completed` event and final validation produce `PartialEvent::Complete`. A stream that stops before completion can return an error after delivering previews.
+
+The decoder accepts JSON split within strings, escapes, and nested values. A collection can be a bare array or a `{"tasks": [...]}` envelope. With `.with_chat_completions()` and tool mode, `create_iterable` tracks interleaved argument fragments by call index. For a typed enum of distinct named tools, use `create_parallel`. [Parallel tools](parallel.md) · [Providers](providers.md) · [Response types](types.md) · [Python comparison](parity.md)

@@ -90,22 +90,35 @@ fn per_provider_preparation_and_defaults() {
             continue;
         }
         let body = &records[0]["body"];
-        assert_eq!(body["messages"][1]["content"], "300");
         assert!(body.get("stream").is_none());
-        assert_eq!(body["temperature"], 0.1);
-        let format = &body["response_format"]["json_schema"];
-        assert_eq!(format["strict"], true);
-        assert_eq!(format["schema"]["additionalProperties"], false);
-        if p == Provider::OpenAI {
-            assert_eq!(records[0]["url"], "/v1/chat/completions");
+        let format = if p == Provider::OpenAI {
+            assert_eq!(records[0]["url"], "/v1/responses");
             assert_eq!(records[0]["method"], "POST");
-            assert_eq!(body["max_completion_tokens"], 23);
-            assert_eq!(body["reasoning_effort"], "none");
-            assert!(body.get("max_tokens").is_none());
+            assert_eq!(body["input"][1]["content"], "300");
+            assert_eq!(body["max_output_tokens"], 23);
+            assert_eq!(records[1]["body"]["max_output_tokens"], 1000);
+            for key in [
+                "messages",
+                "response_format",
+                "temperature",
+                "reasoning_effort",
+                "max_tokens",
+                "max_completion_tokens",
+            ] {
+                assert!(body.get(key).is_none(), "unexpected Responses option {key}");
+            }
+            assert_eq!(body["text"]["format"]["type"], "json_schema");
+            &body["text"]["format"]
         } else {
+            assert_eq!(body["messages"][1]["content"], "300");
+            assert_eq!(body["temperature"], 0.1);
             assert_eq!(body["max_tokens"], 23);
             assert!(body.get("model").is_none());
-        }
+            assert!(body.get("input").is_none());
+            &body["response_format"]["json_schema"]
+        };
+        assert_eq!(format["strict"], true);
+        assert_eq!(format["schema"]["additionalProperties"], false);
     }
 }
 
@@ -162,13 +175,11 @@ fn openai_strictness_and_responses_mode() {
         .prepare([Request::new("prompt").strict(true)])
         .is_err());
     let rec = &lines(&input)[0];
+    assert!(rec["body"].get("response_format").is_none());
+    assert_eq!(rec["body"]["text"]["format"]["strict"], false);
     assert_eq!(
-        rec["body"]["response_format"]["json_schema"]["strict"],
-        false
-    );
-    assert_eq!(
-        rec["body"]["response_format"]["json_schema"]["schema"]["properties"]["labels"]
-            ["additionalProperties"]["type"],
+        rec["body"]["text"]["format"]["schema"]["properties"]["labels"]["additionalProperties"]
+            ["type"],
         "string"
     );
     let response = client
@@ -179,6 +190,84 @@ fn openai_strictness_and_responses_mode() {
     assert_eq!(rec["url"], "/v1/responses");
     assert_eq!(rec["body"]["max_output_tokens"], 23);
     assert_eq!(rec["body"]["input"][1]["content"], "300");
+}
+
+#[test]
+fn openai_reads_saved_chat_and_responses_result_envelopes() {
+    let batch = client(Provider::OpenAI).batch::<Amount>().unwrap();
+    let response = json!({"custom_id":"response","response":{"status_code":200,"body":{
+        "status":"completed","output":[
+            {"type":"reasoning","summary":[]},
+            {"type":"message","phase":"commentary","content":[{"type":"output_text","text":"Checking"}]},
+            {"type":"message","phase":"final_answer","content":[{"type":"output_text","text":"{\"value\":15}"}]}
+        ]
+    }}});
+    let mut truncated = response.clone();
+    truncated["response"]["body"]["status"] = "incomplete".into();
+    let mut refused = response.clone();
+    refused["response"]["body"]["output"][2]["content"] =
+        json!([{"type":"refusal","refusal":"declined"}]);
+    let input = format!("{response}\n{}\n{truncated}\n{refused}", good());
+    let rows = batch.parse(&input);
+    assert_eq!(rows[0].raw, response);
+    assert_eq!(rows[0].result.as_ref().unwrap().value, 15);
+    assert_eq!(rows[1].result.as_ref().unwrap().value, 23);
+    assert_eq!(
+        rows[2].result.as_ref().unwrap_err().kind,
+        "incomplete_output"
+    );
+    assert_eq!(rows[3].result.as_ref().unwrap_err().kind, "refusal");
+}
+
+#[test]
+fn saved_chat_requests_determine_the_job_endpoint_and_mixed_files_fail_before_upload() {
+    let mut server = Server::new();
+    let config = config(Provider::OpenAI, &server.url());
+    let legacy = BlockingClient::new(config.clone().with_chat_completions())
+        .unwrap()
+        .batch::<Amount>()
+        .unwrap();
+    let input = legacy.prepare([item()]).unwrap();
+    let rec = &lines(&input)[0];
+    assert_eq!(rec["url"], "/v1/chat/completions");
+    assert_eq!(rec["body"]["messages"][1]["content"], "300");
+    assert_eq!(rec["body"]["temperature"], 0.1);
+    assert_eq!(rec["body"]["max_completion_tokens"], 23);
+    assert_eq!(rec["body"]["reasoning_effort"], "none");
+    assert_eq!(
+        rec["body"]["response_format"]["json_schema"]["strict"],
+        true
+    );
+    let batch = BlockingClient::new(config)
+        .unwrap()
+        .batch::<Amount>()
+        .unwrap();
+    let new = batch.prepare(["other prompt"]).unwrap();
+    for invalid in [
+        format!("{new}{input}"),
+        input.replace("/v1/chat/completions", "/unknown"),
+        new.replace("POST", "GET"),
+    ] {
+        assert!(matches!(
+            batch.submit(&invalid),
+            Err(Error::Configuration(_))
+        ));
+    }
+    let upload = server
+        .mock("POST", "/v1/files")
+        .match_body(Matcher::Regex("/v1/chat/completions".into()))
+        .with_body(r#"{"id":"file_legacy"}"#)
+        .create();
+    let job = server
+        .mock("POST", "/v1/batches")
+        .match_body(Matcher::PartialJson(
+            json!({"endpoint":"/v1/chat/completions", "input_file_id":"file_legacy"}),
+        ))
+        .with_body(r#"{"id":"job"}"#)
+        .create();
+    assert_eq!(batch.submit(&input).unwrap(), "job");
+    upload.assert();
+    job.assert();
 }
 
 fn good() -> Value {
@@ -248,13 +337,14 @@ fn openai_blocking_submit_and_job_management() {
             Matcher::Regex("batch.jsonl".into()),
             Matcher::Regex("bill_1".into()),
             Matcher::Regex("purpose".into()),
+            Matcher::Regex("/v1/responses".into()),
         ]))
         .with_body(r#"{"id":"file_1"}"#)
         .create();
     let job =
         json!({"id":"job","status":"in_progress","request_counts":{"total":2},"created_at":12});
     let submit=server.mock("POST","/v1/batches").match_body(Matcher::Json(json!({
-        "input_file_id":"file_1", "endpoint":"/v1/chat/completions","completion_window":"24h","metadata":{"run":"test"}
+        "input_file_id":"file_1", "endpoint":"/v1/responses","completion_window":"24h","metadata":{"run":"test"}
     }))).with_body(job.to_string()).create();
     let id = batch
         .submit_with_options(

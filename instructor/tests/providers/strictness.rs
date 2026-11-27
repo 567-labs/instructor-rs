@@ -139,7 +139,7 @@ async fn strictness_requires_a_boolean_and_a_supported_typed_mode() {
         Err(Error::Configuration(_))
     ));
     for (p, mode) in [
-        (Provider::OpenAI, Mode::ResponsesTools),
+        (Provider::OpenAI, Mode::MarkdownJson),
         (Provider::OpenRouter, Mode::Json),
         (Provider::Anthropic, Mode::Tools),
         (Provider::Mistral, Mode::JsonSchema),

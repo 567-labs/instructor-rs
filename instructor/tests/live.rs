@@ -103,7 +103,7 @@ macro_rules! provider_suite {
 
             fn core()->Result<Generation,instructor_ai::Error>{
                 let (_,route)=routes();
-                Generation::new(generation_config(&route)?.with_mode($mode))
+                Generation::new(generation_config(&route)?.with_chat_completions().with_mode($mode))
             }
 
             cases!(
@@ -122,7 +122,7 @@ macro_rules! provider_suite {
                 #[ignore = "live documented model, see docs/parity.md for credentials"]
                 async fn $documented()->TestResult {
                     let (route,_)=routes();
-                    Generation::new(generation_config(&route)?.with_mode(Mode::Tools))?
+                    Generation::new(generation_config(&route)?.with_chat_completions().with_mode(Mode::Tools))?
                         .test_current_documented_model().await?;
                     Ok(())
                 }

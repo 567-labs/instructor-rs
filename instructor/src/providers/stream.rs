@@ -17,8 +17,9 @@ impl ProviderConfig {
         schema: &Value,
         iterable: bool,
     ) -> BoxStream<'static, Result<String, Error>> {
-        let mut parser = Parser::new(self.provider, self.mode, tool_name(schema).to_owned());
+        let mut parser = Parser::new(self, tool_name(schema).to_owned());
         if iterable
+            && !self.uses_responses()
             && matches!(self.mode, Mode::Tools | Mode::ToolsStrict)
             && matches!(
                 self.provider,
@@ -59,6 +60,7 @@ struct Parser {
     indexed: Option<IndexedCalls>,
     provider: Provider,
     mode: Mode,
+    responses: bool,
     expected: String,
     selected: Option<u64>,
     streamed_name: String,
@@ -70,11 +72,12 @@ struct Parser {
 }
 
 impl Parser {
-    fn new(provider: Provider, mode: Mode, expected: String) -> Self {
+    fn new(config: &ProviderConfig, expected: String) -> Self {
         Self {
             indexed: None,
-            provider,
-            mode,
+            provider: config.provider,
+            mode: config.mode,
+            responses: config.uses_responses(),
             expected,
             selected: None,
             streamed_name: String::new(),
@@ -98,7 +101,7 @@ impl Parser {
             if !matches!(
                 self.provider,
                 Provider::OpenAI | Provider::OpenRouter | Provider::Mistral
-            ) || self.mode == Mode::ResponsesTools
+            ) || self.responses
             {
                 return Err(Error::Incomplete("Unexpected end sentinel".into()));
             }
@@ -116,7 +119,7 @@ impl Parser {
             return Err(Error::Provider(data.into()));
         }
         match self.provider {
-            Provider::OpenAI if self.mode == Mode::ResponsesTools => self.responses(kind, &raw),
+            _ if self.responses => self.responses(kind, &raw),
             Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => self.chat(&raw),
             Provider::Google => self.google(&raw),
             Provider::Cohere => self.cohere(kind, &raw),

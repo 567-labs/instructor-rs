@@ -13,14 +13,29 @@ impl ProviderConfig {
         req: &Request,
         schemas: impl Iterator<Item = &'s Value>,
     ) -> Result<WireRequest, Error> {
-        if !matches!(self.mode, Mode::Tools | Mode::ToolsStrict) {
+        if !(self.mode.is_tool() || (self.uses_responses() && self.mode == Mode::JsonSchema)) {
             return Err(Error::Configuration(
                 "parallel calls require a tool mode".into(),
             ));
         }
         let mut schemas = schemas.peekable();
         let strict = self.schema_strictness(req)?;
-        let mut wire = self.request_with_strictness(req, schemas.peek().copied(), false, strict)?;
+        let Some(first) = schemas.peek().copied() else {
+            return Err(Error::Configuration("expected at least one tool".into()));
+        };
+        if self.uses_responses() {
+            let mut wire = self.request_with_strictness(req, None, false, strict)?;
+            if !req.options.contains_key("tool_choice") {
+                wire.body["tool_choice"] = json!("required");
+            }
+            wire.body["parallel_tool_calls"] = true.into();
+            let strict = strict.unwrap_or(self.mode != Mode::Tools);
+            for schema in schemas {
+                self.set_responses_output(Mode::Tools, &mut wire.body, schema, Some(strict))?;
+            }
+            return Ok(wire);
+        }
+        let mut wire = self.request_with_strictness(req, Some(first), false, strict)?;
         let google = self.provider == Provider::Google;
         let mut declarations = Vec::new();
         let mut names = Vec::new();
@@ -36,9 +51,6 @@ impl ProviderConfig {
             } else {
                 declarations.push(declared.take());
             }
-        }
-        if declarations.is_empty() {
-            return Err(Error::Configuration("expected at least one tool".into()));
         }
         if google {
             wire.body["tools"] = json!([{"functionDeclarations": declarations}]);
@@ -74,6 +86,18 @@ impl ProviderConfig {
             Ok(())
         };
         match self.provider {
+            _ if self.uses_responses() => {
+                super::response::check_responses_status(raw)?;
+                for item in entries(&raw["output"]) {
+                    if item["type"] == "function_call" {
+                        add(&item["name"], &item["arguments"])?;
+                    } else if item["type"] == "message" {
+                        for part in entries(&item["content"]) {
+                            check_refusal(part)?;
+                        }
+                    }
+                }
+            }
             Provider::Google => {
                 check_prompt_block(raw)?;
                 let choice = candidate(raw, "candidates")?;

@@ -192,7 +192,7 @@ impl Request {
         self
     }
 
-    /// Override wire schema strictness for OpenAI Chat or OpenRouter tool and
+    /// Override wire schema strictness for Responses, OpenAI Chat or OpenRouter Chat tool and
     /// JSON Schema requests. Rust deserialization and validators still apply.
     pub fn strict(self, strict: bool) -> Self {
         self.option("strict", strict)
