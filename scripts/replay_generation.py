@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from paired_live import DOCUMENTED_MODELS
+from paired_live import generation_model
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "replay"
@@ -48,9 +48,7 @@ def generation_response(language, provider, contract, path, body, attempt):
         route = PYTHON_ROUTES.get(route, route)
     case = CASES[name]
     data = case["answer"]
-    model = DOCUMENTED_MODELS[provider]
-    if provider == "mistral" and name != "test_current_documented_model":
-        model = "ministral-8b-latest"
+    model = generation_model(provider, name)
     stream = name.endswith("_streaming")
     expected_path = {
         "openai_chat": "/v1/chat/completions",

@@ -40,11 +40,31 @@ class PairedLiveTests(unittest.TestCase):
                 "subprocess.run", return_value=SimpleNamespace(returncode=1)
             ) as execute,
         ):
-            results = paired_live.rust_results("live", ["a", "a::b"], False)
+            results = paired_live.rust_results("google", "live", ["a", "a::b"], False)
         execute.assert_called_once_with(
-            ["live", "--ignored", "--exact", "a::b"], check=False
+            ["live", "--ignored", "--exact", "a::b"], check=False, env=os.environ
         )
         self.assertEqual(results, {"a": "missing", "a::b": "failed"})
+
+    def test_generation_pins_are_local_to_each_subprocess(self):
+        env = {"GOOGLE_GENAI_MODEL": " gemini/custom "}
+
+        def pin(provider, case):
+            route = paired_live.GENERATION[provider][0]
+            child = paired_live.rust_environment(provider, route + "::" + case, env)
+            return child[f"INSTRUCTOR_LIVE_{provider.upper()}_MODEL"]
+
+        docs = "test_current_documented_model"
+        self.assertEqual(pin("mistral", "test_int"), "ministral-8b-latest")
+        self.assertEqual(pin("mistral", docs), "mistral-small-latest")
+        self.assertEqual(pin("google", "test_int"), "custom")
+        self.assertEqual(pin("google", docs), "gemini-3.8-flash")
+        self.assertEqual(pin("openrouter", "test_int"), "google/gemini-3.8-flash")
+        self.assertEqual(pin("cohere", "test_int"), "command-a-03-2025")
+        self.assertEqual(
+            paired_live.rust_environment("openrouter", "openrouter_jev", env), env
+        )
+        self.assertEqual(env, {"GOOGLE_GENAI_MODEL": " gemini/custom "})
 
     def test_pytest_success_requires_every_call_to_pass(self):
         pairs = paired_live.cases("typesafe")

@@ -108,7 +108,25 @@ def plan(selected):
         print("missing=" + ", ".join(key_name(name) for name in missing), file=output)
 
 
-def rust_results(binary, tests, collect_only):
+def generation_model(provider, test, google_model=""):
+    """Mirror the pinned Python suite's core and documentation models."""
+    if test != "test_current_documented_model":
+        if provider == "mistral":
+            return "ministral-8b-latest"
+        if provider == "google" and google_model.strip():
+            return google_model.strip().removeprefix("google/").removeprefix("gemini/")
+    return DOCUMENTED_MODELS[provider]
+
+
+def rust_environment(provider, name, environment):
+    route, _, test = name.partition("::")
+    if route not in GENERATION.get(provider, ()):
+        return environment
+    model = generation_model(provider, test, environment.get("GOOGLE_GENAI_MODEL", ""))
+    return {**environment, f"INSTRUCTOR_LIVE_{provider.upper()}_MODEL": model}
+
+
+def rust_results(provider, binary, tests, collect_only):
     listed = subprocess.check_output([binary, "--list", "--ignored"], text=True)
     names = {
         line.removesuffix(": test")
@@ -122,7 +140,11 @@ def rust_results(binary, tests, collect_only):
         elif collect_only:
             results[name] = "collected"
         else:
-            result = subprocess.run([binary, "--ignored", "--exact", name], check=False)
+            result = subprocess.run(
+                [binary, "--ignored", "--exact", name],
+                env=rust_environment(provider, name, os.environ),
+                check=False,
+            )
             results[name] = "passed" if result.returncode == 0 else "failed"
     return results
 
@@ -167,7 +189,7 @@ def run(provider, binary, reference, collect_only):
         os.environ.setdefault("OPENROUTER_DECISIONS_MODEL", legacy or ROUTED_JEV)
 
     pairs = cases(provider)
-    rust = rust_results(binary, pairs, collect_only)
+    rust = rust_results(provider, binary, pairs, collect_only)
     os.chdir(reference)
     sys.path.insert(0, str(reference))
     import pytest

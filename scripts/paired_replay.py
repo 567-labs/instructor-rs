@@ -20,7 +20,15 @@ from urllib.parse import urlsplit
 # Include sibling modules when the worker is launched with Python -I.
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from paired_live import PROVIDERS, ROUTED_JEV, PythonResults, cases, key_name  # noqa: E402
+from paired_live import (  # noqa: E402
+    DOCUMENTED_MODELS,
+    PROVIDERS,
+    ROUTED_JEV,
+    PythonResults,
+    cases,
+    key_name,
+    rust_environment,
+)
 from replay_decisions import decision_response  # noqa: E402
 from replay_generation import PYTHON_ROUTES, generation_response  # noqa: E402
 
@@ -242,7 +250,7 @@ def rust_tests(pairs, replay, binary, port):
         replay.active = ("rust", provider, name)
         run = subprocess.run(
             [binary, "--ignored", "--exact", name],
-            env=env,
+            env=rust_environment(provider, name, env),
             text=True,
             capture_output=True,
             timeout=60,
@@ -259,7 +267,7 @@ def python_tests(pairs, replay, reference, port):
     sys.path.insert(0, str(reference))
     for provider in PROVIDERS:
         os.environ[key_name(provider)] = KEY
-    os.environ["GOOGLE_GENAI_MODEL"] = "google/gemini-3.8-flash"
+    os.environ["GOOGLE_GENAI_MODEL"] = "google/" + DOCUMENTED_MODELS["google"]
     os.environ["OPENROUTER_DECISIONS_MODEL"] = ROUTED_JEV
     with local_sdks(replay, port):
         import instructor
