@@ -1,0 +1,11 @@
+{"id":"resp_test","model":"$model","object":"response","status":"completed","output":[{"id":"msg_test","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"$text","annotations":[]}]}]}
+{"type":"response.created","response":{"id":"resp_test","model":"$model","object":"response","status":"in_progress","output":[]},"sequence_number":0}
+{"type":"response.output_item.added","item":{"id":"msg_test","type":"message","role":"assistant","status":"in_progress","content":[]},"output_index":0,"sequence_number":1}
+{"type":"response.content_part.added","part":{"type":"output_text","text":"","annotations":[]},"item_id":"msg_test","output_index":0,"content_index":0,"sequence_number":2}
+{"type":"response.output_text.delta","delta":"$first","item_id":"msg_test","output_index":0,"content_index":0,"sequence_number":3}
+{"type":"response.output_text.delta","delta":"$second","item_id":"msg_test","output_index":0,"content_index":0,"sequence_number":4}
+{"type":"response.output_text.delta","delta":"$third","item_id":"msg_test","output_index":0,"content_index":0,"sequence_number":5}
+{"type":"response.output_text.done","text":"$text","item_id":"msg_test","output_index":0,"content_index":0,"sequence_number":6}
+{"type":"response.content_part.done","part":{"type":"output_text","text":"$text","annotations":[]},"item_id":"msg_test","output_index":0,"content_index":0,"sequence_number":7}
+{"type":"response.output_item.done","item":{"id":"msg_test","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"$text","annotations":[]}]},"output_index":0,"sequence_number":8}
+{"type":"response.completed","response":{"id":"resp_test","model":"$model","object":"response","status":"completed","output":[{"id":"msg_test","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"$text","annotations":[]}]}]},"sequence_number":9}

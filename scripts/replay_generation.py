@@ -14,6 +14,14 @@ CASES = json.loads(
     ).read_text()
 )
 
+# Current Rust defaults and the endpoints used by their pinned pytest selectors.
+PYTHON_ROUTES = {
+    "openai_structured": "openai_chat",
+    "openrouter_responses": "openrouter_chat",
+    "mistral_responses": "mistral_chat",
+    "google_interactions": "google_genai",
+}
+
 
 def first_user_text(provider, body):
     messages = body.get("messages") or body.get("contents") or body.get("input")
@@ -26,7 +34,7 @@ def first_user_text(provider, body):
         )
         messages = messages[1:]
     for item in messages or []:
-        if item.get("role") == "user":
+        if item.get("role") == "user" or item.get("type") == "user_input":
             content = item.get("content", item.get("parts"))
             if isinstance(content, str):
                 return content
@@ -34,8 +42,10 @@ def first_user_text(provider, body):
     raise AssertionError("expected a user prompt")
 
 
-def generation_response(provider, contract, path, body, attempt):
+def generation_response(language, provider, contract, path, body, attempt):
     route, name = contract.split("::")
+    if language == "python":
+        route = PYTHON_ROUTES.get(route, route)
     case = CASES[name]
     data = case["answer"]
     model = DOCUMENTED_MODELS[provider]
@@ -45,6 +55,10 @@ def generation_response(provider, contract, path, body, attempt):
     expected_path = {
         "openai_chat": "/v1/chat/completions",
         "openai_responses": "/v1/responses",
+        "openai_structured": "/v1/responses",
+        "openrouter_responses": "/api/v1/responses",
+        "mistral_responses": "/v1/responses",
+        "google_interactions": "/v1/interactions",
         "openrouter_chat": "/api/v1/chat/completions",
         "mistral_chat": "/v1/chat/completions",
         "anthropic_messages": "/v1/messages",
@@ -56,7 +70,7 @@ def generation_response(provider, contract, path, body, attempt):
     request = json.dumps(body)
     prompt = first_user_text(provider, body)
     assert prompt == case["prompt"], f"unexpected user prompt {prompt!r}"
-    if provider != "google":
+    if route != "google_genai":
         assert body["model"] == model, "unexpected model"
         assert (body.get("stream") is True) == stream, "unexpected stream flag"
     if name in {"test_enum_extraction", "test_nested_enum_collection"}:
@@ -72,7 +86,7 @@ def generation_response(provider, contract, path, body, attempt):
     fragments = []
     if stream:
         fragments = [text[:14], text[14:21], text[21:]]
-        if name == "test_iterable_streaming" and provider == "mistral":
+        if name == "test_iterable_streaming" and route == "mistral_chat":
             # Mistral serves a complete tasks envelope per item in tools mode.
             fragments = [json.dumps({"tasks": [item]}) for item in data["tasks"]]
 
@@ -85,6 +99,17 @@ def generation_response(provider, contract, path, body, attempt):
 
 
 def wire_protocol(provider, route, body):
+    if route == "google_interactions":
+        assert body["store"] is False, "expected stateless interaction"
+        output = body["response_format"]
+        assert output["type"] == "text" and output["mime_type"] == "application/json"
+        assert output["schema"]["type"] == "object", "expected response schema"
+        return route, None
+    if route in PYTHON_ROUTES:
+        output = body["text"]["format"]
+        assert output["type"] == "json_schema" and output["strict"] is True
+        assert output["schema"]["type"] == "object", "expected response schema"
+        return "responses_text", None
     tools = body.get("tools")
     if provider in ("cohere", "google") and not tools:
         return provider + "_text", None

@@ -22,7 +22,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from paired_live import PROVIDERS, PythonResults, cases, key_name  # noqa: E402
 from replay_decisions import decision_response  # noqa: E402
-from replay_generation import generation_response  # noqa: E402
+from replay_generation import PYTHON_ROUTES, generation_response  # noqa: E402
 
 ROOT = HERE.parent
 KEY = "synthetic-replay"
@@ -42,7 +42,7 @@ DECISION_PATHS = {
     "typesafe": "/v1/systemone",
 }
 GOOGLE_RETRY_REVISION = "0ab894f0661a6968b17e67cf5b7657f1fcb3b9f7"
-GOOGLE_RETRY_TEST = "google_genai::test_validation_with_retries"
+GOOGLE_RETRY_TEST = "google_interactions::test_validation_with_retries"
 
 
 def expected_attempts(case):
@@ -63,14 +63,14 @@ class Replay(PythonResults):
         self.active = ("python", *self.selectors[item.nodeid])
 
     def response(self, path, body):
-        _, provider, case = self.active
+        language, provider, case = self.active
         trace = self.traces[self.active]
         attempt = len(trace) + 1
         if attempt > expected_attempts(case):
             raise ValueError("unexpected additional request")
         if "::" in case:
             model, prompt, data, reply = generation_response(
-                provider, case, path, body, attempt
+                language, provider, case, path, body, attempt
             )
         else:
             if path != DECISION_PATHS[provider]:
@@ -93,11 +93,10 @@ class Replay(PythonResults):
 
 
 def frame(event):
-    name = (
-        f"event: {event['type']}\n"
-        if isinstance(event, dict) and "type" in event
-        else ""
+    kind = (
+        event.get("event_type", event.get("type")) if isinstance(event, dict) else None
     )
+    name = f"event: {kind}\n" if kind else ""
     text = event if isinstance(event, str) else json.dumps(event)
     return f"{name}data: {text}\n\n".encode()
 
@@ -286,11 +285,29 @@ def revision(path):
     ).strip()
 
 
+def operations(trace):
+    # The server validates each client’s endpoint before recording a request.
+    # Keep paths and native SSE frame counts in the report for inspection.
+    return [
+        (
+            row["model"],
+            row["prompt_sha256"],
+            row["result_sha256"],
+            row["sse_events"] > 0,
+        )
+        for row in trace
+    ]
+
+
 def compare_requests(reference, case, rust, python):
     if len(rust) != expected_attempts(case):
         return "different"
     if python == rust:
         return "matched"
+    if case.partition("::")[0] in PYTHON_ROUTES:
+        rust, python = operations(rust), operations(python)
+        if python == rust:
+            return "matched across protocols"
     # google-genai 2.8.0 validates once before Instructor. This reference
     # counts validator calls, so its first response can satisfy both attempts.
     if (
@@ -373,10 +390,14 @@ def run(args):
         }
         args.output.write_text(json.dumps(report, indent=2) + "\n")
     count = sum(row["rust_passed"] and row["python_status"] == "passed" for row in rows)
-    matches = sum(row["request_comparison"] == "matched" for row in rows)
+    identical = sum(row["request_comparison"] == "matched" for row in rows)
+    matches = identical + sum(
+        row["request_comparison"] == "matched across protocols" for row in rows
+    )
     known = sum(row["request_comparison"] == "known difference" for row in rows)
     print(
-        f"{count}/{len(rows)} assertion pairs passed, {matches}/{len(rows)} request traces matched"
+        f"{count}/{len(rows)} assertion pairs passed, {matches}/{len(rows)} operations matched, "
+        f"{identical}/{len(rows)} request trace summaries identical"
     )
     if known:
         print(

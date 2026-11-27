@@ -50,25 +50,38 @@ class ReplayTests(unittest.TestCase):
     def test_only_pinned_google_retry_gets_a_known_difference(self):
         rev = replay.GOOGLE_RETRY_REVISION
         case = replay.GOOGLE_RETRY_TEST
-        first, both = ["a"], ["a", "a"]
+        trace = {
+            "path": "/v1/interactions",
+            "model": "gemini-3.8-flash",
+            "prompt_sha256": "p",
+            "result_sha256": "r",
+            "sse_events": 0,
+        }
+        legacy = dict(trace, path="/v1beta/models/gemini-3.8-flash:generateContent")
+        first, both = [legacy], [trace, trace]
         self.assertEqual(
             replay.compare_requests(rev, case, both, first), "known difference"
         )
         self.assertEqual(replay.compare_requests(rev, case, both, both), "matched")
+        self.assertEqual(
+            replay.compare_requests(rev, case, both, first * 2),
+            "matched across protocols",
+        )
         for args in (
             (rev, case, [], []),
             (rev, case, first, first),
             (rev, case, both, []),
-            (rev, case, both, ["b"]),
+            (rev, case, both, [dict(legacy, prompt_sha256="changed")]),
+            (rev, case, both, [dict(legacy, result_sha256="changed")] * 2),
+            (rev, case, both, [dict(legacy, sse_events=1)] * 2),
             ("other", case, both, first),
-            (rev, "openai_chat::test_validation_with_retries", both, first),
+            (rev, "openai_structured::test_validation_with_retries", both, first),
         ):
             with self.subTest(args=args):
                 self.assertEqual(replay.compare_requests(*args), "different")
 
     def test_retry_requires_the_feedback_in_second_request(self):
         recorder = replay.Replay({})
-        recorder.active = ("rust", "google", replay.GOOGLE_RETRY_TEST)
         path = "/v1beta/models/gemini-3.8-flash:generateContent"
         body = {
             "contents": [
@@ -78,6 +91,10 @@ class ReplayTests(unittest.TestCase):
                 }
             ]
         }
+        recorder.active = ("rust", "google", replay.GOOGLE_RETRY_TEST)
+        with self.assertRaisesRegex(AssertionError, "expected /v1/interactions"):
+            recorder.response(path, body)
+        recorder.active = ("python", "google", replay.GOOGLE_RETRY_TEST)
         recorder.response(path, body)
         with self.assertRaisesRegex(AssertionError, "feedback"):
             recorder.response(path, body)
@@ -107,7 +124,11 @@ class ReplayTests(unittest.TestCase):
 
     def test_stream_requires_prompt_and_spans_multiple_frames(self):
         recorder = replay.Replay({})
-        recorder.active = ("rust", "openai", "openai_chat::test_partial_streaming")
+        recorder.active = (
+            "python",
+            "openai",
+            "openai_structured::test_partial_streaming",
+        )
         path = "/v1/chat/completions"
         body = {
             "model": "gpt-6-luna",
@@ -125,3 +146,38 @@ class ReplayTests(unittest.TestCase):
         ]
         self.assertGreater(len(pieces), 1)
         self.assertEqual(json.loads("".join(pieces)), {"name": "Jason Liu", "age": 30})
+
+    def test_structured_route_checks_native_endpoint_and_strict_schema(self):
+        recorder = replay.Replay({})
+        recorder.active = (
+            "rust",
+            "openai",
+            "openai_structured::test_partial_streaming",
+        )
+        body = {
+            "model": "gpt-6-luna",
+            "stream": True,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "strict": False,
+                    "schema": {"type": "object"},
+                }
+            },
+        }
+        with self.assertRaisesRegex(AssertionError, "expected /v1/responses"):
+            recorder.response("/v1/chat/completions", body)
+        with self.assertRaisesRegex(AssertionError, "prompt"):
+            recorder.response("/v1/responses", body)
+        body["input"] = "Jason Liu is 30 years old"
+        with self.assertRaises(AssertionError):
+            recorder.response("/v1/responses", body)
+        body["text"]["format"]["strict"] = True
+        events = recorder.response("/v1/responses", body)
+        pieces = [
+            e["delta"] for e in events if e["type"] == "response.output_text.delta"
+        ]
+        output = events[-1]["response"]["output"][0]["content"][0]["text"]
+        self.assertGreater(len(pieces), 1)
+        self.assertEqual("".join(pieces), output)
+        self.assertEqual(json.loads(output), {"name": "Jason Liu", "age": 30})

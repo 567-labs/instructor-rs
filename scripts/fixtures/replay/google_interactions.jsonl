@@ -1,0 +1,8 @@
+{"id":"interaction_test","model":"$model","object":"interaction","status":"completed","steps":[{"type":"model_output","content":[{"type":"text","text":"$text"}]}]}
+{"event_type":"interaction.created","interaction":{"id":"interaction_test","model":"$model","object":"interaction","status":"in_progress"}}
+{"event_type":"step.start","index":0,"step":{"type":"model_output"}}
+{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"$first"}}
+{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"$second"}}
+{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"$third"}}
+{"event_type":"step.stop","index":0}
+{"event_type":"interaction.completed","interaction":{"id":"interaction_test","model":"$model","object":"interaction","status":"completed"}}
