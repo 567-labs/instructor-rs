@@ -1,6 +1,6 @@
 use super::indexed::IndexedCalls;
 use super::response::{
-    arguments, check_error, check_finish, check_name, check_prompt_block, check_refusal,
+    arguments, check_error, check_finish, check_interaction_status, check_name, check_refusal,
     check_responses_status, collect_text, entries, responses_output,
 };
 use super::{tool_name, Mode, Provider, ProviderConfig};
@@ -65,6 +65,7 @@ struct Parser {
     selected: Option<u64>,
     streamed_name: String,
     pending_empty_tool: bool,
+    step_stopped: bool,
     ignored: HashSet<u64>,
     has_output: bool,
     received_finish: bool,
@@ -82,6 +83,7 @@ impl Parser {
             selected: None,
             streamed_name: String::new(),
             pending_empty_tool: false,
+            step_stopped: false,
             ignored: HashSet::new(),
             has_output: false,
             received_finish: false,
@@ -121,7 +123,7 @@ impl Parser {
         match self.provider {
             _ if self.responses => self.responses(kind, &raw),
             Provider::OpenAI | Provider::OpenRouter | Provider::Mistral => self.chat(&raw),
-            Provider::Google => self.google(&raw),
+            Provider::Google => self.google(raw["event_type"].as_str().unwrap_or(kind), &raw),
             Provider::Cohere => self.cohere(kind, &raw),
             Provider::Anthropic => self.anthropic(kind, &raw),
         }
@@ -279,32 +281,55 @@ impl Parser {
         }
     }
 
-    fn google(&mut self, raw: &Value) -> Result<String, Error> {
-        check_prompt_block(raw)?;
-        let mut out = String::new();
-        for (i, c) in entries(&raw["candidates"]).enumerate() {
-            if i != 0 || index(c)? != 0 {
-                return Err(Error::Protocol("Expected a single Gemini candidate".into()));
-            }
-            self.done |= check_finish(&c["finishReason"])?;
-            let parts = &c["content"]["parts"];
-            if !self.mode.is_tool() {
-                out.push_str(&collect_text(parts)?);
-            } else {
-                for call in entries(parts)
-                    .filter(|p| p["thought"] != true)
-                    .filter_map(|p| p.get("functionCall"))
-                {
-                    if self.selected.is_some() {
-                        return Err(Error::Parse("Expected one Gemini function call".into()));
-                    }
-                    self.select(0)?;
-                    check_name(&call["name"], &self.expected)?;
-                    out.push_str(&arguments(&call["args"])?);
+    fn google(&mut self, kind: &str, raw: &Value) -> Result<String, Error> {
+        let idx = index(raw)?;
+        let tool = self.mode.is_tool();
+        let step = &raw["step"];
+        match kind {
+            "step.start"
+                if (tool && step["type"] == "function_call")
+                    || (!tool && step["type"] == "model_output") =>
+            {
+                if self.selected.is_some() {
+                    return Err(Error::Parse("Expected a single Gemini output step".into()));
+                }
+                self.select(idx)?;
+                if tool {
+                    check_name(&step["name"], &self.expected)?;
+                    self.pending_empty_tool = step["arguments"]
+                        .as_object()
+                        .is_some_and(|args| args.is_empty());
                 }
             }
+            "step.delta" if self.selected == Some(idx) => {
+                if self.step_stopped {
+                    return Err(Error::Protocol("Gemini delta after step.stop".into()));
+                }
+                let delta = &raw["delta"];
+                if tool && delta["type"] == "arguments_delta" {
+                    return delta_text(delta, "arguments");
+                }
+                if !tool && delta["type"] == "text" {
+                    return delta_text(delta, "text");
+                }
+            }
+            "step.stop" if self.selected == Some(idx) => {
+                self.step_stopped = true;
+                if self.pending_empty_tool && !self.has_output {
+                    return Ok("{}".into());
+                }
+            }
+            "interaction.completed" => {
+                check_interaction_status(&raw["interaction"], tool)?;
+                if !self.step_stopped {
+                    return Err(Error::Incomplete("Missing Gemini step.stop".into()));
+                }
+                self.done = true;
+            }
+            "error" => return Err(Error::Provider(raw.to_string())),
+            _ => (),
         }
-        Ok(out)
+        Ok(String::new())
     }
 
     fn responses(&mut self, kind: &str, raw: &Value) -> Result<String, Error> {

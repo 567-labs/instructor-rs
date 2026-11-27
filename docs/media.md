@@ -31,6 +31,6 @@ The table describes the content blocks Rust can build. Model capabilities, size 
 
 For an OpenAI model that accepts audio through Chat Completions, select `.with_chat_completions()` on the provider config and attach audio bytes. For PDFs on Mistral, use Responses and supply bytes or an HTTPS URL.
 
-Supported image MIME types are `image/jpeg`, `image/png`, `image/webp`, and `image/gif`. Use `application/pdf` for documents, and `audio/wav` or `audio/mpeg` for audio. The caller supplies a MIME type matching the data. Gemini sends URL sources as `fileData`, so use a URI its API accepts.
+Supported image MIME types are `image/jpeg`, `image/png`, `image/webp`, and `image/gif`. Use `application/pdf` for documents, and `audio/wav` or `audio/mpeg` for audio. The caller supplies a MIME type matching the data. Gemini sends content blocks with `type` and `mime_type`, using `data` for inline bytes or `uri` for a URL. Use a URI its API accepts.
 
 Python provides helpers to detect and load media from files and other sources. In Rust, the application opens the file or obtains the bytes explicitly. The declared MIME type and the selected source determine the provider encoding. [Python multimodal guide](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/multimodal.md) · [Provider credentials and modes](providers.md)

@@ -8,8 +8,8 @@ impl ProviderConfig {
     pub(crate) fn reask(&self, wire: &mut WireRequest, raw: &Value, feedback: &str) {
         match self.provider {
             Provider::Google => {
-                if let Some(history) = wire.body["contents"].as_array_mut() {
-                    google(history, &raw["candidates"][0]["content"], feedback);
+                if let Some(history) = wire.body["input"].as_array_mut() {
+                    google(history, &raw["steps"], feedback);
                 }
             }
             _ if self.uses_responses() => {
@@ -118,25 +118,20 @@ fn anthropic(history: &mut Vec<Value>, content: &Value, feedback: &str) {
     }
 }
 
-fn google(history: &mut Vec<Value>, content: &Value, feedback: &str) {
-    let mut parts = Vec::new();
-    let mut feedback_parts = vec![json!({"text":feedback})];
-    for call in entries(&content["parts"]).filter_map(|p| p.get("functionCall")) {
-        let Some(name) = call["name"].as_str() else {
-            history.push(json!({"role":"user","parts":feedback_parts}));
+fn google(history: &mut Vec<Value>, steps: &Value, feedback: &str) {
+    let content = json!([{"type":"text","text":feedback}]);
+    let mut results = Vec::new();
+    for step in entries(steps).filter(|s| s["type"] == "function_call") {
+        let (Some(id), Some(name)) = (step["id"].as_str(), step["name"].as_str()) else {
+            history.push(json!({"type":"user_input","content":content}));
             return;
         };
-        let mut function = json!({"name":name,"response":{"error":feedback}});
-        if let Some(id) = call["id"].as_str() {
-            function["id"] = json!(id);
-        }
-        parts.push(json!({"functionResponse":function}));
+        results.push(json!({"type":"function_result","call_id":id,"name":name,"is_error":true,"result":content}));
     }
-    if entries(&content["parts"]).next().is_some() {
-        history.push(json!({"role":"model","parts":content["parts"]}));
+    // Stateless interactions replay all model steps, including signed thoughts.
+    history.extend(entries(steps).cloned());
+    if results.is_empty() {
+        history.push(json!({"type":"user_input","content":content}));
     }
-    if parts.is_empty() {
-        std::mem::swap(&mut parts, &mut feedback_parts);
-    }
-    history.push(json!({"role":"user","parts":parts}));
+    history.extend(results);
 }

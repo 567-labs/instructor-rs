@@ -39,6 +39,24 @@ impl Provider {
                 check_name(&call["name"], name)?;
                 arguments(&call["input"])
             }
+            Provider::Google
+                if raw.get("candidates").is_none() && raw.get("promptFeedback").is_none() =>
+            {
+                check_interaction_status(raw, mode.is_tool())?;
+                if mode.is_tool() {
+                    let mut calls = entries(&raw["steps"]).filter(|s| s["type"] == "function_call");
+                    let call = single_call(&mut calls)?;
+                    check_name(&call["name"], name)?;
+                    arguments(&call["arguments"])
+                } else {
+                    let step = entries(&raw["steps"])
+                        .filter(|s| s["type"] == "model_output")
+                        .last()
+                        .ok_or_else(|| Error::Parse("Missing Gemini model output".into()))?;
+                    text_content(&step["content"])
+                }
+            }
+            // Read saved completions from the former generateContent endpoint.
             Provider::Google => {
                 check_prompt_block(raw)?;
                 let candidate = candidate(raw, "candidates")?;
@@ -65,7 +83,18 @@ pub(super) fn check_error(raw: &Value) -> Result<(), Error> {
     Ok(())
 }
 
-pub(super) fn check_prompt_block(raw: &Value) -> Result<(), Error> {
+pub(super) fn check_interaction_status(raw: &Value, tool: bool) -> Result<(), Error> {
+    check_error(raw)?;
+    match raw["status"].as_str() {
+        Some("completed") => Ok(()),
+        Some("requires_action") if tool => Ok(()),
+        Some("failed") => Err(Error::Provider("Gemini interaction failed".into())),
+        Some(other) => Err(Error::Incomplete(format!("Gemini interaction {other}"))),
+        None => Err(Error::Protocol("Missing Gemini interaction status".into())),
+    }
+}
+
+fn check_prompt_block(raw: &Value) -> Result<(), Error> {
     if let Some(reason) = raw["promptFeedback"]["blockReason"].as_str() {
         if !reason.is_empty() && reason != "BLOCK_REASON_UNSPECIFIED" {
             return Err(Error::Refusal(format!("Gemini prompt blocked: {reason}")));

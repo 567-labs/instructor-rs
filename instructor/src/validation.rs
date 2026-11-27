@@ -63,7 +63,7 @@ impl TextRule {
                 return Err(Error::Configuration("Expected a finite temperature".into()));
             }
             if provider == Provider::Google {
-                req = req.option("generationConfig", json!({"temperature":temperature}));
+                req = req.option("generation_config", json!({"temperature":temperature}));
             } else {
                 req = req.option("temperature", temperature);
             }

@@ -77,8 +77,8 @@ impl Media {
         let source = &self.source;
         match provider {
             Provider::Google => Ok(match source {
-                Source::Base64(data) => json!({"inlineData":{"mimeType":self.mime,"data":data}}),
-                Source::Url(url) => json!({"fileData":{"mimeType":self.mime,"fileUri":url}}),
+                Source::Base64(data) => json!({"type":kind,"mime_type":self.mime,"data":data}),
+                Source::Url(url) => json!({"type":kind,"mime_type":self.mime,"uri":url}),
             }),
             Provider::Anthropic if kind != "audio" => {
                 let value = match source {
@@ -148,7 +148,6 @@ pub(crate) fn content(
     let mut parts = Vec::new();
     if !text.is_empty() || attachments.is_empty() {
         parts.push(match provider {
-            Provider::Google => json!({"text":text}),
             _ if config.uses_responses() => {
                 json!({"type":"input_text","text":text})
             }

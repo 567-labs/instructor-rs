@@ -1,6 +1,7 @@
 use super::{
     response::{
-        arguments, candidate, check_error, check_finish, check_prompt_block, check_refusal, entries,
+        arguments, candidate, check_error, check_finish, check_interaction_status, check_refusal,
+        entries,
     },
     Mode, Provider, ProviderConfig, WireRequest,
 };
@@ -36,28 +37,15 @@ impl ProviderConfig {
             return Ok(wire);
         }
         let mut wire = self.request_with_strictness(req, Some(first), false, strict)?;
-        let google = self.provider == Provider::Google;
         let mut declarations = Vec::new();
-        let mut names = Vec::new();
         // Reuse the exact schema lowering used for single-model tools.
         for (i, schema) in schemas.enumerate() {
             if i > 0 {
                 self.set_output(&mut wire.body, schema, strict)?;
             }
-            let declared = &mut wire.body["tools"][0];
-            if google {
-                declarations.push(declared["functionDeclarations"][0].take());
-                names.push(super::tool_name(schema));
-            } else {
-                declarations.push(declared.take());
-            }
+            declarations.push(wire.body["tools"][0].take());
         }
-        if google {
-            wire.body["tools"] = json!([{"functionDeclarations": declarations}]);
-            wire.body["toolConfig"]["functionCallingConfig"]["allowedFunctionNames"] = json!(names);
-        } else {
-            wire.body["tools"] = declarations.into();
-        }
+        wire.body["tools"] = declarations.into();
         match self.provider {
             Provider::Anthropic if !req.options.contains_key("tool_choice") => {
                 wire.body["tool_choice"] = json!({"type": "auto"});
@@ -99,15 +87,9 @@ impl ProviderConfig {
                 }
             }
             Provider::Google => {
-                check_prompt_block(raw)?;
-                let choice = candidate(raw, "candidates")?;
-                check_finish(&choice["finishReason"])?;
-                for part in entries(&choice["content"]["parts"]) {
-                    if part["thought"] != true {
-                        if let Some(call) = part.get("functionCall") {
-                            add(&call["name"], &call["args"])?;
-                        }
-                    }
+                check_interaction_status(raw, true)?;
+                for call in entries(&raw["steps"]).filter(|s| s["type"] == "function_call") {
+                    add(&call["name"], &call["arguments"])?;
                 }
             }
             Provider::Anthropic => {
