@@ -30,6 +30,7 @@ DECISIONS = {
     "openrouter": "openrouter_jev",
     "typesafe": "typesafe_jev",
 }
+ROUTED_JEV = "typesafe/jev-1.14"
 DOCUMENTED_MODELS = {
     "openai": "gpt-6-luna",
     "anthropic": "claude-haiku-5-5",
@@ -161,6 +162,9 @@ def run(provider, binary, reference, collect_only):
         variable = f"{route.upper()}_DECISIONS_MODEL"
         if not os.getenv(variable):
             os.environ.pop(variable, None)
+    if provider == "openrouter":
+        legacy = os.getenv("INSTRUCTOR_LIVE_OPENROUTER_JEV_MODEL", "").strip()
+        os.environ.setdefault("OPENROUTER_DECISIONS_MODEL", legacy or ROUTED_JEV)
 
     pairs = cases(provider)
     rust = rust_results(binary, pairs, collect_only)

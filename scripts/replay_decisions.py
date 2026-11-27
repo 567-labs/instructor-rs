@@ -17,7 +17,7 @@ def decision_response(provider, body):
     expected, answer = fixture["request"], fixture["response"]
 
     if provider == "openrouter":
-        expected["model"] = answer["model"] = "typesafe/jev-1.13"
+        expected["model"] = answer["model"] = "typesafe/jev-1.14"
         answer["usage"]["cost"] = 0.001
     if not isinstance(body, dict) or expected.keys() != body.keys():
         raise ValueError(f"{provider} Decisions requires {', '.join(expected)}")
