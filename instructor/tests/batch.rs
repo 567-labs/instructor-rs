@@ -5,6 +5,9 @@ use instructor_ai::{
 use mockito::{Matcher, Server};
 use serde_json::{json, Value};
 
+#[path = "batch/download.rs"]
+mod download;
+
 #[model]
 #[derive(Debug)]
 struct Amount {
