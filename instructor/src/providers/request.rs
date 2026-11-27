@@ -93,6 +93,13 @@ impl ProviderConfig {
     ) -> Result<WireRequest, Error> {
         // Client construction and batch mode changes validate the configuration.
         let mut options = req.options.clone();
+        if let Some(namespace) = options.remove("cache_namespace") {
+            if namespace.as_str().is_none_or(str::is_empty) {
+                return Err(Error::Configuration(
+                    "cache_namespace must be a nonempty string".into(),
+                ));
+            }
+        }
         if strict.is_some() {
             options.remove("strict");
         }

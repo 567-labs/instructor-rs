@@ -259,6 +259,53 @@ async fn concurrent_calls_keep_templates_validation_and_retry_history_local() {
     retry.assert_async().await;
 }
 
+#[tokio::test]
+async fn request_namespaces_partition_identical_prompts_on_a_shared_cache() {
+    let mut server = Server::new_async().await;
+    let client = Client::new(config(&server))
+        .unwrap()
+        .with_cache(3)
+        .on_event(|_, event| {
+            if let Event::Request(body) = event {
+                assert!(body.get("cache_namespace").is_none());
+            }
+        });
+    let default = Request::new("same");
+    let a = default.clone().cache_namespace("team-a");
+    let b = default.clone().cache_namespace("team-b");
+    for (req, value) in [(&default, 1), (&a, 2), (&b, 3)] {
+        let mock = server
+            .mock("POST", "/chat/completions")
+            .with_body(response(&json!({"value":value}).to_string(), None).to_string())
+            .create_async()
+            .await;
+        let result = client.create::<Amount>(req.clone()).await.unwrap();
+        assert_eq!(result.value, value);
+        mock.assert_async().await;
+    }
+    let (first, second, third) = tokio::join!(
+        client.create_with_metadata::<Amount>(b),
+        client.create_with_metadata::<Amount>(a),
+        client.create_with_metadata::<Amount>(default)
+    );
+    for (result, value) in [(first, 3), (second, 2), (third, 1)] {
+        let hit = result.unwrap();
+        assert_eq!((hit.attempts, hit.value.value), (0, value));
+    }
+}
+
+#[test]
+fn invalid_request_namespaces_fail_before_http() {
+    let server = Server::new();
+    let client = BlockingClient::new(config(&server)).unwrap();
+    for namespace in [Value::Null, json!(""), json!(123)] {
+        let req = Request::new("same").option("cache_namespace", namespace);
+        assert!(
+            matches!(client.create::<Amount>(req), Err(Error::Configuration(e)) if e.contains("cache_namespace"))
+        );
+    }
+}
+
 #[test]
 fn cached_raw_completion_is_revalidated_and_bounded() {
     let mut server = Server::new();
@@ -461,17 +508,18 @@ fn disk_cache_persists_only_with_matching_identity_and_namespace() {
         .with_disk_cache(dir.path(), namespace)
         .unwrap()
     };
-    client("a", "domain").create::<Amount>("query").unwrap();
+    let req = || Request::new("query").cache_namespace("project");
+    client("a", "domain").create::<Amount>(req()).unwrap();
     let (model, raw) = client("a", "domain")
-        .create_with_completion::<Amount>("query")
+        .create_with_completion::<Amount>(req())
         .unwrap();
     assert_eq!(model.value, 9);
     assert_eq!(raw, response);
-    client("a", "other").create::<Amount>("query").unwrap();
-    client("b", "domain").create::<Amount>("query").unwrap();
+    client("a", "other").create::<Amount>(req()).unwrap();
+    client("b", "domain").create::<Amount>(req()).unwrap();
     client("a", "domain").clear_cache().unwrap();
-    client("a", "domain").create::<Amount>("query").unwrap();
-    client("b", "domain").create::<Amount>("query").unwrap();
+    client("a", "domain").create::<Amount>(req()).unwrap();
+    client("b", "domain").create::<Amount>(req()).unwrap();
     mock.assert();
 }
 
