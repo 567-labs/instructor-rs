@@ -58,65 +58,75 @@ For each language the table reports the median of the round-level values `elapse
 
 ## Recorded results
 
-The archived run covers the original 49 cases. The current harness adds 12 Responses cases and updates the Rust Google protocol.
+After the smoke run verified all 61 results, timing began on 2026-11-27 at 02:55 UTC. Each workload ran in six alternating pairs with a 10 ms calibration target. The run used an Intel Xeon Platinum 8573C, Linux x86-64, a four-CPU quota, CPython 3.12.14, Instructor 1.18.0 and rustc 1.100.0. Both checkouts were clean. Rust was at `67aae030c4165d31b4161a334952f2a57dcaa93f` with default features, Python at `b01fff4e01ecab2bdcea6ad24e795bc3f549b89d`. The Rust and harness source fingerprint was `5ec2be24154508535082421675ca5f1d90dd91351d95ad188e362c009149187b`. The raw samples, versions and lockfile hashes are in `benchmarks/recorded/report.json`. [Rust checkout](https://github.com/567-labs/instructor-rs/tree/67aae030c4165d31b4161a334952f2a57dcaa93f) · [Python checkout](https://github.com/567-labs/instructor/tree/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d)
 
-The run started on 2026-11-26 at 21:39 UTC on an Intel Xeon Platinum 8573C with Linux x86-64, a four-CPU cgroup quota, CPython 3.12.14 and rustc 1.100.0. Python was at `b01fff4e` (Instructor 1.18.0). The measured Rust checkout was `494da5964429713003ee85890d67eeb5590df7e3`. The review revision `61718fce4b81d4d48055d432d175a375174b2fca` differs only in `docs/parity.md` and has the same Rust and harness source fingerprint, `05074292da031574e2a76a0ee7271731bc88ec6767e35e983c90b84fdff10ded`. Use these review and Python revisions to reproduce the measurements. [Rust benchmark checkout](https://github.com/567-labs/instructor-rs/tree/61718fce4b81d4d48055d432d175a375174b2fca) · [Python benchmark checkout](https://github.com/567-labs/instructor/tree/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d)
+The workers used synthetic credentials inside a Linux network namespace exposing only loopback. The server verified 37,701 requests across output checks, calibration and timing, including 15,609 to Responses, 9,786 streaming responses and 666 invalid responses for retries. The previous 49-case suite used Chat Completions for OpenAI, OpenRouter and Mistral and the earlier Gemini protocol in both languages. The current suite adds 12 Responses cases and exercises Rust's Interactions integration. [Previous 49-case run](https://github.com/567-labs/instructor-rs/blob/4328ec17dd5905d25210fb5b39f707768a88c527/benchmarks/recorded/report.json) · [First recorded run](https://github.com/567-labs/instructor-rs/blob/def3761d0fe33db821c4ae2d52d10339ef2617d8/benchmarks/recorded/report.json)
 
-The smoke run verified all 49 workloads. Six alternating timed pairs used a 10 ms calibration target and the archived dependency locks. The workers ran with synthetic credentials inside a Linux network namespace exposing only loopback. The server verified 21,375 requests across calibration, output checks and timing, including 3,252 streaming responses and 636 invalid responses for retries. See `benchmarks/recorded/report.json` for the raw samples and environment. The previous run in PR #39 used the same workloads, dependency locks and runtimes. [Previous raw measurements](https://github.com/567-labs/instructor-rs/blob/def3761d0fe33db821c4ae2d52d10339ef2617d8/benchmarks/recorded/report.json) · [Original benchmark PR](https://github.com/567-labs/instructor-rs/pull/39)
-
-Rust took less time in all 49 workload medians and all 294 individual pairs. The median ratios ranged from 2.94× for parsing an Anthropic batch to 162.48× for preparing OpenAI decision questions. For 16 records in 16-byte chunks, a full synchronous partial stream took 187.20 µs in Rust and 1,261.20 µs in Python. Consuming individually completed records took 6.14 µs and 83.13 µs respectively. The Jev ratios were 157.38× for preparing three questions, 13.87× for decoding their answers and 11.09× for a complete loopback request.
+Rust took less time in all 61 workload medians and all 366 individual pairs. Ratios of medians ranged from 2.93× for `batch-parse/anthropic` to 234.11× for `decision/jev-latest/questions`. OpenAI Responses text extraction took 176.22 µs in Rust and 2,654.23 µs in Python. Streaming the same record as three partials took 286.12 µs and 5,890.96 µs respectively. For a Jev decision, the Python/Rust median ratio was 10.84× with direct routing and 11.15× through OpenRouter.
 
 | Workload | Python µs/op | Rust µs/op | Python / Rust | Round ratio range |
 | --- | ---: | ---: | ---: | ---: |
-| schema/batch | 240.743 | 2.614 | 92.09× | 81.98–94.92 |
-| parse/1 | 1.618 | 0.156 | 10.37× | 9.28–13.01 |
-| parse/16 | 9.048 | 1.480 | 6.11× | 5.40–6.26 |
-| parse/128 | 61.455 | 9.176 | 6.70× | 5.64–6.96 |
-| parse/fenced | 20.955 | 1.282 | 16.34× | 11.33–16.57 |
-| parse/invalid | 2.399 | 0.462 | 5.20× | 4.74–5.54 |
-| context/validate | 9.472 | 1.353 | 7.00× | 6.60–12.69 |
-| context/validate_error | 16.054 | 1.395 | 11.51× | 10.40–12.37 |
-| partial/1x8 | 81.705 | 3.849 | 21.23× | 20.22–34.84 |
-| partial/16x16 | 1261.202 | 187.199 | 6.74× | 6.43–68.15 |
-| partial/16x128 | 177.168 | 20.627 | 8.59× | 8.21–14.46 |
-| partial/128x128 | 6227.383 | 1502.910 | 4.14× | 2.66–4.30 |
-| iterable/1x8 | 8.424 | 0.742 | 11.35× | 9.93–12.17 |
-| iterable/16x16 | 83.133 | 6.138 | 13.54× | 12.17–14.01 |
-| iterable/16x128 | 70.995 | 5.893 | 12.05× | 10.49–16.61 |
-| iterable/128x128 | 543.232 | 45.672 | 11.89× | 11.68–15.18 |
-| partial_first/16x20 | 16.294 | 0.899 | 18.13× | 17.19–20.48 |
-| iterable_first/16x20 | 7.222 | 0.548 | 13.17× | 12.59–42.07 |
-| partial_async/16x16 | 1357.140 | 182.667 | 7.43× | 7.16–12.73 |
-| iterable_async/16x16 | 108.766 | 6.661 | 16.33× | 15.12–28.01 |
-| decision/jev-latest/questions | 842.866 | 5.356 | 157.38× | 149.25–226.46 |
-| decision/jev-latest/answers | 5.197 | 0.375 | 13.87× | 11.65–18.89 |
-| decision/jev-latest/reject | 1.965 | 0.491 | 4.00× | 3.09–6.02 |
-| decision/gpt-6-luna/questions | 1063.243 | 6.544 | 162.48× | 90.70–533.56 |
-| decision/gpt-6-luna/answers | 6.599 | 0.402 | 16.40× | 12.97–30.70 |
-| decision/gpt-6-luna/reject | 2.712 | 0.459 | 5.90× | 2.71–21.02 |
-| batch-prepare/openai | 2607.417 | 192.220 | 13.56× | 12.93–14.18 |
-| batch-parse/openai | 126.439 | 28.928 | 4.37× | 3.53–4.84 |
-| batch-prepare/anthropic | 2301.429 | 221.979 | 10.37× | 10.13–12.37 |
-| batch-parse/anthropic | 108.221 | 36.781 | 2.94× | 2.92–3.04 |
-| batch-prepare/mistral | 2413.935 | 188.380 | 12.81× | 11.03–26.44 |
-| batch-parse/mistral | 122.433 | 31.819 | 3.85× | 3.72–9.59 |
-| cache/hit | 554.356 | 9.893 | 56.03× | 50.17–58.67 |
-| http/openai | 2031.863 | 173.805 | 11.69× | 6.91–14.08 |
-| http/anthropic | 1926.411 | 152.488 | 12.63× | 10.98–17.54 |
-| http/openrouter | 1968.755 | 196.208 | 10.03× | 8.08–10.73 |
-| http/google | 4245.566 | 174.939 | 24.27× | 21.75–29.36 |
-| http/cohere | 1654.083 | 189.488 | 8.73× | 7.34–12.03 |
-| http/mistral | 9515.038 | 185.411 | 51.32× | 35.76–74.39 |
-| http/retry | 4075.313 | 380.991 | 10.70× | 9.10–18.91 |
-| http-parallel/openai | 3782.058 | 221.989 | 17.04× | 5.10–21.00 |
-| http-stream/openai | 5192.447 | 289.451 | 17.94× | 4.67–47.93 |
-| http-parallel/anthropic | 3134.349 | 220.176 | 14.24× | 4.62–20.76 |
-| http-stream/anthropic | 4825.126 | 259.459 | 18.60× | 5.37–92.83 |
-| http-parallel/openrouter | 3589.642 | 202.503 | 17.73× | 16.98–21.35 |
-| http-stream/openrouter | 5536.789 | 232.675 | 23.80× | 15.58–29.64 |
-| http-decision/typesafe/jev-latest | 2018.766 | 182.057 | 11.09× | 5.31–13.37 |
-| http-decision/openrouter/typesafe/jev-1.13 | 1777.979 | 165.085 | 10.77× | 7.95–13.82 |
-| http-decision/openai/gpt-6-luna | 1875.088 | 186.422 | 10.06× | 8.24–12.55 |
+| schema/batch | 239.005 | 2.594 | 92.14× | 90.16–94.21 |
+| parse/1 | 1.603 | 0.158 | 10.17× | 9.31–10.87 |
+| parse/16 | 8.970 | 1.489 | 6.02× | 5.81–6.27 |
+| parse/128 | 61.261 | 9.292 | 6.59× | 6.46–6.84 |
+| parse/fenced | 20.779 | 1.319 | 15.76× | 11.83–16.29 |
+| parse/invalid | 2.389 | 0.476 | 5.02× | 3.32–5.32 |
+| context/validate | 9.205 | 1.362 | 6.76× | 4.58–7.45 |
+| context/validate_error | 15.953 | 1.547 | 10.31× | 7.30–18.55 |
+| partial/1x8 | 80.238 | 4.040 | 19.86× | 10.95–60.18 |
+| partial/16x16 | 1257.630 | 185.897 | 6.77× | 6.11–12.77 |
+| partial/16x128 | 174.008 | 21.594 | 8.06× | 7.93–15.13 |
+| partial/128x128 | 6189.042 | 1493.026 | 4.15× | 4.08–7.93 |
+| iterable/1x8 | 8.357 | 0.716 | 11.67× | 11.44–20.24 |
+| iterable/16x16 | 81.946 | 5.850 | 14.01× | 12.37–24.14 |
+| iterable/16x128 | 69.511 | 5.587 | 12.44× | 11.66–21.10 |
+| iterable/128x128 | 533.631 | 44.496 | 11.99× | 8.35–20.91 |
+| partial_first/16x20 | 16.282 | 0.946 | 17.21× | 7.12–27.79 |
+| iterable_first/16x20 | 7.125 | 0.530 | 13.45× | 9.62–21.65 |
+| partial_async/16x16 | 1345.604 | 191.528 | 7.03× | 3.67–13.63 |
+| iterable_async/16x16 | 106.249 | 6.377 | 16.66× | 9.07–52.06 |
+| decision/jev-latest/questions | 812.823 | 3.472 | 234.11× | 199.48–429.81 |
+| decision/jev-latest/answers | 4.388 | 0.371 | 11.82× | 11.41–20.94 |
+| decision/jev-latest/reject | 1.502 | 0.430 | 3.49× | 3.03–6.66 |
+| decision/gpt-6-luna/questions | 889.562 | 4.579 | 194.29× | 179.65–329.91 |
+| decision/gpt-6-luna/answers | 5.687 | 0.407 | 13.98× | 11.22–23.74 |
+| decision/gpt-6-luna/reject | 2.635 | 0.448 | 5.88× | 5.67–10.92 |
+| batch-prepare/openai | 2622.425 | 88.051 | 29.78× | 24.90–57.10 |
+| batch-parse/openai | 120.511 | 27.284 | 4.42× | 4.16–7.40 |
+| batch-prepare/anthropic | 2302.275 | 84.686 | 27.19× | 23.79–28.99 |
+| batch-parse/anthropic | 107.296 | 36.650 | 2.93× | 1.75–3.02 |
+| batch-prepare/mistral | 2309.142 | 86.374 | 26.73× | 22.79–36.83 |
+| batch-parse/mistral | 122.016 | 30.160 | 4.05× | 3.56–4.33 |
+| cache/hit | 546.469 | 6.795 | 80.42× | 55.82–425.84 |
+| http/openai | 2046.729 | 166.020 | 12.33× | 8.44–72.92 |
+| http/anthropic | 1959.740 | 155.166 | 12.63× | 11.49–13.23 |
+| http/openrouter | 1856.322 | 182.433 | 10.18× | 8.79–30.82 |
+| http/google | 4185.249 | 180.446 | 23.19× | 19.81–30.80 |
+| http/cohere | 1572.724 | 177.346 | 8.87× | 8.64–13.38 |
+| http/mistral | 9877.829 | 172.811 | 57.16× | 37.06–87.99 |
+| http/retry | 4012.229 | 340.210 | 11.79× | 3.62–16.42 |
+| http-parallel/openai | 3659.798 | 192.387 | 19.02× | 5.69–24.97 |
+| http-stream/openai | 5129.831 | 217.350 | 23.60× | 5.69–38.51 |
+| http-parallel/anthropic | 3092.841 | 199.724 | 15.49× | 13.69–20.07 |
+| http-stream/anthropic | 4884.166 | 214.902 | 22.73× | 19.96–30.66 |
+| http-parallel/openrouter | 3547.278 | 186.227 | 19.05× | 15.91–27.16 |
+| http-stream/openrouter | 5128.964 | 202.370 | 25.34× | 21.74–40.46 |
+| http-decision/typesafe/jev-latest | 1810.583 | 167.081 | 10.84× | 8.69–15.43 |
+| http-decision/openrouter/typesafe/jev-1.14 | 1855.756 | 166.426 | 11.15× | 8.63–37.68 |
+| http-decision/openai/gpt-6-luna | 1832.155 | 189.428 | 9.67× | 4.85–15.10 |
+| http/openai/responses-text | 2654.232 | 176.224 | 15.06× | 7.25–21.05 |
+| http-stream/openai/responses-text | 5890.956 | 286.115 | 20.59× | 9.42–44.53 |
+| http/openai/responses-tool | 2499.685 | 203.083 | 12.31× | 7.17–66.31 |
+| http-stream/openai/responses-tool | 5839.635 | 248.194 | 23.53× | 18.76–30.61 |
+| http/openrouter/responses-text | 2593.470 | 162.969 | 15.91× | 12.99–42.87 |
+| http-stream/openrouter/responses-text | 6440.809 | 235.911 | 27.30× | 19.77–49.14 |
+| http/openrouter/responses-tool | 2498.788 | 167.442 | 14.92× | 12.58–17.64 |
+| http-stream/openrouter/responses-tool | 5808.207 | 261.187 | 22.24× | 17.10–50.06 |
+| http/mistral/responses-text | 2608.015 | 190.003 | 13.73× | 8.03–17.27 |
+| http-stream/mistral/responses-text | 5898.858 | 294.707 | 20.02× | 12.86–26.76 |
+| http/mistral/responses-tool | 2691.778 | 173.332 | 15.53× | 13.63–26.47 |
+| http-stream/mistral/responses-tool | 6062.483 | 233.216 | 26.00× | 8.33–42.09 |
 
 ## Interpretation and limitations
 
@@ -124,6 +134,6 @@ The fixtures have fixed field types, short strings and predictable chunk boundar
 
 HTTP timings include the provider SDK on the Python side, the Rust HTTP client, the fixture server and OS scheduling. Both workers reuse their native client stacks. Provider requests can differ in optional metadata and schema representation. The server simulates immediate responses and the measurements exclude remote network latency, model inference and token generation delays. These ratios describe the measured client workflows on this machine. Python also uses native Rust components through Pydantic Core and jiter.
 
-The report measures warmed wall-clock time. Other CPU-intensive project checks paused during collection. The shared cgroup reported 94.629 ms of CPU throttling. CPU frequency, system load, interpreter version, allocator behavior and compiler optimizations affect the results. For `partial/16x16`, the six paired ratios ranged from 6.43× to 68.15×. A 10 ms calibration target gives only a few iterations for the slowest operations. Memory use, tail latency and sustained concurrent throughput need separate measurements.
+The report measures warmed wall-clock time. We paused the project’s other builds for the timed rounds. The shared cgroup reported 53.927 ms of CPU throttling during the rounds. CPU frequency, shared host activity, allocator state, compiler optimizations and interpreter versions affect the results. For `http/openai/responses-tool`, the six paired ratios ranged from 7.17× to 66.31×. A 10 ms calibration target can yield small batches for expensive operations. Memory use, tail latency and sustained concurrent throughput require separate measurements.
 
-Each report applies to the source fingerprint and dependency versions it records. This run includes the changes to nested partial validation, token accounting, cache backends and batch readers. Operations such as using an application-provided cache or reading a batch from a file require dedicated workloads to isolate their costs. Attributing timing changes between revisions to a specific feature would require alternating the two Rust revisions under the same conditions.
+The three Responses providers share one loopback fixture and Python’s OpenAI-compatible transport. Their timings describe processing the same record through each Rust provider configuration. Production provider behavior requires independent validation. Google uses different SDK protocols across the two languages. Batch timings cover in-memory preparation and parsing. Isolating disk downloads or the cost of a particular feature requires a dedicated workload. To compare revisions, alternate them under the same conditions.
