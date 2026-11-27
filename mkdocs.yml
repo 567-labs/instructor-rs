@@ -104,4 +104,4 @@ nav:
   - Comparison:
       - Python and Rust: parity.md
       - Benchmarks: benchmarks.md
-      - CI credentials: ci-credentials.md
+      - Compare provider results: ci-credentials.md

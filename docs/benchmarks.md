@@ -137,3 +137,25 @@ HTTP timings include the provider SDK on the Python side, the Rust HTTP client, 
 The report measures warmed wall-clock time. We paused the project’s other builds for the timed rounds. The shared cgroup reported 74.983 ms of CPU throttling during the rounds. CPU frequency, shared host activity, allocator state, compiler optimizations and interpreter versions affect the results. For `http/openai/responses-tool`, the six paired ratios ranged from 1.97× to 16.88×. A 10 ms calibration target can yield small batches for expensive operations. Memory use, tail latency and sustained concurrent throughput require separate measurements.
 
 The three Responses providers share one loopback fixture and Python’s OpenAI-compatible transport. Their timings describe processing the same record through each Rust provider configuration. Production provider behavior requires independent validation. Google uses different SDK protocols across the two languages. Batch timings cover in-memory preparation and parsing. Isolating disk downloads or the cost of a particular feature requires a dedicated workload. To compare revisions, alternate them under the same conditions.
+
+## Inspect the dependency graph
+
+For a Linux x86-64 consumer with `instructor-ai` as its only dependency, Cargo 1.100.0 selected the following package versions. The counts include Instructor and its transitive normal and build dependencies. Each distinct package name and version counts once. The consumer's own package and test dependencies are excluded.
+
+| Configuration | Packages | Build dependencies affected |
+| --- | ---: | --- |
+| Baseline at `e820e17` | 160 | Includes both the legacy SDK and the provider-neutral HTTP client. |
+| Defaults | 152 | Provider requests use Reqwest with Rustls 0.23. |
+| `features = ["legacy-openai"]` | 158 | Adds `openai-api-rs`, `minreq`, `rustls` 0.21, `rustls-webpki` 0.101, `sct` and `webpki-roots` 0.25. |
+
+To reproduce the counts from a fresh workspace checkout with cached dependencies, use the recorded lockfile. Run the same command at the baseline to compare. The target platform, lockfile and other dependencies in your application affect the counts.
+
+```sh
+cp benchmarks/recorded/Cargo.lock Cargo.lock
+count_packages() {
+  cargo tree --locked --offline -p instructor-ai --edges normal,build \
+    --prefix none --format '{p}' "$@" | awk '{print $1, $2}' | sort -u | wc -l
+}
+count_packages
+count_packages --features legacy-openai
+```
