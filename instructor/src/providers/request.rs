@@ -424,7 +424,7 @@ impl ProviderConfig {
                     }
                     Provider::Cohere => {
                         body["response_format"] = json!({"type":"json_object"});
-                        body["response_format"]["schema"] = schema;
+                        body["response_format"]["json_schema"] = schema;
                     }
                     Provider::Anthropic => {
                         body["output_config"]["format"] = json!({"type":"json_schema"});

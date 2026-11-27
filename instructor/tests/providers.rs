@@ -145,7 +145,9 @@ fn structured_request(p: Provider, mode: Mode, stream: bool, name: &str) -> Valu
                 _ => json!({"type":"function","function":{"name":name}}),
             };
         }
-        Provider::Cohere => body["response_format"] = json!({"type":"json_object","schema":shape}),
+        Provider::Cohere => {
+            body["response_format"] = json!({"type":"json_object","json_schema":shape})
+        }
         _ => {
             body["response_format"] = json!({"type":"json_schema","json_schema":{"name":name,"schema":shape,"strict":true}})
         }
