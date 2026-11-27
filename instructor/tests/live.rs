@@ -38,41 +38,30 @@ fn route(provider: &str, variable: &str, default_model: &str) -> String {
     format!("{provider}/{model}")
 }
 
-// The Rust override, when provided, applies to both the documentation
-// contract and the core suite. Python CI's optional Google model applies to
-// the core suite, and is usually qualified (google/gemini-...).
-fn generation_routes(
+fn generation_route(
     provider: &str,
-    documented: &str,
+    default: &str,
     read: impl Fn(&str) -> Option<String>,
-) -> (String, String) {
+) -> String {
     let variable = format!("INSTRUCTOR_LIVE_{}_MODEL", provider.to_ascii_uppercase());
-    let model = |key: &str| read(key).filter(|s| !s.trim().is_empty());
-    let configured = model(&variable);
-    let doc = configured.as_deref().unwrap_or(documented);
-    let python_model = if provider == "google" {
-        model("GOOGLE_GENAI_MODEL")
-    } else {
-        None
-    };
-    let default_core = match provider {
-        "mistral" => "ministral-8b-latest",
-        "google" => python_model.as_deref().unwrap_or(documented),
-        _ => documented,
-    };
-    let core = configured.as_deref().unwrap_or(default_core);
-    let qualify = |value: &str| {
-        let value = if provider == "google" {
-            value
-                .strip_prefix("google/")
-                .or_else(|| value.strip_prefix("gemini/"))
-                .unwrap_or(value)
+    let nonempty = |key: &str| read(key).filter(|s| !s.trim().is_empty());
+    let configured = nonempty(&variable).or_else(|| {
+        if provider == "google" {
+            nonempty("GOOGLE_GENAI_MODEL")
         } else {
-            value
-        };
-        format!("{provider}/{value}")
+            None
+        }
+    });
+    let model = configured.as_deref().unwrap_or(default).trim();
+    let model = if provider == "google" {
+        model
+            .strip_prefix("google/")
+            .or_else(|| model.strip_prefix("gemini/"))
+            .unwrap_or(model)
+    } else {
+        model
     };
-    (qualify(doc), qualify(core))
+    format!("{provider}/{model}")
 }
 
 #[path = "support/generation.rs"]
@@ -97,12 +86,12 @@ macro_rules! provider_suite {
         mod $name {
             use super::*;
 
-            fn routes()->(String,String) {
-                generation_routes($provider,$model,|key|std::env::var(key).ok())
+            pub(super) fn route(read: impl Fn(&str) -> Option<String>) -> String {
+                generation_route($provider, $model, read)
             }
 
             fn core()->Result<Generation,instructor_ai::Error>{
-                let (_,route)=routes();
+                let route = route(|key| std::env::var(key).ok());
                 Generation::new(generation_config(&route)?$(.with_mode($mode))?)
             }
 
@@ -121,9 +110,7 @@ macro_rules! provider_suite {
                 #[tokio::test]
                 #[ignore = "live documented model, see docs/parity.md for credentials"]
                 async fn $documented()->TestResult {
-                    let (route,_)=routes();
-                    Generation::new(generation_config(&route)?)?
-                        .test_current_documented_model().await?;
+                    core()?.test_current_documented_model().await?;
                     Ok(())
                 }
             )?
@@ -151,53 +138,56 @@ provider_suite!(
 provider_suite!(
     openrouter_responses,
     "openrouter",
-    "google/gemini-3.8-flash",
+    "openai/gpt-6.2-sol",
     test_current_documented_model
 );
 provider_suite!(
     google_interactions,
     "google",
-    "gemini-3.8-flash",
+    "gemini-4-hydrogen",
     test_current_documented_model
 );
 provider_suite!(
     cohere_chat,
     "cohere",
-    "command-a-03-2025",
+    "command-a-plus-05-2026",
     test_current_documented_model
 );
 provider_suite!(
     mistral_responses,
     "mistral",
-    "mistral-small-latest",
+    "mistral-large-4",
     test_current_documented_model
 );
 
 #[test]
-fn live_models_match_python_routes_and_allow_explicit_overrides() {
-    let google = "gemini-3.8-flash";
-    for model in ["google/gemini-other", "gemini-other"] {
-        let (doc, core) = generation_routes("google", google, |name| {
-            (name == "GOOGLE_GENAI_MODEL").then(|| model.into())
-        });
-        assert_eq!(doc, "google/gemini-3.8-flash");
-        assert_eq!(core, "google/gemini-other");
+fn standalone_generation_defaults_follow_the_guide_and_allow_overrides() {
+    assert_eq!(
+        openrouter_responses::route(|_| None),
+        "openrouter/openai/gpt-6.2-sol"
+    );
+    assert_eq!(
+        google_interactions::route(|_| None),
+        "google/gemini-4-hydrogen"
+    );
+    assert_eq!(
+        cohere_chat::route(|_| None),
+        "cohere/command-a-plus-05-2026"
+    );
+    assert_eq!(
+        mistral_responses::route(|_| Some(" ".into())),
+        "mistral/mistral-large-4"
+    );
+    for model in ["google/custom", "gemini/custom", "custom"] {
+        let route =
+            google_interactions::route(|key| (key == "GOOGLE_GENAI_MODEL").then(|| model.into()));
+        assert_eq!(route, "google/custom");
     }
-    let (doc, core) = generation_routes("google", google, |name| {
-        if name == "INSTRUCTOR_LIVE_GOOGLE_MODEL" {
-            Some("override".into())
-        } else {
-            Some("google/ignored".into())
-        }
+    let route = google_interactions::route(|key| match key {
+        "INSTRUCTOR_LIVE_GOOGLE_MODEL" => Some("google/override".into()),
+        _ => Some("ignored".into()),
     });
-    assert_eq!(doc, "google/override");
-    assert_eq!(core, doc);
-    let (doc, core) = generation_routes("mistral", "mistral-small-latest", |_| Some("".into()));
-    assert_eq!(doc, "mistral/mistral-small-latest");
-    assert_eq!(core, "mistral/ministral-8b-latest");
-    let (doc, core) = generation_routes("openrouter", "google/gemini-3.8-flash", |_| None);
-    assert_eq!(doc, "openrouter/google/gemini-3.8-flash");
-    assert_eq!(core, doc);
+    assert_eq!(route, "google/override");
 }
 
 /// Which team handles the customer's request?
