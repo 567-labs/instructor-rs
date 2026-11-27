@@ -3,10 +3,10 @@ name = "instructor-ai"
 version = "0.1.8"
 edition = "2021"
 authors = ["Ivan Leo <ivanleomk@gmail.com>"]
-description = "instructor-ai is a simple crate that allows for users to do validated structured outputs"
+description = "Extract, validate, and stream typed Rust values from language models"
 readme = "../README.md"
 homepage = "https://rust.useinstructor.com"
-repository = "https://github.com/instructor-ai/instructor-rs"
+repository = "https://github.com/567-labs/instructor-rs"
 license = "MIT OR Apache-2.0"
 
 [package.metadata]

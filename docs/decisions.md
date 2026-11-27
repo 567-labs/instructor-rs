@@ -198,4 +198,4 @@ Use `BlockingDecisionsClient::from_provider(route)?` from synchronous code and c
 
 To reuse a transport, finish the configuration with `.with_client(http.clone())?` or `.with_blocking_client(http.clone())?`. A supplied Reqwest transport keeps its timeout unless you set a duration for the decision request. To disable its timeout, configure the transport itself. Cloned handles share the underlying connection pool. Rust releases the pool when its last handle drops.
 
-Like Python, Decisions performs a single request and returns the complete answer set. Streaming, reasks, caching, and completion hooks belong to the structured generation client. [Python Decisions guide](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/decisions.md)
+Like Python, Decisions performs a single request and returns the complete answer set. Streaming, reasks, local response caching, and completion hooks belong to the structured generation client. [Python Decisions guide](https://github.com/567-labs/instructor/blob/b01fff4e01ecab2bdcea6ad24e795bc3f549b89d/docs/concepts/decisions.md)
