@@ -1,6 +1,6 @@
 {
   "environment": {
-    "run_started_utc": "2026-11-27T02:55:52.333582+00:00",
+    "run_started_utc": "2026-11-27T03:04:28.419413+00:00",
     "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
     "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
     "logical_cpus": 5,
@@ -11,8 +11,8 @@
     "rustflags": "",
     "python_revision": "b01fff4e01ecab2bdcea6ad24e795bc3f549b89d",
     "python_tracked_changes": false,
-    "rust_revision": "67aae030c4165d31b4161a334952f2a57dcaa93f",
-    "rust_and_benchmark_source_sha256": "5ec2be24154508535082421675ca5f1d90dd91351d95ad188e362c009149187b",
+    "rust_revision": "a5de07be4b24c5cde61f0fa7c548bbef462115f1",
+    "rust_and_benchmark_source_sha256": "cfb89040c5ae390649b6f83c8f7f54ed3e0031594976fe5a87ebbee3408acc2a",
     "cargo_lock_sha256": "e2182bf1c3decd79a475bd45b313e2eda8848e3ab6f7c8ebd980ee8d3d61244e",
     "uv_lock_sha256": "62f417cde23da2fcbcc36973f22d66e9769311be97439c0aa8fda944ada0b364",
     "distributions": {
@@ -28,71 +28,71 @@
       "mistralai": "3.6.0",
       "jinja2": "3.1.6"
     },
-    "cgroup_throttled_us_during_rounds": 53927
+    "cgroup_throttled_us_during_rounds": 74983
   },
   "rounds": 6,
   "target_ms": 10,
   "verified_fixture_calls": {
-    "total": 37701,
-    "anthropic-2026-10-21": 4308,
-    "generateContent": 72,
-    "invalid": 666,
-    "stream": 9786,
-    "responses-text": 7653,
-    "responses-tool": 7956,
-    "interactions": 1344
+    "total": 38805,
+    "anthropic-2026-10-21": 4272,
+    "generateContent": 66,
+    "invalid": 642,
+    "stream": 9798,
+    "responses-text": 7836,
+    "responses-tool": 8268,
+    "interactions": 1728
   },
   "samples": {
     "schema/batch": {
       "python": [
         {
           "iterations": 64,
-          "elapsed_ns": 15221510
+          "elapsed_ns": 14891674
         },
         {
           "iterations": 64,
-          "elapsed_ns": 15497783
+          "elapsed_ns": 14757210
         },
         {
           "iterations": 64,
-          "elapsed_ns": 15371185
+          "elapsed_ns": 15195307
         },
         {
           "iterations": 64,
-          "elapsed_ns": 14862384
+          "elapsed_ns": 15686665
         },
         {
           "iterations": 64,
-          "elapsed_ns": 15805185
+          "elapsed_ns": 15202708
         },
         {
           "iterations": 64,
-          "elapsed_ns": 15137896
+          "elapsed_ns": 15505627
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10698165,
+          "elapsed_ns": 10709789,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 10527765,
+          "elapsed_ns": 10604973,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 10819906,
+          "elapsed_ns": 10660744,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 10549569,
+          "elapsed_ns": 10571128,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 10969801,
+          "elapsed_ns": 10465275,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 10551742,
+          "elapsed_ns": 16366073,
           "iterations": 4096
         }
       ]
@@ -101,53 +101,53 @@
       "python": [
         {
           "iterations": 8192,
-          "elapsed_ns": 13127339
+          "elapsed_ns": 13566352
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 13045320
+          "elapsed_ns": 13048885
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 13301962
+          "elapsed_ns": 13475199
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 13875047
+          "elapsed_ns": 13834657
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 13140451
+          "elapsed_ns": 12955089
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 13049767
+          "elapsed_ns": 13337586
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10273305,
+          "elapsed_ns": 10151833,
           "iterations": 65536
         },
         {
-          "elapsed_ns": 10162586,
+          "elapsed_ns": 10286117,
           "iterations": 65536
         },
         {
-          "elapsed_ns": 10395303,
+          "elapsed_ns": 10260348,
           "iterations": 65536
         },
         {
-          "elapsed_ns": 10215994,
+          "elapsed_ns": 10102810,
           "iterations": 65536
         },
         {
-          "elapsed_ns": 11296466,
+          "elapsed_ns": 10212793,
           "iterations": 65536
         },
         {
-          "elapsed_ns": 10488231,
-          "iterations": 65536
+          "elapsed_ns": 9927769,
+          "iterations": 32768
         }
       ]
     },
@@ -155,53 +155,53 @@
       "python": [
         {
           "iterations": 2048,
-          "elapsed_ns": 18191684
+          "elapsed_ns": 17874912
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 18649582
+          "elapsed_ns": 17800552
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 18328914
+          "elapsed_ns": 17876379
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 18412352
+          "elapsed_ns": 18772222
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 20143308
+          "elapsed_ns": 18104992
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 18207642
+          "elapsed_ns": 18570507
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 12097137,
+          "elapsed_ns": 12141412,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 12077405,
+          "elapsed_ns": 12246801,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 12258373,
+          "elapsed_ns": 12312767,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 12139592,
+          "elapsed_ns": 12086796,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 12849494,
+          "elapsed_ns": 12303026,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 12538281,
-          "iterations": 8192
+          "elapsed_ns": 10795945,
+          "iterations": 4096
         }
       ]
     },
@@ -209,53 +209,53 @@
       "python": [
         {
           "iterations": 256,
-          "elapsed_ns": 15755251
+          "elapsed_ns": 15347183
         },
         {
           "iterations": 256,
-          "elapsed_ns": 15718588
+          "elapsed_ns": 15592859
         },
         {
           "iterations": 256,
-          "elapsed_ns": 15646790
+          "elapsed_ns": 15446320
         },
         {
           "iterations": 256,
-          "elapsed_ns": 15631734
+          "elapsed_ns": 15352581
         },
         {
           "iterations": 256,
-          "elapsed_ns": 15783876
+          "elapsed_ns": 15676087
         },
         {
           "iterations": 256,
-          "elapsed_ns": 15253740
+          "elapsed_ns": 15591327
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 18422101,
+          "elapsed_ns": 19183011,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 19052969,
+          "elapsed_ns": 19109596,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 19113934,
+          "elapsed_ns": 18821527,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 19124155,
+          "elapsed_ns": 19043095,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 19006129,
+          "elapsed_ns": 19144433,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 18893932,
-          "iterations": 2048
+          "elapsed_ns": 16064888,
+          "iterations": 1024
         }
       ]
     },
@@ -263,52 +263,52 @@
       "python": [
         {
           "iterations": 512,
-          "elapsed_ns": 10661320
+          "elapsed_ns": 10554602
         },
         {
           "iterations": 512,
-          "elapsed_ns": 10500957
+          "elapsed_ns": 10658770
         },
         {
           "iterations": 512,
-          "elapsed_ns": 10854918
+          "elapsed_ns": 10379271
         },
         {
           "iterations": 512,
-          "elapsed_ns": 10440519
+          "elapsed_ns": 10510730
         },
         {
           "iterations": 512,
-          "elapsed_ns": 10656269
+          "elapsed_ns": 10450706
         },
         {
           "iterations": 512,
-          "elapsed_ns": 10621118
+          "elapsed_ns": 10385411
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 14414543,
+          "elapsed_ns": 10878821,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 10863140,
+          "elapsed_ns": 10407896,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 10658944,
+          "elapsed_ns": 10804033,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 11176051,
+          "elapsed_ns": 10638451,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 10463439,
+          "elapsed_ns": 10639285,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 10742067,
+          "elapsed_ns": 18692674,
           "iterations": 8192
         }
       ]
@@ -317,53 +317,53 @@
       "python": [
         {
           "iterations": 8192,
-          "elapsed_ns": 19310076
+          "elapsed_ns": 18543602
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 19310140
-        },
-        {
-          "iterations": 8192,
-          "elapsed_ns": 19824923
+          "elapsed_ns": 18854095
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 10142110
+          "elapsed_ns": 10059646
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 19826071
+          "elapsed_ns": 20315736
         },
         {
-          "iterations": 4096,
-          "elapsed_ns": 9519444
+          "iterations": 8192,
+          "elapsed_ns": 18937392
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 19708435
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 14875164,
+          "elapsed_ns": 14868012,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14984220,
+          "elapsed_ns": 14960927,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 23919836,
+          "elapsed_ns": 14880319,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 15238648,
+          "elapsed_ns": 14502106,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 15932342,
+          "elapsed_ns": 15025334,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 16485277,
-          "iterations": 32768
+          "elapsed_ns": 13799182,
+          "iterations": 16384
         }
       ]
     },
@@ -371,52 +371,52 @@
       "python": [
         {
           "iterations": 2048,
-          "elapsed_ns": 18772219
+          "elapsed_ns": 19094412
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 18937887
+          "elapsed_ns": 19164524
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 18716499
+          "elapsed_ns": 19058117
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 19142301
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 18901361
+          "elapsed_ns": 18789237
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 20606705
-        },
-        {
-          "iterations": 2048,
-          "elapsed_ns": 18800575
+          "elapsed_ns": 19026455
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11030575,
+          "elapsed_ns": 10994816,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 13790510,
+          "elapsed_ns": 11005338,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 16330548,
+          "elapsed_ns": 10976664,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 10960940,
+          "elapsed_ns": 10943557,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 11068294,
+          "elapsed_ns": 11120189,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 11249905,
+          "elapsed_ns": 19006871,
           "iterations": 8192
         }
       ]
@@ -424,54 +424,54 @@
     "context/validate_error": {
       "python": [
         {
-          "iterations": 1024,
-          "elapsed_ns": 16237858
+          "iterations": 512,
+          "elapsed_ns": 9276705
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 16286249
+          "elapsed_ns": 16473767
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 16384827
+          "elapsed_ns": 16507204
+        },
+        {
+          "iterations": 512,
+          "elapsed_ns": 8728642
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 17254757
+          "elapsed_ns": 16585683
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 26859499
-        },
-        {
-          "iterations": 1024,
-          "elapsed_ns": 15910656
+          "elapsed_ns": 16436065
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11520618,
+          "elapsed_ns": 11516729,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 15508563,
+          "elapsed_ns": 11686600,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 17955008,
+          "elapsed_ns": 11623319,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 11424347,
+          "elapsed_ns": 11566048,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 11585003,
+          "elapsed_ns": 11364873,
           "iterations": 8192
         },
         {
-          "elapsed_ns": 13768748,
-          "iterations": 8192
+          "elapsed_ns": 9512606,
+          "iterations": 4096
         }
       ]
     },
@@ -479,53 +479,53 @@
       "python": [
         {
           "iterations": 128,
-          "elapsed_ns": 10243858
+          "elapsed_ns": 10611487
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10324317
+          "elapsed_ns": 9959400
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10220328
+          "elapsed_ns": 10433430
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10288127
-        },
-        {
-          "iterations": 64,
-          "elapsed_ns": 15516851
+          "elapsed_ns": 10189772
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10252708
+          "elapsed_ns": 10420394
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 10414502
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 15755397,
+          "elapsed_ns": 16003046,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 15084259,
+          "elapsed_ns": 16135214,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 16334751,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 16174945,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 16080051,
+          "iterations": 4096
+        },
+        {
+          "elapsed_ns": 15076252,
           "iterations": 2048
-        },
-        {
-          "elapsed_ns": 16596097,
-          "iterations": 4096
-        },
-        {
-          "elapsed_ns": 17159727,
-          "iterations": 4096
-        },
-        {
-          "elapsed_ns": 16501927,
-          "iterations": 4096
-        },
-        {
-          "elapsed_ns": 16273664,
-          "iterations": 4096
         }
       ]
     },
@@ -533,52 +533,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 9962339
+          "elapsed_ns": 9837859
         },
         {
           "iterations": 8,
-          "elapsed_ns": 9868483
+          "elapsed_ns": 9829161
         },
         {
           "iterations": 8,
-          "elapsed_ns": 10107357
+          "elapsed_ns": 9934401
         },
         {
           "iterations": 8,
-          "elapsed_ns": 10064369
+          "elapsed_ns": 9812270
         },
         {
           "iterations": 8,
-          "elapsed_ns": 18905999
+          "elapsed_ns": 10239417
         },
         {
           "iterations": 8,
-          "elapsed_ns": 10057718
+          "elapsed_ns": 9908916
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 12160915,
+          "elapsed_ns": 11843708,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12929864,
+          "elapsed_ns": 11901665,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11952218,
+          "elapsed_ns": 11983064,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11772010,
+          "elapsed_ns": 11407741,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11842598,
+          "elapsed_ns": 11803711,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11823075,
+          "elapsed_ns": 18545700,
           "iterations": 64
         }
       ]
@@ -587,52 +587,52 @@
       "python": [
         {
           "iterations": 64,
-          "elapsed_ns": 11005097
+          "elapsed_ns": 11422355
         },
         {
           "iterations": 64,
-          "elapsed_ns": 11070892
+          "elapsed_ns": 11005511
         },
         {
           "iterations": 64,
-          "elapsed_ns": 11150111
+          "elapsed_ns": 11157609
         },
         {
           "iterations": 64,
-          "elapsed_ns": 11122865
-        },
-        {
-          "iterations": 32,
-          "elapsed_ns": 10365632
+          "elapsed_ns": 11089960
         },
         {
           "iterations": 64,
-          "elapsed_ns": 11557881
+          "elapsed_ns": 11227981
+        },
+        {
+          "iterations": 64,
+          "elapsed_ns": 11119606
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11108388,
+          "elapsed_ns": 10757161,
           "iterations": 512
         },
         {
-          "elapsed_ns": 10847799,
+          "elapsed_ns": 10731927,
           "iterations": 512
         },
         {
-          "elapsed_ns": 11133931,
+          "elapsed_ns": 10964956,
           "iterations": 512
         },
         {
-          "elapsed_ns": 11183126,
+          "elapsed_ns": 10804820,
           "iterations": 512
         },
         {
-          "elapsed_ns": 10958467,
+          "elapsed_ns": 10854461,
           "iterations": 512
         },
         {
-          "elapsed_ns": 11003828,
+          "elapsed_ns": 17011456,
           "iterations": 512
         }
       ]
@@ -641,52 +641,52 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 12389960
+          "elapsed_ns": 12222491
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12366209
+          "elapsed_ns": 12430901
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12144935
+          "elapsed_ns": 12677808
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12227005
-        },
-        {
-          "iterations": 1,
-          "elapsed_ns": 11844559
+          "elapsed_ns": 11765661
         },
         {
           "iterations": 2,
-          "elapsed_ns": 14373630
+          "elapsed_ns": 12352626
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 21172268
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11877032,
+          "elapsed_ns": 12071313,
           "iterations": 8
         },
         {
-          "elapsed_ns": 11977174,
+          "elapsed_ns": 11786241,
           "iterations": 8
         },
         {
-          "elapsed_ns": 11902494,
+          "elapsed_ns": 12224105,
           "iterations": 8
         },
         {
-          "elapsed_ns": 11935415,
+          "elapsed_ns": 12079125,
           "iterations": 8
         },
         {
-          "elapsed_ns": 11952995,
+          "elapsed_ns": 12000989,
           "iterations": 8
         },
         {
-          "elapsed_ns": 12380053,
+          "elapsed_ns": 18126023,
           "iterations": 8
         }
       ]
@@ -695,52 +695,52 @@
       "python": [
         {
           "iterations": 2048,
-          "elapsed_ns": 16877216
+          "elapsed_ns": 16748055
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 16919461
+          "elapsed_ns": 41165465
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 16906078
+          "elapsed_ns": 25182910
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 17729129
+          "elapsed_ns": 16991323
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 16865117
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 14799624
-        },
-        {
-          "iterations": 2048,
-          "elapsed_ns": 17311370
+          "elapsed_ns": 12459536
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11790384,
+          "elapsed_ns": 11658583,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 11614383,
+          "elapsed_ns": 11253419,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 11820594,
+          "elapsed_ns": 11736666,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 11760884,
+          "elapsed_ns": 11974902,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 11697676,
+          "elapsed_ns": 11529990,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 11416368,
+          "elapsed_ns": 18234494,
           "iterations": 16384
         }
       ]
@@ -749,52 +749,52 @@
       "python": [
         {
           "iterations": 128,
-          "elapsed_ns": 10439297
+          "elapsed_ns": 10418312
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10293022
+          "elapsed_ns": 10638326
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10404939
+          "elapsed_ns": 10388700
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10538865
+          "elapsed_ns": 10556440
         },
         {
           "iterations": 128,
-          "elapsed_ns": 18142168
+          "elapsed_ns": 10408742
         },
         {
           "iterations": 128,
-          "elapsed_ns": 10929655
+          "elapsed_ns": 10688453
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11771676,
+          "elapsed_ns": 13531690,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 13310049,
+          "elapsed_ns": 11554630,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 11936960,
+          "elapsed_ns": 12152123,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 11878785,
+          "elapsed_ns": 11921746,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 12023124,
+          "elapsed_ns": 12296496,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 12258655,
+          "elapsed_ns": 17374344,
           "iterations": 2048
         }
       ]
@@ -803,52 +803,52 @@
       "python": [
         {
           "iterations": 256,
-          "elapsed_ns": 16957135
+          "elapsed_ns": 16919775
         },
         {
           "iterations": 256,
-          "elapsed_ns": 16623095
+          "elapsed_ns": 17370569
         },
         {
           "iterations": 256,
-          "elapsed_ns": 18042116
+          "elapsed_ns": 17413129
         },
         {
           "iterations": 256,
-          "elapsed_ns": 17547322
-        },
-        {
-          "iterations": 128,
-          "elapsed_ns": 15135379
+          "elapsed_ns": 17411953
         },
         {
           "iterations": 256,
-          "elapsed_ns": 18503305
+          "elapsed_ns": 17568351
+        },
+        {
+          "iterations": 256,
+          "elapsed_ns": 17183662
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11206075,
+          "elapsed_ns": 19085482,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 11408872,
+          "elapsed_ns": 11388721,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 11660482,
+          "elapsed_ns": 12004620,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 11352736,
+          "elapsed_ns": 11112837,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 11475605,
+          "elapsed_ns": 11285910,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 11513636,
+          "elapsed_ns": 16935312,
           "iterations": 2048
         }
       ]
@@ -857,52 +857,52 @@
       "python": [
         {
           "iterations": 32,
-          "elapsed_ns": 16945908
+          "elapsed_ns": 17091906
         },
         {
           "iterations": 32,
-          "elapsed_ns": 16950966
+          "elapsed_ns": 17421301
         },
         {
           "iterations": 32,
-          "elapsed_ns": 17008592
+          "elapsed_ns": 17295307
         },
         {
           "iterations": 32,
-          "elapsed_ns": 17143796
+          "elapsed_ns": 17077666
         },
         {
-          "iterations": 16,
-          "elapsed_ns": 14735039
+          "iterations": 32,
+          "elapsed_ns": 17936725
         },
         {
-          "iterations": 16,
-          "elapsed_ns": 9125011
+          "iterations": 32,
+          "elapsed_ns": 17803595
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11392839,
+          "elapsed_ns": 11543312,
           "iterations": 256
         },
         {
-          "elapsed_ns": 11112782,
+          "elapsed_ns": 11164752,
           "iterations": 256
         },
         {
-          "elapsed_ns": 11388868,
+          "elapsed_ns": 11300795,
           "iterations": 256
         },
         {
-          "elapsed_ns": 11650567,
+          "elapsed_ns": 11189049,
           "iterations": 256
         },
         {
-          "elapsed_ns": 11274454,
+          "elapsed_ns": 11350718,
           "iterations": 256
         },
         {
-          "elapsed_ns": 17475044,
+          "elapsed_ns": 16938781,
           "iterations": 256
         }
       ]
@@ -911,52 +911,52 @@
       "python": [
         {
           "iterations": 1024,
-          "elapsed_ns": 16365797
+          "elapsed_ns": 16550030
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 16412762
+          "elapsed_ns": 17256737
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 16390177
+          "elapsed_ns": 16363446
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 16933538
-        },
-        {
-          "iterations": 512,
-          "elapsed_ns": 16092930
+          "elapsed_ns": 16342478
         },
         {
           "iterations": 1024,
-          "elapsed_ns": 17213800
+          "elapsed_ns": 16565469
+        },
+        {
+          "iterations": 1024,
+          "elapsed_ns": 16629364
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 15283197,
+          "elapsed_ns": 15022761,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 15122718,
+          "elapsed_ns": 15212055,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 15429866,
+          "elapsed_ns": 15648095,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 15575971,
+          "elapsed_ns": 15236302,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 18531170,
+          "elapsed_ns": 15306922,
           "iterations": 16384
         },
         {
-          "elapsed_ns": 19352327,
+          "elapsed_ns": 16045061,
           "iterations": 8192
         }
       ]
@@ -965,52 +965,52 @@
       "python": [
         {
           "iterations": 2048,
-          "elapsed_ns": 14181206
+          "elapsed_ns": 14520129
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 13905032
+          "elapsed_ns": 14900864
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 14527427
+          "elapsed_ns": 15392904
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 14658368
-        },
-        {
-          "iterations": 1024,
-          "elapsed_ns": 11800457
+          "elapsed_ns": 15045523
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 15481997
+          "elapsed_ns": 14518558
+        },
+        {
+          "iterations": 2048,
+          "elapsed_ns": 14752010
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 22044075,
+          "elapsed_ns": 17025427,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 16948465,
+          "elapsed_ns": 16978093,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 17129648,
+          "elapsed_ns": 8439109,
+          "iterations": 16384
+        },
+        {
+          "elapsed_ns": 16852138,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 17284161,
-          "iterations": 32768
+          "elapsed_ns": 10213733,
+          "iterations": 16384
         },
         {
-          "elapsed_ns": 17439696,
-          "iterations": 32768
-        },
-        {
-          "elapsed_ns": 12869427,
+          "elapsed_ns": 17542026,
           "iterations": 16384
         }
       ]
@@ -1019,53 +1019,53 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 10932374
+          "elapsed_ns": 10239544
         },
         {
           "iterations": 8,
-          "elapsed_ns": 10569751
+          "elapsed_ns": 10361039
         },
         {
           "iterations": 8,
-          "elapsed_ns": 10597291
+          "elapsed_ns": 10425543
         },
         {
           "iterations": 8,
-          "elapsed_ns": 10500571
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 10045616
+          "elapsed_ns": 10365469
         },
         {
           "iterations": 8,
-          "elapsed_ns": 11870510
+          "elapsed_ns": 10405117
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 10287688
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 1371229,
-          "iterations": 4
-        },
-        {
-          "elapsed_ns": 12266942,
+          "elapsed_ns": 11691473,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12248624,
+          "elapsed_ns": 11845675,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12061065,
+          "elapsed_ns": 11740570,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11794273,
+          "elapsed_ns": 11803984,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12938161,
-          "iterations": 32
+          "elapsed_ns": 11912621,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18172565,
+          "iterations": 64
         }
       ]
     },
@@ -1073,53 +1073,53 @@
       "python": [
         {
           "iterations": 128,
-          "elapsed_ns": 13643156
+          "elapsed_ns": 13692231
         },
         {
           "iterations": 128,
-          "elapsed_ns": 13525913
+          "elapsed_ns": 13099077
         },
         {
           "iterations": 128,
-          "elapsed_ns": 13482187
-        },
-        {
-          "iterations": 32,
-          "elapsed_ns": 10676231
-        },
-        {
-          "iterations": 64,
-          "elapsed_ns": 12468043
+          "elapsed_ns": 13664073
         },
         {
           "iterations": 128,
-          "elapsed_ns": 13556672
+          "elapsed_ns": 13569449
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 13808580
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 13536886
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 24061341,
+          "elapsed_ns": 12734627,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 12777255,
+          "elapsed_ns": 12989346,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 12971861,
+          "elapsed_ns": 13255282,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 13125726,
+          "elapsed_ns": 12825777,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 12993150,
+          "elapsed_ns": 12813245,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 10617847,
-          "iterations": 1024
+          "elapsed_ns": 13038239,
+          "iterations": 2048
         }
       ]
     },
@@ -1127,52 +1127,52 @@
       "python": [
         {
           "iterations": 16,
-          "elapsed_ns": 13095435
+          "elapsed_ns": 13958440
         },
         {
           "iterations": 16,
-          "elapsed_ns": 12856853
+          "elapsed_ns": 13023535
         },
         {
           "iterations": 16,
-          "elapsed_ns": 12914897
-        },
-        {
-          "iterations": 8,
-          "elapsed_ns": 11992300
-        },
-        {
-          "iterations": 8,
-          "elapsed_ns": 11665470
+          "elapsed_ns": 13555360
         },
         {
           "iterations": 16,
-          "elapsed_ns": 12633552
+          "elapsed_ns": 13159825
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 14548430
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13017850
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 14156833,
+          "elapsed_ns": 13913691,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 13917759,
+          "elapsed_ns": 13969591,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 14141691,
+          "elapsed_ns": 14325072,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 14285394,
+          "elapsed_ns": 14216685,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 14797547,
+          "elapsed_ns": 14080824,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 16213106,
+          "elapsed_ns": 13978262,
           "iterations": 4096
         }
       ]
@@ -1181,52 +1181,52 @@
       "python": [
         {
           "iterations": 4096,
-          "elapsed_ns": 17675514
+          "elapsed_ns": 17291395
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 17685041
+          "elapsed_ns": 18820194
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 18214288
-        },
-        {
-          "iterations": 2048,
-          "elapsed_ns": 9116179
-        },
-        {
-          "iterations": 1024,
-          "elapsed_ns": 7975501
+          "elapsed_ns": 18839016
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 17729782
+          "elapsed_ns": 18110084
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 18265122
+        },
+        {
+          "iterations": 4096,
+          "elapsed_ns": 18039559
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 12390298,
+          "elapsed_ns": 16259570,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 12186051,
+          "elapsed_ns": 12006386,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 12147758,
+          "elapsed_ns": 12140164,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 12075383,
+          "elapsed_ns": 12497642,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 12185656,
+          "elapsed_ns": 12350687,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 12147645,
+          "elapsed_ns": 12132719,
           "iterations": 32768
         }
       ]
@@ -1235,52 +1235,52 @@
       "python": [
         {
           "iterations": 8192,
-          "elapsed_ns": 12173762
+          "elapsed_ns": 12180397
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 12249637
+          "elapsed_ns": 12256360
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 12511942
+          "elapsed_ns": 12262077
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 12362759
-        },
-        {
-          "iterations": 4096,
-          "elapsed_ns": 11729740
+          "elapsed_ns": 12040276
         },
         {
           "iterations": 8192,
-          "elapsed_ns": 12130189
+          "elapsed_ns": 12258889
+        },
+        {
+          "iterations": 8192,
+          "elapsed_ns": 12376450
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 15675547,
+          "elapsed_ns": 13957924,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14037088,
+          "elapsed_ns": 14016719,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14126104,
+          "elapsed_ns": 14032844,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14081804,
+          "elapsed_ns": 14074277,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14079811,
-          "iterations": 32768
+          "elapsed_ns": 12704127,
+          "iterations": 16384
         },
         {
-          "elapsed_ns": 16021876,
+          "elapsed_ns": 14232116,
           "iterations": 32768
         }
       ]
@@ -1289,52 +1289,52 @@
       "python": [
         {
           "iterations": 16,
-          "elapsed_ns": 13472597
+          "elapsed_ns": 13005804
         },
         {
           "iterations": 16,
-          "elapsed_ns": 13399785
+          "elapsed_ns": 13614138
         },
         {
           "iterations": 16,
-          "elapsed_ns": 14799570
-        },
-        {
-          "iterations": 8,
-          "elapsed_ns": 8190434
-        },
-        {
-          "iterations": 8,
-          "elapsed_ns": 12076767
+          "elapsed_ns": 13038013
         },
         {
           "iterations": 16,
-          "elapsed_ns": 13666421
+          "elapsed_ns": 13282557
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13430051
+        },
+        {
+          "iterations": 16,
+          "elapsed_ns": 13200303
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 19198009,
+          "elapsed_ns": 18793112,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 18415435,
+          "elapsed_ns": 18805499,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 18765659,
+          "elapsed_ns": 18478399,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 19151051,
+          "elapsed_ns": 19495578,
           "iterations": 4096
         },
         {
-          "elapsed_ns": 18742493,
-          "iterations": 4096
+          "elapsed_ns": 21452155,
+          "iterations": 2048
         },
         {
-          "elapsed_ns": 18451507,
+          "elapsed_ns": 18638761,
           "iterations": 4096
         }
       ]
@@ -1343,52 +1343,52 @@
       "python": [
         {
           "iterations": 2048,
-          "elapsed_ns": 11793169
+          "elapsed_ns": 11314337
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 11234501
+          "elapsed_ns": 11390554
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 11713634
+          "elapsed_ns": 11286578
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 11573439
+          "elapsed_ns": 11261064
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 19583537
+          "elapsed_ns": 10931505
         },
         {
           "iterations": 2048,
-          "elapsed_ns": 11581809
+          "elapsed_ns": 11162325
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 12957970,
+          "elapsed_ns": 13406661,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 13774245,
+          "elapsed_ns": 13143362,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 13465925,
+          "elapsed_ns": 13155228,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 16502150,
+          "elapsed_ns": 13196833,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 13201395,
+          "elapsed_ns": 13485878,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 12956443,
+          "elapsed_ns": 13297904,
           "iterations": 32768
         }
       ]
@@ -1397,52 +1397,52 @@
       "python": [
         {
           "iterations": 4096,
-          "elapsed_ns": 10565225
+          "elapsed_ns": 10394845
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 10388605
+          "elapsed_ns": 10793202
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 10982627
+          "elapsed_ns": 10851401
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 11198174
+          "elapsed_ns": 10638810
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 19891167
+          "elapsed_ns": 10406386
         },
         {
           "iterations": 4096,
-          "elapsed_ns": 10602165
+          "elapsed_ns": 10461162
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 14481195,
+          "elapsed_ns": 14494005,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14581120,
+          "elapsed_ns": 13853178,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14809563,
+          "elapsed_ns": 14632638,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14801064,
+          "elapsed_ns": 14790602,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14567792,
+          "elapsed_ns": 14645424,
           "iterations": 32768
         },
         {
-          "elapsed_ns": 14948969,
+          "elapsed_ns": 16677824,
           "iterations": 32768
         }
       ]
@@ -1451,52 +1451,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 10141894
-        },
-        {
-          "iterations": 8,
-          "elapsed_ns": 20093428
-        },
-        {
-          "iterations": 8,
-          "elapsed_ns": 39726491
+          "elapsed_ns": 10863536
         },
         {
           "iterations": 4,
-          "elapsed_ns": 10837507
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 10049654
+          "elapsed_ns": 10192984
         },
         {
           "iterations": 4,
-          "elapsed_ns": 10060233
+          "elapsed_ns": 10587755
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10212564
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10212569
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10492995
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 13033339,
+          "elapsed_ns": 10903150,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11030129,
+          "elapsed_ns": 11123285,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11674097,
+          "elapsed_ns": 11632387,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11174276,
+          "elapsed_ns": 10910451,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11264548,
+          "elapsed_ns": 11326509,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11276532,
+          "elapsed_ns": 10939973,
           "iterations": 128
         }
       ]
@@ -1505,52 +1505,52 @@
       "python": [
         {
           "iterations": 128,
-          "elapsed_ns": 15299147
+          "elapsed_ns": 15536671
         },
         {
           "iterations": 128,
-          "elapsed_ns": 15319291
+          "elapsed_ns": 15327111
         },
         {
           "iterations": 128,
-          "elapsed_ns": 16545715
+          "elapsed_ns": 15342177
         },
         {
           "iterations": 128,
-          "elapsed_ns": 15531398
-        },
-        {
-          "iterations": 64,
-          "elapsed_ns": 12960076
+          "elapsed_ns": 15451986
         },
         {
           "iterations": 128,
-          "elapsed_ns": 15209991
+          "elapsed_ns": 43421752
+        },
+        {
+          "iterations": 128,
+          "elapsed_ns": 15318199
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 13685814,
+          "elapsed_ns": 13883662,
           "iterations": 512
         },
         {
-          "elapsed_ns": 13921365,
+          "elapsed_ns": 13827428,
           "iterations": 512
         },
         {
-          "elapsed_ns": 13825188,
+          "elapsed_ns": 13820571,
           "iterations": 512
         },
         {
-          "elapsed_ns": 14036723,
+          "elapsed_ns": 13662774,
           "iterations": 512
         },
         {
-          "elapsed_ns": 14017393,
+          "elapsed_ns": 13907130,
           "iterations": 512
         },
         {
-          "elapsed_ns": 14607473,
+          "elapsed_ns": 13837179,
           "iterations": 512
         }
       ]
@@ -1559,52 +1559,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 19477717
+          "elapsed_ns": 18146550
         },
         {
           "iterations": 8,
-          "elapsed_ns": 18455899
+          "elapsed_ns": 18263748
         },
         {
           "iterations": 8,
-          "elapsed_ns": 18353777
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 8717697
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 9623461
+          "elapsed_ns": 18205496
         },
         {
           "iterations": 8,
-          "elapsed_ns": 18380504
+          "elapsed_ns": 17572975
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 18960246
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 18080393
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10751468,
+          "elapsed_ns": 10824002,
           "iterations": 128
         },
         {
-          "elapsed_ns": 10704681,
+          "elapsed_ns": 10707727,
           "iterations": 128
         },
         {
-          "elapsed_ns": 10928027,
+          "elapsed_ns": 10841201,
           "iterations": 128
         },
         {
-          "elapsed_ns": 10716787,
+          "elapsed_ns": 10708756,
           "iterations": 128
         },
         {
-          "elapsed_ns": 10948699,
+          "elapsed_ns": 10770447,
           "iterations": 128
         },
         {
-          "elapsed_ns": 12363967,
+          "elapsed_ns": 10960920,
           "iterations": 128
         }
       ]
@@ -1613,52 +1613,52 @@
       "python": [
         {
           "iterations": 128,
-          "elapsed_ns": 14121680
+          "elapsed_ns": 13793731
         },
         {
           "iterations": 128,
-          "elapsed_ns": 13656308
+          "elapsed_ns": 14061340
         },
         {
           "iterations": 128,
-          "elapsed_ns": 14355859
+          "elapsed_ns": 14326516
         },
         {
           "iterations": 128,
-          "elapsed_ns": 13552159
+          "elapsed_ns": 13715103
         },
         {
           "iterations": 128,
-          "elapsed_ns": 13763693
+          "elapsed_ns": 14115768
         },
         {
           "iterations": 128,
-          "elapsed_ns": 13704085
+          "elapsed_ns": 13766262
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 18701430,
+          "elapsed_ns": 18062849,
           "iterations": 512
         },
         {
-          "elapsed_ns": 18361491,
+          "elapsed_ns": 17512007,
           "iterations": 512
         },
         {
-          "elapsed_ns": 18999240,
+          "elapsed_ns": 19430627,
           "iterations": 512
         },
         {
-          "elapsed_ns": 18810879,
+          "elapsed_ns": 18478568,
           "iterations": 512
         },
         {
-          "elapsed_ns": 31453457,
+          "elapsed_ns": 17711372,
           "iterations": 512
         },
         {
-          "elapsed_ns": 18719211,
+          "elapsed_ns": 18471908,
           "iterations": 512
         }
       ]
@@ -1667,52 +1667,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 17947316
+          "elapsed_ns": 17781579
         },
         {
           "iterations": 8,
-          "elapsed_ns": 17645167
+          "elapsed_ns": 17964230
         },
         {
           "iterations": 8,
-          "elapsed_ns": 18298032
+          "elapsed_ns": 17678289
         },
         {
           "iterations": 8,
-          "elapsed_ns": 21257031
+          "elapsed_ns": 18189550
         },
         {
           "iterations": 8,
-          "elapsed_ns": 36358063
+          "elapsed_ns": 17487066
         },
         {
           "iterations": 8,
-          "elapsed_ns": 18648234
+          "elapsed_ns": 17962090
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11040400,
+          "elapsed_ns": 10803200,
           "iterations": 128
         },
         {
-          "elapsed_ns": 10954255,
+          "elapsed_ns": 10666674,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11071325,
+          "elapsed_ns": 11012705,
           "iterations": 128
         },
         {
-          "elapsed_ns": 10756910,
+          "elapsed_ns": 10831077,
           "iterations": 128
         },
         {
-          "elapsed_ns": 7897449,
-          "iterations": 64
+          "elapsed_ns": 10871613,
+          "iterations": 128
         },
         {
-          "elapsed_ns": 13089834,
+          "elapsed_ns": 10859933,
           "iterations": 128
         }
       ]
@@ -1721,52 +1721,52 @@
       "python": [
         {
           "iterations": 128,
-          "elapsed_ns": 15563431
+          "elapsed_ns": 15195952
         },
         {
           "iterations": 128,
-          "elapsed_ns": 15287129
+          "elapsed_ns": 15934681
         },
         {
           "iterations": 128,
-          "elapsed_ns": 15871295
+          "elapsed_ns": 15554920
         },
         {
           "iterations": 128,
-          "elapsed_ns": 15672700
+          "elapsed_ns": 15639840
         },
         {
           "iterations": 128,
-          "elapsed_ns": 16713918
+          "elapsed_ns": 15713063
         },
         {
           "iterations": 128,
-          "elapsed_ns": 15547634
+          "elapsed_ns": 15586120
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 15024784,
+          "elapsed_ns": 14824915,
           "iterations": 512
         },
         {
-          "elapsed_ns": 15454258,
+          "elapsed_ns": 15110311,
           "iterations": 512
         },
         {
-          "elapsed_ns": 15466812,
+          "elapsed_ns": 14144327,
           "iterations": 512
         },
         {
-          "elapsed_ns": 15342844,
+          "elapsed_ns": 14808181,
           "iterations": 512
         },
         {
-          "elapsed_ns": 15429166,
+          "elapsed_ns": 15171061,
           "iterations": 512
         },
         {
-          "elapsed_ns": 17471808,
+          "elapsed_ns": 14913973,
           "iterations": 512
         }
       ]
@@ -1775,52 +1775,52 @@
       "python": [
         {
           "iterations": 32,
-          "elapsed_ns": 17483144
+          "elapsed_ns": 17821070
         },
         {
           "iterations": 32,
-          "elapsed_ns": 17524341
-        },
-        {
-          "iterations": 16,
-          "elapsed_ns": 45853851
+          "elapsed_ns": 17259442
         },
         {
           "iterations": 32,
-          "elapsed_ns": 17490859
+          "elapsed_ns": 17901644
         },
         {
           "iterations": 32,
-          "elapsed_ns": 17346379
+          "elapsed_ns": 17535402
         },
         {
           "iterations": 32,
-          "elapsed_ns": 17065224
+          "elapsed_ns": 17542013
+        },
+        {
+          "iterations": 32,
+          "elapsed_ns": 17459990
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 13822106,
+          "elapsed_ns": 13694309,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 20092967,
+          "elapsed_ns": 13814812,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 13782740,
+          "elapsed_ns": 13582742,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 14010723,
+          "elapsed_ns": 13608912,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 13281928,
+          "elapsed_ns": 13120268,
           "iterations": 2048
         },
         {
-          "elapsed_ns": 15464666,
+          "elapsed_ns": 13594353,
           "iterations": 2048
         }
       ]
@@ -1829,52 +1829,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 85226501
+          "elapsed_ns": 15099677
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14982204
+          "elapsed_ns": 15065786
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15443364
+          "elapsed_ns": 14532230
         },
         {
           "iterations": 8,
-          "elapsed_ns": 17304305
+          "elapsed_ns": 14727879
         },
         {
           "iterations": 8,
-          "elapsed_ns": 17518449
+          "elapsed_ns": 14865433
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14894828
+          "elapsed_ns": 15259503
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 18699028,
+          "elapsed_ns": 11280009,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18327509,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11469438,
+          "elapsed_ns": 10493914,
           "iterations": 64
         },
         {
-          "elapsed_ns": 9781147,
+          "elapsed_ns": 13123253,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12850407,
+          "elapsed_ns": 10927549,
           "iterations": 64
         },
         {
-          "elapsed_ns": 19192072,
-          "iterations": 128
-        },
-        {
-          "elapsed_ns": 14123807,
+          "elapsed_ns": 10339896,
           "iterations": 64
         }
       ]
@@ -1883,52 +1883,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 15427454
+          "elapsed_ns": 16161363
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15541011
+          "elapsed_ns": 17902599
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15814821
+          "elapsed_ns": 17667413
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15820414
+          "elapsed_ns": 17651335
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15831372
+          "elapsed_ns": 15315186
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15224520
+          "elapsed_ns": 15093759
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10738240,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10301519,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 9947498,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 19197462,
+          "elapsed_ns": 21907668,
           "iterations": 128
         },
         {
-          "elapsed_ns": 19139640,
+          "elapsed_ns": 11675179,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13395838,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 19653592,
           "iterations": 128
         },
         {
-          "elapsed_ns": 19827467,
+          "elapsed_ns": 30340105,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 19587874,
           "iterations": 128
         }
       ]
@@ -1937,52 +1937,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 14713948
+          "elapsed_ns": 17614881
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14953588
+          "elapsed_ns": 14655812
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14684963
+          "elapsed_ns": 14374384
         },
         {
           "iterations": 8,
-          "elapsed_ns": 17505233
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 22711535
+          "elapsed_ns": 16520147
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14747562
+          "elapsed_ns": 36475132
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 15049488
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 13391321,
+          "elapsed_ns": 11400137,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10666019,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 11690781,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 18958306,
+          "elapsed_ns": 18683045,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11790060,
+          "elapsed_ns": 18979535,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 13646330,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11660665,
+          "elapsed_ns": 11429161,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10522321,
           "iterations": 64
         }
       ]
@@ -1991,53 +1991,53 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 16331801
+          "elapsed_ns": 16567902
         },
         {
           "iterations": 4,
-          "elapsed_ns": 25286865
+          "elapsed_ns": 16695987
         },
         {
           "iterations": 4,
-          "elapsed_ns": 15733958
+          "elapsed_ns": 15243637
         },
         {
           "iterations": 4,
-          "elapsed_ns": 18168641
+          "elapsed_ns": 16604893
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 8688549
         },
         {
           "iterations": 4,
-          "elapsed_ns": 17150189
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 15266990
+          "elapsed_ns": 16969727
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 13192501,
+          "elapsed_ns": 10266655,
           "iterations": 64
         },
         {
-          "elapsed_ns": 13136719,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10974597,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 11531119,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 18478444,
+          "elapsed_ns": 19080639,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11566012,
+          "elapsed_ns": 10345716,
           "iterations": 64
+        },
+        {
+          "elapsed_ns": 27043260,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 14534639,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 17939224,
+          "iterations": 128
         }
       ]
     },
@@ -2045,52 +2045,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 12027442
+          "elapsed_ns": 12190699
         },
         {
           "iterations": 8,
-          "elapsed_ns": 19330850
+          "elapsed_ns": 12507607
         },
         {
           "iterations": 8,
-          "elapsed_ns": 12523996
+          "elapsed_ns": 11703325
         },
         {
           "iterations": 8,
-          "elapsed_ns": 12639588
+          "elapsed_ns": 11996324
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14248290
+          "elapsed_ns": 12299663
         },
         {
           "iterations": 8,
-          "elapsed_ns": 12222486
+          "elapsed_ns": 12077030
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 18431375,
+          "elapsed_ns": 11373671,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10536313,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13205308,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13053483,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18134756,
           "iterations": 128
         },
         {
-          "elapsed_ns": 23122411,
-          "iterations": 128
-        },
-        {
-          "elapsed_ns": 11383131,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10470176,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 11389586,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 11317104,
+          "elapsed_ns": 10459411,
           "iterations": 64
         }
       ]
@@ -2099,52 +2099,52 @@
       "python": [
         {
           "iterations": 1,
-          "elapsed_ns": 10127330
+          "elapsed_ns": 10416828
         },
         {
           "iterations": 1,
-          "elapsed_ns": 14271814
+          "elapsed_ns": 16196019
+        },
+        {
+          "iterations": 1,
+          "elapsed_ns": 10163762
+        },
+        {
+          "iterations": 1,
+          "elapsed_ns": 10517245
         },
         {
           "iterations": 2,
-          "elapsed_ns": 17581057
+          "elapsed_ns": 21110221
         },
         {
           "iterations": 1,
-          "elapsed_ns": 9628328
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 18013191
-        },
-        {
-          "iterations": 1,
-          "elapsed_ns": 10476865
+          "elapsed_ns": 10261157
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10614069,
+          "elapsed_ns": 12617053,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10380283,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 15180723,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 12367337,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 18793444,
+          "elapsed_ns": 18247508,
           "iterations": 128
         },
         {
-          "elapsed_ns": 11505732,
+          "elapsed_ns": 18624342,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 59949593,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 13845829,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11638968,
           "iterations": 64
         }
       ]
@@ -2153,52 +2153,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 15205761
+          "elapsed_ns": 15063160
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15152491
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11585216
+          "elapsed_ns": 20347306
         },
         {
           "iterations": 4,
-          "elapsed_ns": 16577021
+          "elapsed_ns": 15388306
         },
         {
           "iterations": 4,
-          "elapsed_ns": 15416469
+          "elapsed_ns": 15560968
         },
         {
           "iterations": 4,
-          "elapsed_ns": 15520809
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 17865973
+          "elapsed_ns": 15603445
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 9574768,
+          "elapsed_ns": 11612955,
           "iterations": 32
         },
         {
-          "elapsed_ns": 11290541,
+          "elapsed_ns": 10267602,
           "iterations": 32
         },
         {
-          "elapsed_ns": 9162421,
-          "iterations": 8
-        },
-        {
-          "elapsed_ns": 11159615,
+          "elapsed_ns": 10472410,
           "iterations": 32
         },
         {
-          "elapsed_ns": 18992069,
-          "iterations": 64
+          "elapsed_ns": 14107996,
+          "iterations": 32
         },
         {
-          "elapsed_ns": 10613851,
+          "elapsed_ns": 13365899,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 10582788,
           "iterations": 32
         }
       ]
@@ -2207,52 +2207,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 15296736
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 10888970
+          "elapsed_ns": 15354692
         },
         {
           "iterations": 4,
-          "elapsed_ns": 14043122
+          "elapsed_ns": 14613140
         },
         {
           "iterations": 4,
-          "elapsed_ns": 14255965
+          "elapsed_ns": 16254712
         },
         {
           "iterations": 4,
-          "elapsed_ns": 14106539
+          "elapsed_ns": 16272426
         },
         {
           "iterations": 4,
-          "elapsed_ns": 15022422
+          "elapsed_ns": 15052442
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 15151757
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 9802954,
+          "elapsed_ns": 12025314,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14452482,
+          "elapsed_ns": 10285167,
           "iterations": 64
         },
         {
-          "elapsed_ns": 2469194,
-          "iterations": 4
-        },
-        {
-          "elapsed_ns": 12382355,
+          "elapsed_ns": 12159530,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10500237,
+          "elapsed_ns": 12294449,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12243208,
+          "elapsed_ns": 11987354,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12418499,
           "iterations": 64
         }
       ]
@@ -2261,52 +2261,52 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 10294828
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 14556861
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 10759008
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 10224497
+          "elapsed_ns": 10472078
         },
         {
           "iterations": 4,
-          "elapsed_ns": 19304324
+          "elapsed_ns": 19485399
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17995822
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 20512258
         },
         {
           "iterations": 2,
-          "elapsed_ns": 10179346
+          "elapsed_ns": 10264366
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 10373461
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11635666,
+          "elapsed_ns": 14386200,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12094728,
+          "elapsed_ns": 20736233,
           "iterations": 64
         },
         {
-          "elapsed_ns": 7558082,
-          "iterations": 8
-        },
-        {
-          "elapsed_ns": 14149366,
+          "elapsed_ns": 12863552,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14652705,
+          "elapsed_ns": 19429610,
           "iterations": 64
         },
         {
-          "elapsed_ns": 13671486,
+          "elapsed_ns": 13048031,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18047466,
           "iterations": 64
         }
       ]
@@ -2315,52 +2315,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 12352583
+          "elapsed_ns": 12319064
         },
         {
           "iterations": 4,
-          "elapsed_ns": 16841856
+          "elapsed_ns": 12254373
         },
         {
           "iterations": 4,
-          "elapsed_ns": 10978072
+          "elapsed_ns": 10846969
         },
         {
           "iterations": 4,
-          "elapsed_ns": 16843729
+          "elapsed_ns": 11139128
         },
         {
           "iterations": 4,
-          "elapsed_ns": 12086608
+          "elapsed_ns": 13539553
         },
         {
           "iterations": 4,
-          "elapsed_ns": 12390144
+          "elapsed_ns": 11897559
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10457390,
+          "elapsed_ns": 11783594,
           "iterations": 64
         },
         {
-          "elapsed_ns": 16271224,
+          "elapsed_ns": 16384013,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12827645,
+          "elapsed_ns": 12322313,
           "iterations": 64
         },
         {
-          "elapsed_ns": 13426301,
+          "elapsed_ns": 20349347,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 11506592,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12737087,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 11958959,
+          "elapsed_ns": 12283499,
           "iterations": 64
         }
       ]
@@ -2369,52 +2369,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 16652600
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 12389526
+          "elapsed_ns": 16395187
         },
         {
           "iterations": 4,
-          "elapsed_ns": 20387779
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 10957924
+          "elapsed_ns": 16411360
         },
         {
           "iterations": 4,
-          "elapsed_ns": 16613388
+          "elapsed_ns": 16783429
         },
         {
           "iterations": 4,
-          "elapsed_ns": 18685547
+          "elapsed_ns": 18003301
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17555930
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 17359537
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11950799,
+          "elapsed_ns": 16294076,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12929826,
+          "elapsed_ns": 5624268,
+          "iterations": 16
+        },
+        {
+          "elapsed_ns": 18171839,
           "iterations": 64
         },
         {
-          "elapsed_ns": 16343528,
+          "elapsed_ns": 13714086,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14314230,
+          "elapsed_ns": 13454643,
           "iterations": 64
         },
         {
-          "elapsed_ns": 13193286,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 14972817,
+          "elapsed_ns": 18761935,
           "iterations": 64
         }
       ]
@@ -2423,52 +2423,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 13873805
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 11139929
+          "elapsed_ns": 14117878
         },
         {
           "iterations": 4,
-          "elapsed_ns": 14243352
+          "elapsed_ns": 13534953
         },
         {
           "iterations": 4,
-          "elapsed_ns": 13913726
+          "elapsed_ns": 14307843
         },
         {
           "iterations": 4,
-          "elapsed_ns": 16880583
+          "elapsed_ns": 24618606
         },
         {
           "iterations": 4,
-          "elapsed_ns": 14134875
+          "elapsed_ns": 14498963
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 14182500
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10053991,
+          "elapsed_ns": 11374148,
           "iterations": 64
         },
         {
-          "elapsed_ns": 15539155,
+          "elapsed_ns": 13874370,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11401844,
+          "elapsed_ns": 22104982,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12435196,
+          "elapsed_ns": 14116418,
           "iterations": 64
         },
         {
-          "elapsed_ns": 9942858,
+          "elapsed_ns": 14389046,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14211995,
+          "elapsed_ns": 12112926,
           "iterations": 64
         }
       ]
@@ -2477,52 +2477,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 20233585
+          "elapsed_ns": 31828425
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 19563237
         },
         {
           "iterations": 2,
-          "elapsed_ns": 14694760
+          "elapsed_ns": 9218034
         },
         {
           "iterations": 2,
-          "elapsed_ns": 10789178
+          "elapsed_ns": 10459901
         },
         {
           "iterations": 2,
-          "elapsed_ns": 10280351
+          "elapsed_ns": 10479993
         },
         {
           "iterations": 2,
-          "elapsed_ns": 9872253
-        },
-        {
-          "iterations": 2,
-          "elapsed_ns": 10235505
+          "elapsed_ns": 10290145
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11896538,
+          "elapsed_ns": 14351998,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11622788,
+          "elapsed_ns": 17189076,
           "iterations": 64
         },
         {
-          "elapsed_ns": 15004160,
+          "elapsed_ns": 9764924,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 15097619,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14006758,
+          "elapsed_ns": 57311790,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11659833,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 15063191,
+          "elapsed_ns": 13054063,
           "iterations": 64
         }
       ]
@@ -2531,52 +2531,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 13106099
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 10329443
+          "elapsed_ns": 15840539
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14023092
+          "elapsed_ns": 14209797
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14946237
+          "elapsed_ns": 13367562
         },
         {
           "iterations": 8,
-          "elapsed_ns": 13596644
+          "elapsed_ns": 13831083
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15784804
+          "elapsed_ns": 14300590
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 13640418
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10453812,
+          "elapsed_ns": 10759923,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10709060,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10677263,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 12875885,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 19108379,
+          "elapsed_ns": 18240554,
           "iterations": 128
         },
         {
-          "elapsed_ns": 14533371,
+          "elapsed_ns": 18893993,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 10277128,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12268142,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12393579,
           "iterations": 64
         }
       ]
@@ -2585,53 +2585,53 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 13463890
+          "elapsed_ns": 14792858
         },
         {
           "iterations": 8,
-          "elapsed_ns": 51358588
+          "elapsed_ns": 16010033
         },
         {
           "iterations": 8,
-          "elapsed_ns": 13912572
+          "elapsed_ns": 14858208
         },
         {
           "iterations": 8,
-          "elapsed_ns": 13419049
+          "elapsed_ns": 13532832
         },
         {
           "iterations": 8,
-          "elapsed_ns": 15779530
+          "elapsed_ns": 15966608
         },
         {
           "iterations": 8,
-          "elapsed_ns": 16469787
+          "elapsed_ns": 13499650
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 12480878,
+          "elapsed_ns": 12156774,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10903266,
+          "elapsed_ns": 10610737,
           "iterations": 64
         },
         {
-          "elapsed_ns": 20332498,
-          "iterations": 128
-        },
-        {
-          "elapsed_ns": 10399228,
+          "elapsed_ns": 12381398,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11128205,
+          "elapsed_ns": 10640862,
           "iterations": 64
         },
         {
-          "elapsed_ns": 18928081,
-          "iterations": 128
+          "elapsed_ns": 11050728,
+          "iterations": 32
+        },
+        {
+          "elapsed_ns": 10245816,
+          "iterations": 64
         }
       ]
     },
@@ -2639,52 +2639,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 13700834
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 10561121
+          "elapsed_ns": 14115332
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14054984
+          "elapsed_ns": 15112150
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14326340
+          "elapsed_ns": 13491684
         },
         {
           "iterations": 8,
-          "elapsed_ns": 14988132
+          "elapsed_ns": 13661275
         },
         {
           "iterations": 8,
-          "elapsed_ns": 16010631
+          "elapsed_ns": 13968942
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 13843220
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 12700377,
+          "elapsed_ns": 10567670,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11189896,
+          "elapsed_ns": 12440689,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11546372,
+          "elapsed_ns": 11294417,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11804887,
-          "iterations": 32
-        },
-        {
-          "elapsed_ns": 9901839,
+          "elapsed_ns": 12730942,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14906453,
+          "elapsed_ns": 10984551,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12581117,
           "iterations": 64
         }
       ]
@@ -2693,53 +2693,53 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 9868576
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 14838652
-        },
-        {
-          "iterations": 1,
-          "elapsed_ns": 3350865
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 10908405
+          "elapsed_ns": 9604290
         },
         {
           "iterations": 8,
-          "elapsed_ns": 20650897
+          "elapsed_ns": 18956270
         },
         {
           "iterations": 4,
-          "elapsed_ns": 9741990
+          "elapsed_ns": 9366224
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 9623637
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 10755764
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 9605381
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 12787560,
+          "elapsed_ns": 13858561,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11378560,
+          "elapsed_ns": 13787605,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10188002,
+          "elapsed_ns": 13081842,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12037367,
-          "iterations": 32
-        },
-        {
-          "elapsed_ns": 11178141,
+          "elapsed_ns": 10873233,
           "iterations": 64
         },
         {
-          "elapsed_ns": 19470902,
-          "iterations": 128
+          "elapsed_ns": 13207141,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10778134,
+          "iterations": 64
         }
       ]
     },
@@ -2747,53 +2747,53 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 11533779
-        },
-        {
-          "iterations": 1,
-          "elapsed_ns": 9506978
+          "elapsed_ns": 12576527
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11695994
+          "elapsed_ns": 11276204
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12663712
+          "elapsed_ns": 11401743
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11459071
+          "elapsed_ns": 11938549
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11867830
+          "elapsed_ns": 14909816
+        },
+        {
+          "iterations": 2,
+          "elapsed_ns": 11795358
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 15286188,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 13663998,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 14232960,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10764684,
+          "elapsed_ns": 13145516,
           "iterations": 32
         },
         {
-          "elapsed_ns": 38927924,
+          "elapsed_ns": 17515615,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10668289,
-          "iterations": 32
+          "elapsed_ns": 13612005,
+          "iterations": 16
+        },
+        {
+          "elapsed_ns": 18456632,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 13912884,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18654435,
+          "iterations": 64
         }
       ]
     },
@@ -2801,53 +2801,53 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 96623997
+          "elapsed_ns": 19360925
         },
         {
           "iterations": 4,
-          "elapsed_ns": 15227007
+          "elapsed_ns": 10926113
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 20301253
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 19130444
         },
         {
           "iterations": 4,
-          "elapsed_ns": 9903576
+          "elapsed_ns": 9909099
         },
         {
-          "iterations": 4,
-          "elapsed_ns": 10093908
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 9795752
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 9736526
+          "iterations": 8,
+          "elapsed_ns": 19042400
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11657092,
+          "elapsed_ns": 4810279,
+          "iterations": 16
+        },
+        {
+          "elapsed_ns": 10356745,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14337567,
-          "iterations": 64
+          "elapsed_ns": 41291068,
+          "iterations": 32
         },
         {
-          "elapsed_ns": 19109284,
+          "elapsed_ns": 18415508,
           "iterations": 128
         },
         {
-          "elapsed_ns": 22514038,
+          "elapsed_ns": 13091673,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14465804,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 9683299,
-          "iterations": 64
+          "elapsed_ns": 19446228,
+          "iterations": 128
         }
       ]
     },
@@ -2855,53 +2855,53 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 11605207
+          "elapsed_ns": 11368445
         },
         {
           "iterations": 2,
-          "elapsed_ns": 15465570
+          "elapsed_ns": 12322335
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11753332
+          "elapsed_ns": 11019647
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11343209
+          "elapsed_ns": 11755060
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11592813
+          "elapsed_ns": 10859739
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11993916
+          "elapsed_ns": 11338071
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 14268694,
+          "elapsed_ns": 17517694,
           "iterations": 64
         },
         {
-          "elapsed_ns": 18242982,
+          "elapsed_ns": 15063062,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12285722,
+          "elapsed_ns": 20778411,
           "iterations": 64
         },
         {
-          "elapsed_ns": 15785802,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 15983033,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10229165,
+          "elapsed_ns": 10312166,
           "iterations": 32
+        },
+        {
+          "elapsed_ns": 13377042,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18106259,
+          "iterations": 64
         }
       ]
     },
@@ -2909,52 +2909,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 9691797
+          "elapsed_ns": 10923210
         },
         {
           "iterations": 4,
-          "elapsed_ns": 14424398
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 10146180
+          "elapsed_ns": 11969786
         },
         {
           "iterations": 8,
-          "elapsed_ns": 21203156
+          "elapsed_ns": 18741680
         },
         {
           "iterations": 8,
-          "elapsed_ns": 19199367
+          "elapsed_ns": 19170340
         },
         {
           "iterations": 4,
-          "elapsed_ns": 25203688
+          "elapsed_ns": 9654599
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 19228321
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 18867809,
+          "elapsed_ns": 11510092,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 12185648,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 11017329,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 19468991,
           "iterations": 128
         },
         {
-          "elapsed_ns": 19138492,
-          "iterations": 128
-        },
-        {
-          "elapsed_ns": 11290757,
+          "elapsed_ns": 32861034,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11627543,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 11821071,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 18814911,
+          "elapsed_ns": 18482951,
           "iterations": 128
         }
       ]
@@ -2963,53 +2963,53 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 13757680
+          "elapsed_ns": 13864295
         },
         {
           "iterations": 2,
-          "elapsed_ns": 18256884
+          "elapsed_ns": 12879853
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11582606
+          "elapsed_ns": 12595836
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12005556
+          "elapsed_ns": 11539823
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11674755
+          "elapsed_ns": 11205206
         },
         {
-          "iterations": 1,
-          "elapsed_ns": 14961145
+          "iterations": 2,
+          "elapsed_ns": 11820342
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 15010891,
+          "elapsed_ns": 14965882,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11889095,
+          "elapsed_ns": 15077644,
           "iterations": 64
         },
         {
-          "elapsed_ns": 18746789,
+          "elapsed_ns": 13265642,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14596493,
+          "elapsed_ns": 18609294,
           "iterations": 64
         },
         {
-          "elapsed_ns": 15185763,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10663067,
+          "elapsed_ns": 16856328,
           "iterations": 32
+        },
+        {
+          "elapsed_ns": 13633162,
+          "iterations": 64
         }
       ]
     },
@@ -3017,52 +3017,52 @@
       "python": [
         {
           "iterations": 8,
-          "elapsed_ns": 19553761
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 15039873
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 10230129
+          "elapsed_ns": 18908642
         },
         {
           "iterations": 8,
-          "elapsed_ns": 19638765
+          "elapsed_ns": 19088494
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 18916677
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 19256905
         },
         {
           "iterations": 4,
-          "elapsed_ns": 9850911
+          "elapsed_ns": 10954637
         },
         {
           "iterations": 4,
-          "elapsed_ns": 10139393
+          "elapsed_ns": 9827450
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 18793172,
+          "elapsed_ns": 11575079,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10459886,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10649597,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 18440353,
           "iterations": 128
         },
         {
-          "elapsed_ns": 13645062,
-          "iterations": 64
+          "elapsed_ns": 10201502,
+          "iterations": 32
         },
         {
-          "elapsed_ns": 20016279,
-          "iterations": 128
-        },
-        {
-          "elapsed_ns": 11424421,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 12533777,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 19737228,
+          "elapsed_ns": 18408008,
           "iterations": 128
         }
       ]
@@ -3071,53 +3071,53 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 11609532
+          "elapsed_ns": 12281854
         },
         {
           "iterations": 2,
-          "elapsed_ns": 19039778
+          "elapsed_ns": 11819016
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11623297
+          "elapsed_ns": 11034196
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11224982
+          "elapsed_ns": 12722902
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11859376
+          "elapsed_ns": 12925887
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11423678
+          "elapsed_ns": 11326236
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 13269279,
+          "elapsed_ns": 14753520,
           "iterations": 64
         },
         {
-          "elapsed_ns": 12169914,
+          "elapsed_ns": 14496168,
           "iterations": 64
         },
         {
-          "elapsed_ns": 18501455,
+          "elapsed_ns": 11584930,
           "iterations": 64
         },
         {
-          "elapsed_ns": 20136531,
+          "elapsed_ns": 13259206,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14930501,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10687727,
+          "elapsed_ns": 26728354,
           "iterations": 32
+        },
+        {
+          "elapsed_ns": 17926445,
+          "iterations": 64
         }
       ]
     },
@@ -3125,52 +3125,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 9392130
+          "elapsed_ns": 10044081
         },
         {
           "iterations": 4,
-          "elapsed_ns": 14422442
+          "elapsed_ns": 10719807
+        },
+        {
+          "iterations": 4,
+          "elapsed_ns": 9227611
         },
         {
           "iterations": 8,
-          "elapsed_ns": 20245121
+          "elapsed_ns": 18986886
         },
         {
           "iterations": 4,
-          "elapsed_ns": 10741560
+          "elapsed_ns": 10493152
         },
         {
-          "iterations": 4,
-          "elapsed_ns": 10918781
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 9865007
+          "iterations": 8,
+          "elapsed_ns": 19096787
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 10460680,
+          "elapsed_ns": 11673688,
           "iterations": 64
         },
         {
-          "elapsed_ns": 13358224,
+          "elapsed_ns": 18737372,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 10910374,
           "iterations": 64
         },
         {
-          "elapsed_ns": 20163012,
+          "elapsed_ns": 18695097,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 23510274,
           "iterations": 64
         },
         {
-          "elapsed_ns": 10962109,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 15366381,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 19001300,
+          "elapsed_ns": 18790212,
           "iterations": 128
         }
       ]
@@ -3179,53 +3179,53 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 11848341
+          "elapsed_ns": 11841844
         },
         {
           "iterations": 2,
-          "elapsed_ns": 18619786
+          "elapsed_ns": 14096255
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12748146
+          "elapsed_ns": 11797599
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11406457
+          "elapsed_ns": 12248559
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11349211
+          "elapsed_ns": 12205558
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11747090
+          "elapsed_ns": 11974074
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 15488695,
+          "elapsed_ns": 15193175,
           "iterations": 64
         },
         {
-          "elapsed_ns": 22267388,
+          "elapsed_ns": 14290157,
           "iterations": 64
         },
         {
-          "elapsed_ns": 15858295,
+          "elapsed_ns": 21118782,
+          "iterations": 64
+        },
+        {
+          "elapsed_ns": 10608129,
           "iterations": 32
         },
         {
-          "elapsed_ns": 16092149,
+          "elapsed_ns": 19661411,
           "iterations": 64
         },
         {
-          "elapsed_ns": 15391675,
+          "elapsed_ns": 14330661,
           "iterations": 64
-        },
-        {
-          "elapsed_ns": 10815153,
-          "iterations": 32
         }
       ]
     },
@@ -3233,52 +3233,52 @@
       "python": [
         {
           "iterations": 4,
-          "elapsed_ns": 10049534
+          "elapsed_ns": 10833097
         },
         {
           "iterations": 4,
-          "elapsed_ns": 19083712
-        },
-        {
-          "iterations": 4,
-          "elapsed_ns": 10057482
+          "elapsed_ns": 13830151
         },
         {
           "iterations": 8,
-          "elapsed_ns": 21281242
+          "elapsed_ns": 19015791
         },
         {
           "iterations": 4,
-          "elapsed_ns": 10935832
+          "elapsed_ns": 11088087
         },
         {
           "iterations": 4,
-          "elapsed_ns": 10893604
+          "elapsed_ns": 9750084
+        },
+        {
+          "iterations": 8,
+          "elapsed_ns": 19979922
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 11225876,
+          "elapsed_ns": 10559490,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11534142,
+          "elapsed_ns": 18707631,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 18814245,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 18584882,
+          "iterations": 128
+        },
+        {
+          "elapsed_ns": 11889007,
           "iterations": 64
         },
         {
-          "elapsed_ns": 11802757,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10808652,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10960663,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 19116078,
+          "elapsed_ns": 20261800,
           "iterations": 128
         }
       ]
@@ -3287,53 +3287,53 @@
       "python": [
         {
           "iterations": 2,
-          "elapsed_ns": 11706016
+          "elapsed_ns": 11991140
         },
         {
           "iterations": 2,
-          "elapsed_ns": 17489257
+          "elapsed_ns": 12218081
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12067980
+          "elapsed_ns": 12026117
         },
         {
           "iterations": 2,
-          "elapsed_ns": 12181950
+          "elapsed_ns": 11403096
         },
         {
           "iterations": 2,
-          "elapsed_ns": 11436970
+          "elapsed_ns": 11921300
         },
         {
           "iterations": 2,
-          "elapsed_ns": 13934784
+          "elapsed_ns": 12563887
         }
       ],
       "rust": [
         {
-          "elapsed_ns": 14483442,
+          "elapsed_ns": 12082410,
           "iterations": 64
         },
         {
-          "elapsed_ns": 13297084,
+          "elapsed_ns": 15372901,
           "iterations": 64
         },
         {
-          "elapsed_ns": 14117935,
+          "elapsed_ns": 18365255,
           "iterations": 64
         },
         {
-          "elapsed_ns": 15368209,
+          "elapsed_ns": 19093925,
           "iterations": 64
         },
         {
-          "elapsed_ns": 43920709,
-          "iterations": 64
-        },
-        {
-          "elapsed_ns": 10258819,
+          "elapsed_ns": 10043059,
           "iterations": 32
+        },
+        {
+          "elapsed_ns": 13822334,
+          "iterations": 64
         }
       ]
     }
