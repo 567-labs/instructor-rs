@@ -149,7 +149,15 @@ fn openai_strictness_and_responses_mode() {
     let client = client(Provider::OpenAI);
     let batch = client.batch::<Catalog>().unwrap();
     assert!(batch.prepare(["prompt"]).is_err());
-    let input = batch.strict(false).prepare(["prompt"]).unwrap();
+    let local = batch
+        .prepare([Request::new("prompt").strict(false)])
+        .unwrap();
+    let batch = batch.strict(false);
+    let input = batch.prepare(["prompt"]).unwrap();
+    assert_eq!(input, local);
+    assert!(batch
+        .prepare([Request::new("prompt").strict(true)])
+        .is_err());
     let rec = &lines(&input)[0];
     assert_eq!(
         rec["body"]["response_format"]["json_schema"]["strict"],

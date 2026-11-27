@@ -5,6 +5,8 @@ mod complexity;
 mod generation;
 #[path = "providers/parallel.rs"]
 mod parallel;
+#[path = "providers/strictness.rs"]
+mod strictness;
 #[path = "providers/usage.rs"]
 mod usage;
 use futures_util::{StreamExt, TryStreamExt};
@@ -781,49 +783,6 @@ async fn anthropic_thinking_tools_use_auto_and_keep_native_options() {
             .unwrap();
         m.assert_async().await;
     }
-}
-
-#[model]
-struct Team {
-    people: Vec<Person>,
-    region: Option<String>,
-}
-
-#[tokio::test]
-async fn strict_schema_closes_nested_models_without_mutating_cached_schemas() {
-    let mut server = Server::new_async().await;
-    let schema = response_schema::<Team>();
-    let p = Provider::OpenAI;
-    let mut shape =
-        json!({"type":"object","additionalProperties":false,"required":["people","region"]});
-    if schema["properties"]["people"]["items"]
-        .get("$ref")
-        .is_some()
-    {
-        shape["$defs"] = json!({"Person":{"type":"object","additionalProperties":false,"required":["age","name"]}});
-    } else {
-        shape["properties"] = json!({"people":{"items":{"type":"object","additionalProperties":false,"required":["age","name"]}}});
-    }
-    let mut raw = completion(
-        p,
-        Mode::ToolsStrict,
-        json!({"people":[person()],"region":null}),
-    );
-    raw["choices"][0]["message"]["tool_calls"][0]["function"]["name"] = json!("Team");
-    let endpoint = mock(&mut server, p, Mode::ToolsStrict, false)
-        .match_body(Matcher::PartialJson(json!({
-            "tools":[{"function":{"name":"Team","parameters":shape,"strict":true}}]
-        })))
-        .with_body(raw.to_string())
-        .create_async()
-        .await;
-    let cfg = config(&server, p, Mode::ToolsStrict);
-    let result = Client::new(cfg).unwrap().create::<Team>(request()).await;
-    endpoint.assert_async().await;
-    let team = result.unwrap();
-    assert_eq!(team.people[0].age, 41);
-    assert!(team.region.is_none());
-    assert_eq!(response_schema::<Team>(), schema);
 }
 
 #[tokio::test]

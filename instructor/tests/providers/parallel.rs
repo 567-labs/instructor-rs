@@ -85,16 +85,23 @@ async fn typed_union_preserves_call_order_and_repetitions_across_providers() {
                 ("Color", json!({"name":"white"})),
             ],
         );
+        let mut expected_body = declarations(provider);
+        let mut req = request().context(json!({"offset":4}));
+        if matches!(provider, Provider::OpenAI | Provider::OpenRouter) {
+            req = req.strict(true);
+            for tool in expected_body["tools"].as_array_mut().unwrap() {
+                tool["function"]["strict"] = true.into();
+                tool["function"]["parameters"]["additionalProperties"] = false.into();
+            }
+        }
         let endpoint = mock(&mut server, provider, Mode::Tools, false)
-            .match_body(Matcher::PartialJson(declarations(provider)))
+            .match_body(Matcher::PartialJson(expected_body))
             .with_body(expected.to_string())
             .create_async()
             .await;
         let client = Client::new(config(&server, provider, Mode::Tools)).unwrap();
         let (values, completion) = client
-            .create_parallel_with_completion::<Property<Color>>(
-                request().context(json!({"offset":4})),
-            )
+            .create_parallel_with_completion::<Property<Color>>(req)
             .await
             .unwrap();
         assert_eq!(
