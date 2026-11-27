@@ -164,7 +164,7 @@ def cases():
         }
     for route in [
         "typesafe/jev-latest",
-        "openrouter/typesafe/jev-1.13",
+        "openrouter/typesafe/jev-1.14",
         "openai/gpt-6-luna",
     ]:
         provider, model = route.split("/", 1)
@@ -175,6 +175,18 @@ def cases():
             "model": model,
             "context": {"team": "billing"},
         }
+    for provider in ["openai", "openrouter", "mistral"]:
+        for mode in ["text", "tool"]:
+            for op in ["http", "http_stream"]:
+                yield {
+                    "name": f"{op.replace('_', '-')}/{provider}/responses-{mode}",
+                    "op": op,
+                    "provider": provider,
+                    "responses": mode,
+                    "model": "example/fixture"
+                    if provider == "openrouter"
+                    else "fixture",
+                }
 
 
 def check_schema(schema):
@@ -295,6 +307,33 @@ def checked(case, value):
     return value
 
 
+def response_item(name=None):
+    text = compact(record(0))
+    if name:
+        item = {
+            "id": "fc_bench",
+            "type": "function_call",
+            "call_id": "call_bench",
+            "name": name,
+            "arguments": text,
+        }
+    else:
+        item = {
+            "id": "msg_bench",
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": text, "annotations": []}],
+        }
+    return {
+        "id": "resp_bench",
+        "object": "response",
+        "model": "fixture",
+        "created_at": 0,
+        "status": "completed",
+        "output": [{**item, "status": "completed"}],
+    }
+
+
 def responses():
     item = record(0)
     text = compact(item)
@@ -335,6 +374,8 @@ def responses():
             if c["op"] == "answers"
         },
         "/v1/chat/completions": chat(item),
+        "responses-text": response_item(),
+        "responses-tool": response_item("Record"),
         "invalid": chat({"id": "wrong", "title": "Ticket"}),
         "/v1/messages": {
             "id": "msg_bench",
@@ -352,6 +393,12 @@ def responses():
             "stop_reason": "tool_use",
             "stop_sequence": None,
             "usage": {"input_tokens": 10, "output_tokens": 10},
+        },
+        "/v1/interactions": {
+            "status": "completed",
+            "steps": [
+                {"type": "model_output", "content": [{"type": "text", "text": text}]}
+            ],
         },
         "/v1beta/models/fixture:generateContent": {
             "candidates": [
@@ -373,8 +420,41 @@ def responses():
     }
 
 
+def named_events(events):
+    return "".join(
+        f"event: {e['type']}\ndata: {compact(e)}\n\n" for e in events
+    ).encode()
+
+
 def stream_response(path, req):
     chunks = ['{"id":0,', '"title":"Tick', 'et 000"}']
+    if path in ("responses-text", "responses-tool"):
+        tool = path == "responses-tool"
+        response = response_item(req["tools"][0]["name"] if tool else None)
+        item = response["output"][0]
+        initial = {"arguments": ""} if tool else {"content": []}
+        events = [
+            {
+                "type": "response.output_item.added",
+                "output_index": 0,
+                "item": {**item, "status": "in_progress", **initial},
+            }
+        ]
+        kind = "function_call_arguments" if tool else "output_text"
+        for delta in chunks:
+            event = {
+                "type": f"response.{kind}.delta",
+                "output_index": 0,
+                "item_id": item["id"],
+                "delta": delta,
+            }
+            if not tool:
+                event["content_index"] = 0
+            events.append(event)
+        events.append({"type": "response.completed", "response": response})
+        for sequence, event in enumerate(events):
+            event["sequence_number"] = sequence
+        return named_events(events)
     if path == "/v1/messages":
         events = [
             {
@@ -419,9 +499,7 @@ def stream_response(path, req):
                 {"type": "message_stop"},
             ]
         )
-        return "".join(
-            f"event: {e['type']}\ndata: {compact(e)}\n\n" for e in events
-        ).encode()
+        return named_events(events)
 
     lines = []
     for i, chunk in enumerate([*chunks, None]):
@@ -481,6 +559,24 @@ def fixture_server():
         def do_POST(self):
             request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             key = self.path.split("?")[0]
+            if key == "/v1/responses":
+                if not request.get("input") or "messages" in request:
+                    return self.send_error(400, "Expected input")
+                if request.get("tools") and request.get("tool_choice") != "none":
+                    schema = request["tools"][0]["parameters"]
+                    key = "responses-tool"
+                else:
+                    schema = request["text"]["format"]["schema"]
+                    key = "responses-text"
+                if set(schema["properties"]) != {"id", "title"}:
+                    return self.send_error(400, "Expected record schema")
+                counts[key] += 1
+            elif key == "/v1/interactions":
+                counts["interactions"] += 1
+            elif key == "/v1beta/models/fixture:generateContent":
+                counts["generateContent"] += 1
+            elif key == "/v1/messages":
+                counts[f"anthropic-{self.headers.get('anthropic-version')}"] += 1
             if len(request.get("tools", [])) == 2:
                 key += "/parallel"
             if key == "/openrouter":

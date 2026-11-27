@@ -102,19 +102,30 @@ where
     Value::Array(out.into_iter().map(snapshot).collect())
 }
 
-fn http_config(provider: &str, endpoint: &str) -> ProviderConfig {
-    let (provider, model) = match provider {
+fn http_config(case: &Value, endpoint: &str) -> ProviderConfig {
+    let (provider, model) = match string(case, "provider") {
         "retry" => (Provider::OpenAI, "retry"),
-        other => (other.parse().unwrap(), "fixture"),
+        other => (
+            other.parse().unwrap(),
+            case["model"].as_str().unwrap_or("fixture"),
+        ),
     };
-    let (suffix, mode) = match provider {
-        Provider::Cohere => ("/v2", Mode::JsonSchema),
-        Provider::Google => ("/v1beta", Mode::JsonSchema),
-        _ => ("/v1", Mode::Tools),
+    let suffix = match provider {
+        Provider::Cohere => "/v2",
+        _ => "/v1",
     };
-    ProviderConfig::new(provider, model, "local")
-        .with_base_url(format!("{endpoint}{suffix}"))
-        .with_mode(mode)
+    let config =
+        ProviderConfig::new(provider, model, "local").with_base_url(format!("{endpoint}{suffix}"));
+    match (provider, case["responses"].as_str()) {
+        (_, Some("text")) => config,
+        (_, Some("tool")) => config.with_mode(Mode::Tools),
+        (Provider::OpenAI | Provider::OpenRouter | Provider::Mistral, None) => {
+            config.with_chat_completions().with_mode(Mode::Tools)
+        }
+        (Provider::Cohere | Provider::Google, None) => config.with_mode(Mode::JsonSchema),
+        (_, None) => config.with_mode(Mode::Tools),
+        _ => unreachable!(),
+    }
 }
 
 fn run(case: &Value, endpoint: &str, ns: u128) -> Value {
@@ -183,8 +194,7 @@ fn run(case: &Value, endpoint: &str, ns: u128) -> Value {
             }
         }
         "batch_prepare" | "batch_parse" => {
-            let provider = string(case, "provider");
-            let client = BlockingClient::new(http_config(provider, endpoint)).unwrap();
+            let client = BlockingClient::new(http_config(case, endpoint)).unwrap();
             let batch = client.batch::<Record>().unwrap();
             if op == "batch_prepare" {
                 let prompts: Vec<_> = case["prompts"]
@@ -213,7 +223,7 @@ fn run(case: &Value, endpoint: &str, ns: u128) -> Value {
         }
         "http" | "http_stream" | "http_parallel" | "cache" => {
             let provider = string(case, "provider");
-            let client = BlockingClient::new(http_config(provider, endpoint)).unwrap();
+            let client = BlockingClient::new(http_config(case, endpoint)).unwrap();
             let client = if op == "cache" {
                 client.with_cache(10)
             } else {
