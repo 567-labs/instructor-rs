@@ -55,7 +55,7 @@ class Ticket(BaseModel):
 def http_operation(case, endpoint):
     provider = case["provider"]
     key = "local"
-    model = "retry" if provider == "retry" else "fixture"
+    model = case.get("model", "retry" if provider == "retry" else "fixture")
     options = {}
     parallel = case["op"] == "http_parallel"
     tool_mode = Mode.PARALLEL_TOOLS if parallel else Mode.TOOLS
@@ -64,9 +64,13 @@ def http_operation(case, endpoint):
         from instructor.cache import AutoCache
 
         options["cache"] = AutoCache(maxsize=10)
-    if provider in ("openai", "retry"):
+    if provider in ("openai", "retry") or "responses" in case:
         from openai import OpenAI
 
+        if "responses" in case:
+            tool_mode = Mode.RESPONSES_TOOLS
+            if case["responses"] == "text":
+                options["tool_choice"] = "none"
         client = instructor.from_openai(
             OpenAI(api_key=key, base_url=endpoint + "/v1"), mode=tool_mode
         )
@@ -146,12 +150,15 @@ def operation(case, endpoint, loop):
 
         processor = BatchProcessor(f"{case['provider']}/fixture", Record)
         if op == "batch_prepare":
+            temperature = None if case["provider"] == "anthropic" else 0.1
 
             def prepare_messages():
                 conversations = [
                     [{"role": "user", "content": p}] for p in case["prompts"]
                 ]
-                return processor.create_batch_from_messages(conversations)
+                return processor.create_batch_from_messages(
+                    conversations, temperature=temperature
+                )
 
             return prepare_messages
         text = case["text"]

@@ -143,7 +143,7 @@ def difference(a, b, path="result"):
     return f"{path}: {repr(a)[:200]} vs {repr(b)[:200]}"
 
 
-def expected_calls(report):
+def expected_calls(report, language):
     counts = Counter()
     for name, result in report.items():
         if name == "cache/hit":
@@ -157,6 +157,13 @@ def expected_calls(report):
                 counts["invalid"] += invocations
             if name.startswith("http-stream/"):
                 counts["stream"] += invocations
+            if "/responses-" in name:
+                counts[name.rsplit("/", 1)[1]] += invocations
+            if name == "http/google":
+                protocol = "interactions" if language == "rust" else "generateContent"
+                counts[protocol] += invocations
+            if name.endswith("/anthropic"):
+                counts["anthropic-2026-10-21"] += invocations
     return counts
 
 
@@ -178,9 +185,10 @@ def collect(workers, request, rounds, counts):
             raw = command(*workers[language], input=json.dumps(request), env=env)
             report = json.loads(raw)
             calls = counts - before
-            if calls != expected_calls(report):
+            expected = expected_calls(report, language)
+            if calls != expected:
                 raise ValueError(
-                    f"Unexpected {language} fixture calls {calls}, expected {expected_calls(report)}"
+                    f"Unexpected {language} fixture calls {calls}, expected {expected}"
                 )
             if report.keys() != samples.keys():
                 raise ValueError(f"{language} worker returned different workloads")
@@ -257,6 +265,7 @@ def main():
             "environment": environment,
             "rounds": rounds,
             "target_ms": target_ms,
+            "verified_fixture_calls": dict(counts),
             "samples": samples,
         }
         args.output.write_text(json.dumps(report, indent=2) + "\n")
