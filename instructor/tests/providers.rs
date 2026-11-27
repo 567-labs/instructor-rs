@@ -656,6 +656,54 @@ async fn errors_after_provisional_output_are_terminal_and_skip_complete() {
 }
 
 #[tokio::test]
+async fn provider_http_diagnostics_survive_terminal_errors() {
+    let mut server = Server::new_async().await;
+    for (provider, mode, stream, header, body, code) in [
+        (
+            Provider::OpenAI,
+            Mode::ResponsesTools,
+            false,
+            "x-request-id",
+            r#"{"error":{"message":"invalid local model","type":"invalid_request_error","code":"model_not_found"}}"#,
+            "model_not_found",
+        ),
+        (
+            Provider::Anthropic,
+            Mode::Tools,
+            true,
+            "request-id",
+            r#"{"type":"error","error":{"type":"invalid_request_error","message":"invalid local model"}}"#,
+            "invalid_request_error",
+        ),
+    ] {
+        let client = Client::new(config(&server, provider, mode)).unwrap();
+        let failed = mock(&mut server, provider, mode, stream)
+            .with_status(400)
+            .with_header(header, "req_local")
+            .with_body(body)
+            .expect(1)
+            .create_async()
+            .await;
+        let request = request().max_retries(3);
+        let err = if stream {
+            client
+                .create_partial::<Person>(request)
+                .await
+                .err()
+                .unwrap()
+        } else {
+            client.create::<Person>(request).await.unwrap_err()
+        };
+        let details = err.http_details().unwrap();
+        assert_eq!(details.status, 400);
+        assert_eq!(details.request_id.as_deref(), Some("req_local"));
+        assert_eq!(details.code.as_deref(), Some(code));
+        assert!(matches!(err, Error::Http { body: raw, .. } if raw == body));
+        failed.assert_async().await;
+    }
+}
+
+#[tokio::test]
 async fn openai_and_anthropic_and_router_handle_http_errors_refusals_and_malformed_tools() {
     let mut server = Server::new_async().await;
     for p in [Provider::OpenAI, Provider::Anthropic, Provider::OpenRouter] {
@@ -667,7 +715,10 @@ async fn openai_and_anthropic_and_router_handle_http_errors_refusals_and_malform
             .create_async()
             .await;
         let err = client.create::<Person>("prompt").await.unwrap_err();
-        assert!(matches!(err, Error::Http{status:429,body} if body=="quota"));
+        let details = err.http_details().unwrap();
+        assert_eq!(details.request_id, None);
+        assert_eq!(details.code, None);
+        assert!(matches!(err, Error::Http{status:429,body,..} if body=="quota"));
         rate_limited.assert_async().await;
         rate_limited.remove_async().await;
 

@@ -136,7 +136,7 @@ fn check_ticket(ticket: &mut Ticket, context: &serde_json::Value, strict: bool) 
 
 `DecisionRequest::context(context).strict(false)` passes `false` to this callback. Rust field types, label membership, and numeric ranges are enforced for every request. Application validators receive the original context. The result can be transformed in place.
 
-`DecisionError` identifies the failing stage. Invalid question specifications and templates fail before sending. HTTP errors include the status and response bytes. Missing answers, mismatched types, unknown labels, refusals, and out-of-range values are answer errors. OpenAI responses also require matching names, count, and order. Application failures produce `DecisionError::Validation`.
+`DecisionError` identifies the failing stage. Invalid question specifications and templates fail before sending. HTTP errors retain the status, request ID header and response bytes. Use `error.http_details()` for the status, request ID and provider code in an incident report. Missing answers, mismatched types, unknown labels, refusals, and out-of-range values are answer errors. OpenAI responses also require matching names, count, and order. Application failures produce `DecisionError::Validation`. [HTTP diagnostics](concepts.md#diagnose-a-failed-http-request)
 
 For an offline check, construct `PreparedDecision::<Ticket>::new(route, context)?`. Inspect its `.body()` and call `.parse(&raw)?` against a saved JSON response. The clients use the same preparation and parsing code.
 

@@ -523,6 +523,20 @@ fn blocking_provider_http_contracts() {
         assert_eq!(result, expected_ticket());
         assert_eq!(completion, raw);
         mock.assert();
+        mock.remove();
+        let rejected = server
+            .mock("POST", path)
+            .with_status(503)
+            .with_header("x-request-id", "req_unavailable")
+            .with_body([0xff])
+            .create();
+        let err = client.create::<Ticket>(context()).unwrap_err();
+        let details = err.http_details().unwrap();
+        assert_eq!(details.status, 503);
+        assert_eq!(details.request_id.as_deref(), Some("req_unavailable"));
+        assert_eq!(details.code, None);
+        assert!(matches!(err, DecisionError::Http { body, .. } if body == [0xff]));
+        rejected.assert();
     }
 }
 
@@ -578,19 +592,30 @@ async fn openrouter_errors_fail_once_and_client_recovers() {
     assert!(matches!(err, DecisionError::Request(_)));
     unexpected.assert_async().await;
     unexpected.remove_async().await;
-    for (status, body) in [(429, "rate limited"), (200, "{"), (200, "{}")] {
+    for (status, body) in [
+        (429, r#"{"error":{"message":"rate limited","code":429}}"#),
+        (200, "{"),
+        (200, "{}"),
+    ] {
         let mock = server
             .mock("POST", path)
             .with_status(status)
+            .with_header("x-request-id", "req_decision")
             .with_body(body)
             .expect(1)
             .create_async()
             .await;
         let error = client.create::<Ticket>(context()).await.unwrap_err();
+        if status == 429 {
+            let details = error.http_details().unwrap();
+            assert_eq!(details.status, 429);
+            assert_eq!(details.request_id.as_deref(), Some("req_decision"));
+            assert_eq!(details.code.as_deref(), Some("429"));
+        }
         match (status, body, error) {
-            (429, _, DecisionError::Http { status, body }) => {
+            (429, expected, DecisionError::Http { status, body, .. }) => {
                 assert_eq!(status, 429);
-                assert_eq!(body, b"rate limited");
+                assert_eq!(body, expected.as_bytes());
             }
             (200, "{", DecisionError::Json(_)) | (200, "{}", DecisionError::Answer(_)) => {}
             (_, _, e) => panic!("unexpected error: {e}"),

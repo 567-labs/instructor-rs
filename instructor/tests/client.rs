@@ -563,6 +563,7 @@ fn custom_policy_can_retry_transient_http_errors_without_changing_the_prompt() {
     let first = server
         .mock("POST", "/chat/completions")
         .with_status(429)
+        .with_body(r#"{"request_id":"req_limited","code":"rate_limit_exceeded"}"#)
         .create();
     let second = server
         .mock("POST", "/chat/completions")
@@ -574,6 +575,9 @@ fn custom_policy_can_retry_transient_http_errors_without_changing_the_prompt() {
     let client = BlockingClient::new(config(&server)).unwrap();
     let result = client
         .create::<Amount>(Request::new("query").retry_policy(|failed| {
+            let details = failed.error.http_details()?;
+            assert_eq!(details.request_id.as_deref(), Some("req_limited"));
+            assert_eq!(details.code.as_deref(), Some("rate_limit_exceeded"));
             matches!(failed.error, Error::Http { status: 429, .. })
                 .then_some(std::time::Duration::from_millis(1))
         }))
@@ -593,6 +597,8 @@ fn terminal_api_failure_after_reask_preserves_history_and_emits_last_attempt() {
     let second = server
         .mock("POST", "/chat/completions")
         .with_status(403)
+        .with_header("x-request-id", "req_denied")
+        .with_body(r#"{"error":{"code":"permission_denied"},"request_id":"fallback"}"#)
         .create();
     let last = Arc::new(Mutex::new(None));
     let log = last.clone();
@@ -601,17 +607,24 @@ fn terminal_api_failure_after_reask_preserves_history_and_emits_last_attempt() {
             *log.lock().unwrap() = Some(n)
         }
     });
-    let result = BlockingClient::new(config(&server))
+    let err = BlockingClient::new(config(&server))
         .unwrap()
-        .create::<Amount>(req);
-    let Err(Error::Retry {
+        .create::<Amount>(req)
+        .unwrap_err();
+    let details = err.http_details().unwrap();
+    assert_eq!(details.status, 403);
+    assert_eq!(details.request_id.as_deref(), Some("req_denied"));
+    assert_eq!(details.code.as_deref(), Some("permission_denied"));
+    let Error::Retry {
         reason: StopReason::Terminal,
         attempts,
         ..
-    }) = result
+    } = err
     else {
-        panic!("{result:?}")
+        panic!("{err:?}")
     };
+    assert_eq!(attempts[0].error.http_details(), None);
+    assert_eq!(attempts[1].error.http_details(), Some(details));
     assert_eq!(attempts[0].completion["usage"]["total_tokens"], 9);
     assert!(matches!(attempts[1].error, Error::Http { status: 403, .. }));
     assert_eq!(*last.lock().unwrap(), Some(2));

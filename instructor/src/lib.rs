@@ -45,7 +45,7 @@ pub use cache::{CacheRecord, ResponseCache};
 pub use client::{
     from_provider, BlockingClient, Client, Completion, HookHandle, OutputIterator, OutputStream,
 };
-pub use error::{Error, FailedAttempt, StopReason};
+pub use error::{Error, FailedAttempt, HttpErrorDetails, StopReason};
 pub use instruct_macros::{model, InstructMacro, ParallelTools, PartialModel};
 pub use instruct_macros_types::{InstructMacro, Partial, PartialModel};
 #[cfg(feature = "legacy-openai")]
