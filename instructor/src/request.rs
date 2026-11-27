@@ -174,6 +174,12 @@ impl Request {
         self
     }
 
+    /// Partition entries within the client's response cache, for example by tenant.
+    /// The namespace must be nonempty and is consumed locally.
+    pub fn cache_namespace(self, namespace: impl Into<String>) -> Self {
+        self.option("cache_namespace", namespace.into())
+    }
+
     /// Context for prompt templates and contextual validators.
     pub fn context(mut self, context: Value) -> Self {
         self.context = context;

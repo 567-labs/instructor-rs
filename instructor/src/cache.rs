@@ -95,7 +95,11 @@ impl Cache {
     }
 
     pub fn key<T>(req: &Request, body: &Value) -> String {
-        digest((std::any::type_name::<T>(), body, &req.context))
+        let identity = (std::any::type_name::<T>(), body, &req.context);
+        match req.options.get("cache_namespace") {
+            Some(namespace) => digest((identity, namespace)),
+            None => digest(identity),
+        }
     }
 
     pub fn clear(&self) -> io::Result<()> {
