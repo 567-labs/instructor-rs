@@ -59,7 +59,7 @@ fn declarations(provider: Provider) -> Value {
         }
         Provider::Anthropic => {
             let tools = fields.map(|(name, params)| json!({"name":name,"input_schema":params}));
-            json!({"tools":tools,"tool_choice":{"type":"any"}})
+            json!({"tools":tools,"tool_choice":{"type":"auto"}})
         }
         _ => {
             let tools=fields.map(|(name,params)|json!({"type":"function","function":{"name":name,"parameters":params}}));

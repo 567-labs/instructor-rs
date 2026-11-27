@@ -89,7 +89,7 @@ fn main() -> Result<(), Error> {
 }
 ```
 
-To let the model use a server-managed tool before extraction, add `.option("tools", serde_json::json!([{"type": "web_search"}]))` to the request. The client parses extraction function arguments or final structured output text. Use the Decisions client for typed judgments from the OpenAI Decisions endpoint. [Decisions](decisions.md)
+To let the model search before extraction, add `.option("tools", serde_json::json!([{"type": "web_search"}]))`. With a built-in tool, Responses can choose which tool to call. With just the extraction function, Instructor selects it by name. To request a structured text answer directly, set `.option("tool_choice", "none")`. The client parses function arguments or final structured text into the same Rust type. Use the Decisions client for typed judgments. [Decisions](decisions.md)
 
 For conversations containing prior tool results or other native input items, use `Request::native_messages`. Pass JSON objects shaped for the selected API. For example, in Responses mode, supply a previous response ID and its matching tool call ID.
 
@@ -128,7 +128,7 @@ fn main() -> Result<(), Error> {
 }
 ```
 
-For an incremental display, pass the same model ID to the `stream_partial` example. The parser reads streamed tool arguments. [Typed snapshots](streaming.md)
+With thinking enabled or a model that requires automatic tool selection, Instructor asks Claude to return only the tool call. To let Claude include explanatory text alongside its call, supply `.option("tool_choice", json!({"type": "auto"}))` and read the text from `create_with_completion`. The typed result requires a matching call. For an incremental display, use `create_partial` to read its arguments as they arrive. [Claude tool selection](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools) · [Typed snapshots](streaming.md)
 
 ### Reuse a prompt prefix
 
