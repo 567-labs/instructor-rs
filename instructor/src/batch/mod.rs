@@ -269,25 +269,35 @@ impl<T: ResponseModel> Batch<T> {
         requests: impl IntoIterator<Item = R>,
         path: impl AsRef<Path>,
     ) -> Result<(), Error> {
-        atomic_write(path.as_ref(), &self.prepare(requests)?)
+        let text = self.prepare(requests)?;
+        let path = path.as_ref();
+        let mut file = temporary_file(path)?;
+        file.write_all(text.as_bytes())
+            .map_err(|e| file_error(path, e))?;
+        replace_file(file, path)
     }
 }
 
-fn atomic_write(path: &Path, text: &str) -> Result<(), Error> {
-    fn write(path: &Path, text: &str) -> std::io::Result<()> {
-        let parent = path
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."));
-        let mut file = tempfile::NamedTempFile::new_in(parent)?;
-        file.write_all(text.as_bytes())?;
-        if let Ok(metadata) = std::fs::symlink_metadata(path) {
-            if metadata.is_file() {
-                file.as_file().set_permissions(metadata.permissions())?;
-            }
+fn file_error(path: &Path, error: std::io::Error) -> Error {
+    Error::Configuration(format!("writing {}: {error}", path.display()))
+}
+
+fn temporary_file(path: &Path) -> Result<tempfile::NamedTempFile, Error> {
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    tempfile::NamedTempFile::new_in(parent).map_err(|e| file_error(path, e))
+}
+
+fn replace_file(file: tempfile::NamedTempFile, path: &Path) -> Result<(), Error> {
+    if let Ok(metadata) = std::fs::symlink_metadata(path) {
+        if metadata.is_file() {
+            file.as_file()
+                .set_permissions(metadata.permissions())
+                .map_err(|e| file_error(path, e))?;
         }
-        file.persist(path)?;
-        Ok(())
     }
-    write(path, text).map_err(|e| Error::Configuration(format!("writing {}: {e}", path.display())))
+    file.persist(path).map_err(|e| file_error(path, e.error))?;
+    Ok(())
 }

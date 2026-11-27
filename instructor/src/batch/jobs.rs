@@ -5,6 +5,33 @@ use reqwest::{
     Method, RequestBuilder,
 };
 use std::time::Duration;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
+
+const BLOCK_SIZE: usize = 64 * 1024;
+
+fn file_path(id: &str) -> Result<String, Error> {
+    Ok(format!("/files/{}/content", segment(id)?))
+}
+
+fn invalid_utf8(error: std::str::Utf8Error) -> Error {
+    Error::Protocol(format!("invalid UTF-8 in batch results: {error}"))
+}
+
+async fn write_block(
+    output: &mut (impl AsyncWrite + Unpin),
+    bytes: &mut Vec<u8>,
+    eof: bool,
+) -> Result<(), Error> {
+    let len = match std::str::from_utf8(bytes) {
+        Ok(_) => bytes.len(),
+        // At most three bytes of a character can span two blocks.
+        Err(err) if !eof && err.error_len().is_none() => err.valid_up_to(),
+        Err(err) => return Err(invalid_utf8(err)),
+    };
+    output.write_all(&bytes[..len]).await?;
+    bytes.drain(..len);
+    Ok(())
+}
 
 fn text<'a>(v: &'a Value, key: &str) -> Result<&'a str, Error> {
     v.get(key)
@@ -210,24 +237,12 @@ impl<T: ResponseModel> Batch<T> {
         Ok(serde_json::from_slice(&bytes)?)
     }
 
-    async fn fetch(&self, path: &str) -> Result<String, Error> {
-        let bytes = send(self.api(Method::GET, path)?).await?.bytes().await?;
-        String::from_utf8(bytes.to_vec())
-            .map_err(|e| Error::Protocol(format!("invalid UTF-8 in batch results: {e}")))
-    }
-
-    async fn fetch_file(&self, id: &str) -> Result<String, Error> {
-        self.fetch(&format!("/files/{}/content", segment(id)?))
-            .await
-    }
-
-    /// Retrieve every available record, including OpenAI's separate errors file.
-    pub async fn results_raw(&self, id: &str) -> Result<String, Error> {
+    async fn result_paths(&self, id: &str) -> Result<Vec<String>, Error> {
         let job = self.status(id).await?;
         match self.provider() {
-            Provider::OpenAI => self.openai_results(job).await,
+            Provider::OpenAI => self.openai_result_paths(job).await,
             Provider::Anthropic if job.status == "ended" => {
-                self.fetch(&format!("{}/results", self.path(id)?)).await
+                Ok(vec![format!("{}/results", self.path(id)?)])
             }
             Provider::Mistral if job.status == "SUCCESS" => {
                 if job.request_counts["succeeded"] == 0
@@ -235,27 +250,19 @@ impl<T: ResponseModel> Batch<T> {
                 {
                     return Err(Error::Provider("all Mistral requests failed".into()));
                 }
-                self.fetch_file(text(&job.raw, "output_file")?).await
+                Ok(vec![file_path(text(&job.raw, "output_file")?)?])
             }
             _ => Err(unavailable(&job)),
         }
     }
 
-    async fn openai_results(&self, mut job: BatchJob) -> Result<String, Error> {
+    async fn openai_result_paths(&self, mut job: BatchJob) -> Result<Vec<String>, Error> {
         for attempt in 0..=10 {
             if !matches!(job.status.as_str(), "completed" | "expired" | "cancelled") {
                 return Err(unavailable(&job));
             }
             if let Some(files) = openai_files(&job) {
-                let mut result = String::new();
-                for id in files {
-                    let text = self.fetch_file(id).await?;
-                    if !result.is_empty() && !result.ends_with('\n') {
-                        result.push('\n');
-                    }
-                    result.push_str(&text);
-                }
-                return Ok(result);
+                return files.into_iter().map(file_path).collect();
             }
             if attempt < 10 {
                 tokio::time::sleep(Duration::from_secs(5 + attempt)).await;
@@ -268,13 +275,67 @@ impl<T: ResponseModel> Batch<T> {
         )))
     }
 
-    /// Replace the destination only after every result file is received.
+    async fn copy_results(
+        &self,
+        paths: Vec<String>,
+        output: &mut (impl AsyncWrite + Unpin),
+    ) -> Result<(), Error> {
+        let mut block = Vec::new();
+        let mut separator = false;
+        for path in paths {
+            let mut response = send(self.api(Method::GET, &path)?).await?;
+            if separator {
+                block.push(b'\n');
+                separator = false;
+            }
+            while let Some(chunk) = response.chunk().await? {
+                let mut rest = chunk.as_ref();
+                if let Some(last) = rest.last() {
+                    separator = *last != b'\n';
+                }
+                while !rest.is_empty() {
+                    let n = rest.len().min(BLOCK_SIZE - block.len());
+                    block.extend_from_slice(&rest[..n]);
+                    rest = &rest[n..];
+                    if block.len() == BLOCK_SIZE {
+                        write_block(output, &mut block, false).await?;
+                    }
+                }
+            }
+            write_block(output, &mut block, true).await?;
+        }
+        output.flush().await?;
+        Ok(())
+    }
+
+    /// Retrieve every available record, including OpenAI's separate errors file.
+    pub async fn results_raw(&self, id: &str) -> Result<String, Error> {
+        let mut bytes = Vec::new();
+        self.copy_results(self.result_paths(id).await?, &mut bytes)
+            .await?;
+        Ok(String::from_utf8(bytes).expect("write_block validates UTF-8"))
+    }
+
+    /// Stream results to a temporary file and replace the destination on success.
+    /// Dropping the future during the transfer discards the partial file.
     pub async fn download(&self, id: &str, path: impl AsRef<Path>) -> Result<(), Error> {
-        let contents = self.results_raw(id).await?;
-        let path = path.as_ref().to_owned();
-        tokio::task::spawn_blocking(move || atomic_write(&path, &contents))
+        let paths = self.result_paths(id).await?;
+        let path = path.as_ref();
+        let dest = path.to_owned();
+        let temporary = tokio::task::spawn_blocking(move || temporary_file(&dest))
             .await
-            .map_err(|e| Error::Protocol(e.to_string()))?
+            .map_err(|e| Error::Protocol(e.to_string()))??;
+        let (file, guard) = temporary.into_parts();
+        let mut output = tokio::fs::File::from_std(file);
+        self.copy_results(paths, &mut output)
+            .await
+            .map_err(|err| match err {
+                Error::Io(e) => file_error(path, e),
+                other => other,
+            })?;
+        let ready = tempfile::NamedTempFile::from_parts(output.into_std().await, guard);
+        // Keep the rename on this task. A detached writer could publish after cancellation.
+        replace_file(ready, path)
     }
 }
 
