@@ -4,7 +4,7 @@ use serde_json::{json, Map};
 use std::{collections::HashSet, marker::PhantomData};
 
 enum Expected {
-    Choice(Vec<String>),
+    Choice(Vec<Value>),
     Noul,
     Score { max: f64, scale: Option<(f64, f64)> },
 }
@@ -30,10 +30,7 @@ impl Expected {
         let (key, max, scale) = match self {
             Self::Choice(labels) => {
                 let value = &answer["choice"];
-                if !labels
-                    .iter()
-                    .any(|label| value.as_str() == Some(label.as_str()))
-                {
+                if !labels.contains(value) {
                     return Err("expected a declared choice label".into());
                 }
                 return Ok(value.clone());
@@ -111,15 +108,16 @@ fn build_question(
             instructions,
             options,
         } => {
-            if !(1..=255).contains(&options.len()) {
-                return Err("a choice requires 1 to 255 options".into());
+            let min = if openai { 2 } else { 1 };
+            if !(min..=255).contains(&options.len()) {
+                return Err(format!("a choice requires {min} to 255 options"));
             }
             let mut labels = Vec::with_capacity(options.len());
             let mut choices = Vec::new();
             let mut criteria = Map::new();
             for option in options {
-                if option.label.is_empty() || labels.contains(&option.label) {
-                    return Err("choice labels must be unique nonempty strings".into());
+                if option.label == "" || labels.contains(&option.label) {
+                    return Err("choice labels must be unique and nonempty".into());
                 }
                 let meaning = with_examples(option.meaning, option.examples)?;
                 if openai {
@@ -129,7 +127,11 @@ fn build_question(
                     }
                     choices.push(item);
                 } else {
-                    criteria.insert(option.label.clone(), meaning);
+                    let key = option
+                        .label
+                        .as_str()
+                        .ok_or("boolean choice values require OpenAI")?;
+                    criteria.insert(key.to_owned(), meaning);
                 }
                 labels.push(option.label);
             }
@@ -171,7 +173,8 @@ fn build_question(
                 }
                 let meaning = with_examples(level.meaning, level.examples)?;
                 levels.push(if openai {
-                    json!({"label": i.to_string(), "description": text(meaning)})
+                    let label = level.label.unwrap_or_else(|| i.to_string());
+                    json!({"label": label, "description": text(meaning)})
                 } else {
                     meaning
                 });
@@ -199,16 +202,60 @@ fn build_question(
     render(&mut instructions, context)?;
     if openai {
         question.insert("name".into(), name.into());
-        let mut description = text(instructions);
-        if let Some(criteria) = question.remove("criteria") {
-            description.push_str("\nCriteria: ");
-            description.push_str(&text(criteria));
-        }
-        instructions = Value::String(description);
+        instructions = openai_instructions(instructions, question.remove("criteria"))?;
     }
     question.insert("type".into(), expected.kind(provider).into());
     question.insert("instructions".into(), instructions);
     Ok((Value::Object(question), expected))
+}
+
+fn openai_instructions(mut instructions: Value, criteria: Option<Value>) -> Result<Value, String> {
+    let criteria = criteria.map(|value| format!("Criteria: {}", text(value)));
+    if let Some(parts) = instructions.as_array_mut() {
+        let native = parts.iter().any(|part| {
+            matches!(
+                part["type"].as_str(),
+                Some("input_text" | "input_image" | "input_json")
+            )
+        });
+        if native {
+            if let Some(text) = criteria {
+                parts.push(json!({"type":"input_text", "text":text}));
+            }
+            for part in parts {
+                if !part["prompt_cache_breakpoint"].is_null() {
+                    return Err("place prompt cache breakpoints in shared input".into());
+                }
+                let valid = match part["type"].as_str() {
+                    Some("input_text") => part["text"].is_string(),
+                    Some("input_image") => part["image_url"].as_str().is_some_and(|s| {
+                        s.starts_with("https://")
+                            || s.starts_with("http://")
+                            || s.starts_with("data:")
+                    }),
+                    Some("input_json") => {
+                        part["data"].is_object()
+                            || part["data"]
+                                .as_array()
+                                .is_some_and(|a| a.iter().all(Value::is_object))
+                    }
+                    _ => false,
+                };
+                if !valid {
+                    return Err(
+                        "expected input_text, input_image or input_json instruction parts".into(),
+                    );
+                }
+            }
+            return Ok(instructions);
+        }
+    }
+    let mut description = text(instructions);
+    if let Some(criteria) = criteria {
+        description.push('\n');
+        description.push_str(&criteria);
+    }
+    Ok(Value::String(description))
 }
 
 fn text(value: Value) -> String {
@@ -262,6 +309,25 @@ impl<T: DecisionModel> PreparedDecision<T> {
                 "context must be a JSON object".into(),
             ));
         }
+        if !request.openai_options.is_empty() {
+            if !openai {
+                return Err(DecisionError::Request(
+                    "prompt cache and safety controls require OpenAI".into(),
+                ));
+            }
+            for (key, limit) in [("prompt_cache_key", 64), ("safety_identifier", 128)] {
+                if request
+                    .openai_options
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .is_some_and(|s| s.chars().nth(limit).is_some())
+                {
+                    return Err(DecisionError::Request(format!(
+                        "{key} exceeds {limit} characters"
+                    )));
+                }
+            }
+        }
         if let Some(input) = &request.input {
             if !openai {
                 return Err(DecisionError::Request(
@@ -283,6 +349,11 @@ impl<T: DecisionModel> PreparedDecision<T> {
         if questions.is_empty() {
             return Err(DecisionError::Request(
                 "expected at least one decision question".into(),
+            ));
+        }
+        if openai && questions.len() > 400 {
+            return Err(DecisionError::Request(
+                "OpenAI accepts up to 400 questions".into(),
             ));
         }
         let mut names = HashSet::new();
@@ -307,7 +378,8 @@ impl<T: DecisionModel> PreparedDecision<T> {
             fields.push((name, expected));
         }
 
-        let mut body = json!({"model": route.model});
+        let mut body = Value::Object(request.openai_options);
+        body["model"] = route.model.clone().into();
         let openai_context = if openai {
             body["input"] = request
                 .input

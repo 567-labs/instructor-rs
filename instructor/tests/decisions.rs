@@ -1,6 +1,6 @@
 use instructor_ai::decisions::{
     Answers, Choice, Choices, DecisionError, DecisionModel, DecisionRequest, DecisionsConfig,
-    Level, NamedQuestion, Noul, PreparedDecision, Question, Score,
+    Level, NamedQuestion, Noul, PreparedDecision, PromptCacheMode, Question, Score,
 };
 use mockito::{Matcher, Server};
 use serde_json::{json, Value};
@@ -8,7 +8,7 @@ use std::time::Duration;
 
 const OPENAI: &str = "openai/gpt-6-luna";
 const TYPESAFE: &str = "typesafe/jev-latest";
-const OPENROUTER: &str = "openrouter/typesafe/jev-1.13";
+const OPENROUTER: &str = "openrouter/typesafe/jev-1.14";
 const ROUTES: [(&str, &str, &str, &str); 3] = [
     (
         OPENAI,
@@ -166,7 +166,7 @@ fn native_items() -> Value {
 
 #[test]
 fn jev_schema_and_raw_response_are_provider_independent() {
-    for (route, model) in [(OPENROUTER, "typesafe/jev-1.13"), (TYPESAFE, "jev-latest")] {
+    for (route, model) in [(OPENROUTER, "typesafe/jev-1.14"), (TYPESAFE, "jev-latest")] {
         let prepared = prepared(route);
         assert_eq!(prepared.body(), &jev_request(model));
         let result: Ticket = prepared.parse(&jev_response()).unwrap();
@@ -540,6 +540,140 @@ fn blocking_provider_http_contracts() {
     }
 }
 
+#[test]
+fn openai_native_evidence_boolean_labels_and_prompt_cache_controls() {
+    #[derive(Choices, Debug, PartialEq)]
+    enum Label {
+        #[choice(value = true)]
+        Flag,
+        #[choice(value = "true")]
+        Literal,
+    }
+    #[derive(DecisionModel)]
+    struct Inspection {
+        #[decision(Question::new(json!([
+            {"type":"input_text", "text":"Read the {{ item }} label."},
+            {"type":"input_image", "image_url":"https://example.com/label.png"}
+        ])))]
+        label: Label,
+        /// Does the parcel have a seal?
+        sealed: bool,
+        #[decision(Noul::new(json!([
+            {"type":"input_text", "text":"Matches the order?"},
+            {"type":"input_json", "data":{"order":7}}
+        ])).when_true("Match"))]
+        correct: f64,
+        #[decision(Score::new("Damage?", [Level::new("Intact").label("low"), Level::new("Crushed").label("high")]))]
+        damage: f64,
+    }
+    let input = json!([{"role":"user","content":[{
+        "type":"input_image","image_url":"https://example.com/parcel.png",
+        "prompt_cache_breakpoint":{"mode":"explicit"}
+    }]}]);
+    let request = DecisionRequest::input(input.clone())
+        .with_context(json!({"item":"parcel"}))
+        .prompt_cache_key("parcel-v1")
+        .prompt_cache_mode(PromptCacheMode::Explicit)
+        .safety_identifier("user-42");
+    let body = json!({
+        "model":"gpt-6-luna", "input":input, "prompt_cache_key":"parcel-v1",
+        "prompt_cache_options":{"mode":"explicit"}, "safety_identifier":"user-42",
+        "questions":[
+            {"type":"choice","name":"label","instructions":[
+                {"type":"input_text", "text":"Read the parcel label."},
+                {"type":"input_image", "image_url":"https://example.com/label.png"}
+            ], "choices":[{"value":true},{"value":"true"}]},
+            {"type":"choice","name":"sealed","instructions":"Does the parcel have a seal?",
+             "choices":[{"value":true},{"value":false}]},
+            {"type":"predicate","name":"correct","instructions":[
+                {"type":"input_text", "text":"Matches the order?"},
+                {"type":"input_json", "data":{"order":7}},
+                {"type":"input_text", "text":"Criteria: {\"true\":\"Match\"}"}
+            ]},
+            {"type":"score","name":"damage","instructions":"Damage?", "levels":[
+                {"label":"low","description":"Intact"},{"label":"high","description":"Crushed"}
+            ]}
+        ]
+    });
+    let reply = json!({
+        "answers":[
+            {"type":"choice","name":"label","choice":true},
+            {"type":"choice","name":"sealed","choice":false},
+            {"type":"predicate","name":"correct","probability":0.75},
+            {"type":"score","name":"damage","score":0.4,"probabilities":[
+                {"value":0,"label":"low","probability":0.6},{"value":1,"label":"high","probability":0.4}
+            ]}
+        ],"usage":{"input_tokens_details":{"cached_tokens":1024,"cache_write_tokens":0}}
+    });
+    let mut server = Server::new();
+    let mock = server
+        .mock("POST", "/v1/decisions")
+        .match_header("authorization", "Bearer local")
+        .match_body(Matcher::Json(body))
+        .with_body(reply.to_string())
+        .create();
+    let client = DecisionsConfig::new(OPENAI)
+        .unwrap()
+        .api_key("local")
+        .endpoint(server.url() + "/v1/decisions")
+        .build_blocking()
+        .unwrap();
+    let (result, mut raw) = client
+        .create_with_completion::<Inspection>(request.clone())
+        .unwrap();
+    mock.assert();
+    assert_eq!(result.label, Label::Flag);
+    assert!(!result.sealed);
+    assert_eq!(result.correct, 0.75);
+    assert_eq!(result.damage, 0.4);
+    assert_eq!(raw, reply);
+    let prepared = PreparedDecision::<Inspection>::new(OPENAI, request).unwrap();
+    raw["answers"][0]["choice"] = "true".into();
+    assert_eq!(prepared.parse(&raw).unwrap().label, Label::Literal);
+    raw["answers"][1]["choice"] = "false".into();
+    assert!(matches!(
+        prepared.parse(&raw),
+        Err(DecisionError::Answer(_))
+    ));
+}
+
+#[test]
+fn provider_question_and_cache_limits() {
+    struct Survey<const N: usize>;
+    impl<const N: usize> DecisionModel for Survey<N> {
+        fn questions() -> Vec<NamedQuestion> {
+            (0..N)
+                .map(|i| Question::from(Noul::new("Relevant?")).named(format!("q{i}")))
+                .collect()
+        }
+        fn from_answers(_: Answers) -> Result<Self, DecisionError> {
+            Ok(Self)
+        }
+    }
+    let valid = DecisionRequest::context(json!({}))
+        .safety_identifier("s".repeat(128))
+        .prompt_cache_key("k".repeat(64));
+    assert!(PreparedDecision::<Survey<400>>::new(OPENAI, valid.clone()).is_ok());
+    assert!(PreparedDecision::<Survey<401>>::new(OPENAI, valid.clone()).is_err());
+    for (route, req) in [
+        (OPENAI, valid.clone().safety_identifier("s".repeat(129))),
+        (OPENAI, valid.clone().prompt_cache_key("k".repeat(65))),
+        (TYPESAFE, valid),
+    ] {
+        assert!(matches!(
+            PreparedDecision::<Survey<1>>::new(route, req),
+            Err(DecisionError::Request(_))
+        ));
+    }
+    #[derive(DecisionModel)]
+    struct One {
+        #[decision(Question::choices("Only one?", ["single"]))]
+        label: String,
+    }
+    assert!(PreparedDecision::<One>::new(OPENAI, json!({})).is_err());
+    assert!(PreparedDecision::<One>::new(TYPESAFE, json!({})).is_ok());
+}
+
 #[tokio::test]
 async fn async_provider_http_contracts() {
     let mut server = Server::new_async().await;
@@ -795,7 +929,7 @@ fn existing_blocking_client_shares_model_credentials_and_transport() {
 async fn openrouter_chat_client_uses_alpha_route_for_jev() {
     use instructor_ai::{Client, Provider, ProviderConfig};
     let mut server = Server::new_async().await;
-    let route = "typesafe/jev-1.13";
+    let route = "typesafe/jev-1.14.0";
     let config = ProviderConfig::new(Provider::OpenRouter, route, "shared")
         .with_base_url(format!("{}/api/v1/", server.url()));
     let parent = Client::new(config).unwrap();

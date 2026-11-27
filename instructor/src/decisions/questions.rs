@@ -11,20 +11,50 @@ pub trait Choices: Sized {
     fn instructions() -> &'static str;
     fn options() -> Vec<Choice>;
     fn from_choice(label: &str) -> Option<Self>;
+    fn from_choice_value(value: &Value) -> Option<Self> {
+        Self::from_choice(value.as_str()?)
+    }
+}
+
+impl Choices for bool {
+    fn instructions() -> &'static str {
+        ""
+    }
+
+    fn options() -> Vec<Choice> {
+        vec![Choice::boolean(true), Choice::boolean(false)]
+    }
+
+    fn from_choice(_: &str) -> Option<Self> {
+        None
+    }
+
+    fn from_choice_value(value: &Value) -> Option<Self> {
+        value.as_bool()
+    }
 }
 
 /// One named answer with optional criteria and examples.
 #[derive(Debug, Clone)]
 pub struct Choice {
-    pub(super) label: String,
+    pub(super) label: Value,
     pub(super) meaning: Value,
     pub(super) examples: Vec<String>,
 }
 
 impl Choice {
     pub fn new(label: impl Into<String>) -> Self {
+        Self::from_label(Value::String(label.into()))
+    }
+
+    #[doc(hidden)]
+    pub fn boolean(value: bool) -> Self {
+        Self::from_label(Value::Bool(value))
+    }
+
+    fn from_label(label: Value) -> Self {
         Self {
-            label: label.into(),
+            label,
             meaning: Value::Null,
             examples: Vec::new(),
         }
@@ -105,6 +135,7 @@ impl Noul {
 /// One position in an ordered score rubric.
 #[derive(Debug, Clone)]
 pub struct Level {
+    pub(super) label: Option<String>,
     pub(super) meaning: Value,
     pub(super) examples: Vec<String>,
 }
@@ -112,9 +143,17 @@ pub struct Level {
 impl Level {
     pub fn new(meaning: impl Into<Value>) -> Self {
         Self {
+            label: None,
             meaning: meaning.into(),
             examples: Vec::new(),
         }
+    }
+
+    /// Name this level in the OpenAI probability distribution. The answer
+    /// remains a weighted average of the level indices.
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
     }
 
     pub fn example(mut self, example: impl ToString) -> Self {
@@ -272,7 +311,7 @@ impl<T: Choices> DecisionValue for T {
         self.validate_choice(context)
     }
     fn decode(answer: Value) -> Option<Self> {
-        T::from_choice(answer.as_str()?)
+        T::from_choice_value(&answer)
     }
 }
 
