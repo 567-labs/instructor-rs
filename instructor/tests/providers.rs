@@ -852,8 +852,12 @@ async fn anthropic_thinking_tools_use_auto_and_keep_native_options() {
             body["system"][0]["cache_control"] = json!({"type":"ephemeral"});
         }
         if let Some(mode) = thinking {
-            req = req.option("thinking", json!({"type":mode}));
-            body["thinking"] = json!({"type":mode});
+            let config = match mode {
+                "enabled" => json!({"type":mode,"budget_tokens":1024}),
+                _ => json!({"type":mode}),
+            };
+            req = req.option("thinking", config.clone());
+            body["thinking"] = config;
         }
         let m = mock(&mut server, Provider::Anthropic, Mode::Tools, false)
             .match_body(Matcher::PartialJson(body))
